@@ -1,0 +1,6 @@
+defs.mk
+os161-cpen331-docker/
+cscope*
+build/
+root/
+kern/compile
