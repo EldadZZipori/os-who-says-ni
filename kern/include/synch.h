@@ -36,6 +36,8 @@
 
 
 #include <spinlock.h>
+#include <stdbool.h>
+#include <thread.h>
 
 /*
  * Dijkstra-style semaphore.
@@ -71,11 +73,22 @@ void V(struct semaphore *);
  *
  * The name field is for easier debugging. A copy of the name is
  * (should be) made internally.
+ * 
+ * The locked field is the state of the lock: held or free. 
+ * 
+ * The holder field indicates which thread holds this lock.
+ * 
+ * The wchan field is a wait channel for sleeping threads waiting on 
+ * the lock. 
+ * 
+ * The spinlock field is a spinlock that protects the lk_chan and lk_holder fields.
  */
 struct lock {
         char *lk_name;
-        // add what you need here
-        // (don't forget to mark things volatile as needed)
+        struct thread *lk_holder;
+        struct wchan *lk_wchan;
+        struct spinlock lk_spinlock;
+        volatile bool lk_lock;
 };
 
 struct lock *lock_create(const char *name);

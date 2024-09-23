@@ -1,6 +1,8 @@
 defs.mk
 os161-cpen331-docker/
 cscope*
-build/
+**/build
 root/
 kern/compile
+.vscode/
+

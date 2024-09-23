@@ -155,6 +155,7 @@ lock_create(const char *name)
         }
 
         // add stuff here as needed
+        lock->lk_lock = false;
 
         return lock;
 }
@@ -167,33 +168,96 @@ lock_destroy(struct lock *lock)
         // add stuff here as needed
 
         kfree(lock->lk_name);
+        kfree(lock->lk_lock);
         kfree(lock);
 }
 
 void
 lock_acquire(struct lock *lock)
 {
-        // Write this
+        KASSERT(lock != NULL);
 
-        (void)lock;  // suppress warning until code gets written
+        /*
+         * May not block in an interrupt handler.
+         *
+         * 
+         */
+        KASSERT(curthread->t_in_interrupt == false); // not sure if this is required.
+
+        spinlock_acquire(&lock->lk_spinlock);
+
+        while (lock->lk_lock) {
+                /**
+                 * If the lock is held by another thread, sleep on lock's wait channel.
+                */
+                wchan_sleep(lock->lk_wchan, &lock->lk_spinlock);
+                // Do I have to release spinlock here? 
+        }
+        /** 
+         * Lock is now free -- do we still have the spinlock though?  
+        */
+        KASSERT(lock->lk_lock == false);
+        
+        /** 
+         * Update necessary fields to reflect current thread owns lock
+        */
+        lock->lk_lock = true; 
+        lock->lk_holder = curthread; // can we just use the address in lock_do_i_hold? Probably better since we don't know if non-duplicating thread names are enforced.
+
+        /**
+         * Release spinlock, allowing other threads to join wchan while we run.
+        */
+       spinlock_release(&lock->lk_spinlock);
 }
 
 void
 lock_release(struct lock *lock)
 {
-        // Write this
+        KASSERT(lock != NULL);
 
-        (void)lock;  // suppress warning until code gets written
+        /*
+         * May not block in an interrupt handler.
+         *
+         * 
+         */
+        KASSERT(curthread->t_in_interrupt == false); // not sure if this is required.
+        
+        /** 
+         * We must hold this lock. 
+         * 
+         * Note that this function requires lk->spinlock, so don't 
+         * try to acquire the lock's spinlock yet. 
+        */
+        KASSERT(lock_do_i_hold(lock));
+
+        /** 
+         * We do own this lock. Another thread may still 
+         * own the spinlock, so we can't ensure that 
+         * the wchan hasn't changed since we asserted that we 
+         * hold this lock. 
+         * 
+         * However, we can assert that we still hold the lock, 
+         * as long as no other function modifies 
+         * lock->lk_holder. 
+        */
+        spinlock_acquire(&lock->lk_spinlock);
+
+        lock->lk_lock = false; 
+
+        KASSERT(lock->lk_lock == false); // make sure not changed by another thread.
+
+        wchan_wakeone(lock->lk_wchan, &lock->lk_spinlock);
+
+        spinlock_release(&lock->lk_spinlock);
 }
 
 bool
 lock_do_i_hold(struct lock *lock)
 {
-        // Write this
-
-        (void)lock;  // suppress warning until code gets written
-
-        return true; // dummy until code gets written
+        spinlock_acquire(&lock->lk_spinlock);
+        bool val = lock->lk_lock;
+        spinlock_release(&lock->lk_spinlock);
+        return val;
 }
 
 ////////////////////////////////////////////////////////////

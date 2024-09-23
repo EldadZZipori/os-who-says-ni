@@ -1,0 +1,81 @@
+============================
+=   Assignment 2 Answers   =
+=   Kyle Mackenzie         =
+=   Started 09/13/24       =
+============================
+
+
+Question 1: What happens to a thread when it exits (i.e., calls thread_exit())? What about when it sleeps?
+
+Answer 1: 
+- First, `proc_remthread` is called to remove the thread from the process. 
+   - acquire process lock 
+   - remove thread from process' thread array
+   - release process lock
+- check process is detached from thread
+- restore the thread's stack guard band back to the magic number, to catch future overflows? 
+- turn off interrupts
+- switch current thread's state to zombie, updating the cpu's list of zombies 
+- after this, `exorcise` is called on the cpu, which kills all zombie threads
+- if the thread is not killed, it calls panic. This should never happen.
+
+When a thread sleeps, 
+- thread gets added to a wait channel by acquiring the wait channel's lock, and adding it to the end of the queue using threadlist_addtail, then releases a lock. Now that this thread is on the wait channel's wait queue, it can be re-awakened by a wakeone() or wakeall() call. 
+
+Question 2: What function(s) handle(s) a context switch?
+
+Answer 2: 
+- Before the context switch, the switch frame is initialized using `switchframe_init` in switch.c, which saves most argument registers, not including a0-a3, which get stored in the s* registers using the assembly function (mips_threadstart)
+- The function that handles a context switch is the global function switchframe_switch in switch.S, which actually allocates stack space for the switchframe and saves the register in it.
+
+Question 3: What does it mean for a thread to be in each of the possible thread states?
+
+Answer 3: 
+- S_RUN: Thread is currently running on a cpu.
+
+- S_READY: Thread is ready to run, which means it is not asleep, but it is waiting to be ran. This means it is sitting on one of the cpu resource's run queue, the queue that stores threads that are ready to run. This can be found in thread.c line 467: 	
+    `threadlist_addtail(&targetcpu->c_runqueue, target);`
+
+- S_SLEEP: Thread is currently sleeping, meaning it is waiting for a resource and should not be added to a cpu's wait queue. This is done by calling wchan_sleep() in a thread, and finished by calling wchan_wakeone() or wchan_wakeall(), releasing a thread or threads from the wait queue.
+- S_ZOMBIE: Thread has exited but not been deleted. This is ideally a transient state, as seen in my Answer to question 1. `exorcise` should be called soon after a thread's state is set to S_ZOMBIE. If it is not exorcised (removed), then panic("braaaaaaaiiiiiiiiiiinssssss\n") is called.
+
+Question 4: What does it mean to turn interrupts off? How is this accomplished? Why is it important to turn off interrupts in the thread subsystem code?
+
+Answer 4: Turning interrupts off happens on a processor-by-processor basis. This prevents interrupts from taking control of a cpu and, for example, starting a context switch. This is accomplished through the set of functions defined in `spl.h` including: 
+ - spl0     -> set interrupt priority level to 0, enabling all interrupts
+ - splhigh  -> set interrupt priority level to highest, disabling all interrupts
+ - splx(int)-> set interrupt priority level to input, enabling some desired-level interrupts
+ - and a few others. 
+It is important to turn off interrupts in critical sections where allowing a context switch to another thread may cause unsafe behavior, for example, during a context switch, or 
+
+Question 5: What happens when a thread wakes up another thread? How does a sleeping thread get to run again?
+
+Answer 5: When a thread wakes up another thread, it moves off of the wait queue and into the run queue using `thread_make_runnable`. From here, it is started through a context switch whenever a running thread yields itself or exits.
+
+Question 6: What function(s) choose(s) the next thread to run?
+
+Answer 6: The `thread_switch` function chooses the next thread to run once it's changed the current thread's state to S_READY, S_SLEEP, or S_ZOMBIE. It does so by removing the head from the current cpu's run queue: 
+642 |        next = threadlist_remhead(&curcpu->c_runqueue);
+
+Question 7: How does it (do they) pick the next thread?
+
+Answer 7: As mentioned in the previous question, it takes it from the head (the front) of the queue to enforce FIFO behavior. It then calls a context switch from the current thread to the next thread.
+
+Question 8: What role does the hardware timer play in scheduling? What hardware independent function is called on a timer interrupt?
+
+Answer 8: The hardware timer appears to wake all threads every 1 second in `timerclock` in `clock.c`, enforcing that no threads ever stay asleep forever. Additionally `thread_consider_migration` is called periodically on each processor inside `hardclock`, which moves threads to other cpus in the case that curcpu is busy and others are idle or less busy.
+
+Question 9: Describe how wchan_sleep() and wchan_wakeone() are used to implement semaphores.
+
+Answer 9: 
+Personal notes:
+- wchan_sleep() is the P function (decrement), acquiring a semaphore as long as its greater than zero.
+- wchan_wakeone() is the V function (increment), releasing a semaphore
+- Why would we use a semaphore? It limits the amount of threads that can sleep. 
+Answer: 
+- wchan_sleep() and wchan_wakeone() does not seem to implement a semaphore. 
+
+Question 10: How does the implementation of wchan ensure that a thread never misses a wakeup signal: that another thread cannot attempt to awaken the first thread just as it is preparing to sleep, but before it is actually placed into the sleep queue?
+
+Answer 10: 
+
