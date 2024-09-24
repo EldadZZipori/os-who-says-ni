@@ -59,7 +59,7 @@ Answer 6: The `thread_switch` function chooses the next thread to run once it's 
 
 Question 7: How does it (do they) pick the next thread?
 
-Answer 7: As mentioned in the previous question, it takes it from the head (the front) of the queue to enforce FIFO behavior. It then calls a context switch from the current thread to the next thread.
+Answer 7: As mentioned in the previous question, it takes it from the head (the front) of the queue to loosely enforce FIFO behavior. It then calls a context switch from the current thread to the next thread.
 
 Question 8: What role does the hardware timer play in scheduling? What hardware independent function is called on a timer interrupt?
 
@@ -68,14 +68,11 @@ Answer 8: The hardware timer appears to wake all threads every 1 second in `time
 Question 9: Describe how wchan_sleep() and wchan_wakeone() are used to implement semaphores.
 
 Answer 9: 
-Personal notes:
-- wchan_sleep() is the P function (decrement), acquiring a semaphore as long as its greater than zero.
-- wchan_wakeone() is the V function (increment), releasing a semaphore
-- Why would we use a semaphore? It limits the amount of threads that can sleep. 
-Answer: 
-- wchan_sleep() and wchan_wakeone() does not seem to implement a semaphore. 
+ - the wchan is used as a wait queue for threads waiting to hold the semaphore. Therefore wchan_sleep is in the P function 
+ for unsuccessful attempts to hold the semaphore, and wchan_wakeone is used in the V function.
 
-Question 10: How does the implementation of wchan ensure that a thread never misses a wakeup signal: that another thread cannot attempt to awaken the first thread just as it is preparing to sleep, but before it is actually placed into the sleep queue?
+Question 10: How does the implementation of wchan ensure that a thread never misses a wakeup signal: that another thread
+cannot attempt to awaken the first thread just as it is preparing to sleep, but before it is actually placed into the sleep queue?
 
-Answer 10: 
-
+Answer 10: Waking and sleeping threads on a wait channel is done atomically by using a spinlock, which ensures that a wake and a sleep 
+are not done at the same time, or one does not start before the other finishes.
