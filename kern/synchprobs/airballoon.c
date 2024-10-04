@@ -18,14 +18,16 @@ static int ropes_left = NROPES;
 int stakes[NROPES]; 
 int hooks[NROPES];
 bool ropes[NROPES];
-bool ready_to_exit = false;
 
 /* Synchronization primitives */
 struct lock *stakes_locks[NROPES];
 struct lock *hooks_locks[NROPES];
 struct lock *ropes_locks[NROPES];
 struct lock *ropes_left_lock;
-struct lock *ready_to_exit_lock;
+struct lock *balloon_thread_exit_lock;
+struct cv *balloon_thread_exit_cv;
+struct lock *main_thread_exit_lock;
+struct cv *main_thread_exit_cv;
 
 /* Implement this! */
 
@@ -56,10 +58,16 @@ struct lock *ready_to_exit_lock;
 *    FlowerKiller threads. 
 */
 
-/**
- * TODO 
- * Dandelion does hooks, not stakes
-*/
+
+
+/*
+ * Dandelion thread.
+ *
+ * Picks a random hook and severs the rope tied to it. Is only allowed to access a rope if
+ * it has acquired the stake for that rope. Is only allowed to sever a rope if it has not
+ * already been severed. Once all ropes are severed, signals to the balloon thread that it 
+ * is done.
+ */
 static
 void
 dandelion(void *p, unsigned long arg)
@@ -96,6 +104,13 @@ dandelion(void *p, unsigned long arg)
 			// acquire ropes_left lock
 			lock_acquire(ropes_left_lock);
 			ropes_left--;
+
+			// if no ropes left, signal to balloon thread that we are done
+			if (ropes_left == 0) {
+				lock_acquire(balloon_thread_exit_lock);
+				cv_signal(balloon_thread_exit_cv, balloon_thread_exit_lock);
+				lock_release(balloon_thread_exit_lock);
+			}
 			lock_release(ropes_left_lock);
 			kprintf("Dandelion severed rope %d\n", rope_index);
 		}
@@ -111,6 +126,7 @@ dandelion(void *p, unsigned long arg)
 		// acquire ropes_left lock
 		lock_acquire(ropes_left_lock);
 	}
+
 	// release ropes_left lock
 	lock_release(ropes_left_lock);
 
@@ -120,7 +136,12 @@ dandelion(void *p, unsigned long arg)
 }
 
 /**
- * Marigold does stakes, not hooks 
+ * Marigold thread.
+ * 
+ * Picks a random stake and severs the rope tied to it. Is only allowed to access a rope if 
+ * it has acquired the stake for that rope. Is only allowed to sever a rope if it has not
+ * already been severed. Once all ropes are severed, signals to the balloon thread that it
+ * is done.
 */
 static
 void
@@ -154,9 +175,17 @@ marigold(void *p, unsigned long arg)
 		// if rope is not severed, sever it and print message
 		if (!ropes[rope_index]) {
 			ropes[rope_index] = true;
+
 			// acquire ropes_left lock
 			lock_acquire(ropes_left_lock);
 			ropes_left--;
+
+			// if no ropes left, signal to balloon thread that we are done
+			if (ropes_left == 0) {
+				lock_acquire(balloon_thread_exit_lock);
+				cv_signal(balloon_thread_exit_cv, balloon_thread_exit_lock);
+				lock_release(balloon_thread_exit_lock);
+			}
 			lock_release(ropes_left_lock);
 			kprintf("Marigold severed rope %d from stake %d\n", rope_index, stake_index);
 		}
@@ -180,6 +209,13 @@ marigold(void *p, unsigned long arg)
 
 }
 
+/** 
+ * Lord FlowerKiller thread.
+ * 
+ * Picks two random stakes and swaps the ropes tied to them. Is only allowed to access ropes 
+ * in increasing order of stake index. Is only allowed to access a rope if it has acquired 
+ * the stake for that rope. Is only allowed to swap ropes if both ropes are not severed. 
+*/
 static
 void
 flowerkiller(void *p, unsigned long arg)
@@ -256,6 +292,12 @@ flowerkiller(void *p, unsigned long arg)
 	thread_exit();
 }
 
+/**
+ * Balloon thread.
+ * 
+ * Waits until all ropes are severed, then prints a success message and signals to the main thread
+ * that it is done.
+*/
 static
 void
 balloon(void *p, unsigned long arg)
@@ -265,41 +307,42 @@ balloon(void *p, unsigned long arg)
 
 	kprintf("Balloon thread starting\n");
 
-	// acquire ropes_left lock
-	lock_acquire(ropes_left_lock);
-
-	while (ropes_left > 0) { 
-		// release ropes_left lock
+	// keep waiting on ropes_left until all ropes are severed, while yielding
+	lock_acquire(ropes_left_lock);	
+	while (ropes_left > 0) {
 		lock_release(ropes_left_lock);
-
-		// yield to other threads
 		thread_yield();
-
-		// re-acquire ropes_left lock
 		lock_acquire(ropes_left_lock);
 	}
-
-	// release ropes_left lock
 	lock_release(ropes_left_lock);
 
 	// now all ropes are severed; print success message
 	kprintf("Balloon freed and Prince Dandelion escapes!\n");
 
-	// signify to main thread that we are done using ready_to_exit
-	lock_acquire(ready_to_exit_lock);
-	ready_to_exit = true;
-	lock_release(ready_to_exit_lock);
+	// signify to main thread that we are done using main_thread_exit_lock 
+	lock_acquire(main_thread_exit_lock);
+	cv_signal(main_thread_exit_cv, main_thread_exit_lock);
+	lock_release(main_thread_exit_lock);
 
-	// exit thread
 	kprintf("Balloon thread done\n");
+
+	thread_exit();
 }
 
 
-// Change this function as necessary
+/**
+ * Air Balloon main thread. 
+ * 
+ * Initializes all data structures and synchronization primitives, spawns all required threads,
+ * and waits for all threads to finish before cleaning up and exiting.
+ * 
+ * Requires that all threads are done before cleaning up and exiting.
+ * Requires that balloon thread cannot access main_thread_exit_lock 
+ * before main thread is waiting on main_thread_exit_cv.
+*/
 int
 airballoon(int nargs, char **args)
 {
-
 	int err = 0, i;
 
 	(void)nargs;
@@ -308,7 +351,6 @@ airballoon(int nargs, char **args)
 
 	/* Make sure to re-initialize all static / global variables */
 	ropes_left = NROPES;
-	ready_to_exit = false;
 
 	/* allocate all heap data structures and populate them */
 	for (i = 0; i < NROPES; i++) {
@@ -320,7 +362,14 @@ airballoon(int nargs, char **args)
 		ropes_locks[i] = lock_create("Rope Lock");
 	}
 	ropes_left_lock = lock_create("Ropes Left Lock");
-	ready_to_exit_lock = lock_create("Ready to Exit Lock");
+	balloon_thread_exit_lock = lock_create("Balloon Thread Exit Lock");
+	main_thread_exit_lock = lock_create("Main Thread Exit Lock");
+	balloon_thread_exit_cv = cv_create("Balloon Thread Exit CV");
+	main_thread_exit_cv = cv_create("Main Thread Exit CV");
+	
+	// Acquire main_thread_exit_lock before creating balloon thread to prevent it 
+	// from sending the wake up signal before we sleep on the cv
+	lock_acquire(main_thread_exit_lock);
 
 	/* Spawn all required threads */
 
@@ -352,26 +401,14 @@ panic:
 	      strerror(err));
 
 done:
-	/* wait here until ready_to_exit */
-
-	lock_acquire(ready_to_exit_lock);
-
-	while (!ready_to_exit) {
-		lock_release(ready_to_exit_lock);
-		thread_yield();
-		lock_acquire(ready_to_exit_lock);
-	}
-
-	lock_release(ready_to_exit_lock);
-
-	// now all threads are done
+	// already have main_thread_exit_lock, wait here until signalled to wake up on main_thread_exit_cv
+	cv_wait(main_thread_exit_cv, main_thread_exit_lock);
+	lock_release(main_thread_exit_lock);
 
 	// acquire all locks to make sure no thread is holding them
 	for (i = 0; i < NROPES; i++) {
 		lock_acquire(stakes_locks[i]);
 		lock_acquire(hooks_locks[i]);
-	}
-	for (i = 0; i < NROPES; i++) {
 		lock_acquire(ropes_locks[i]);
 	}
 
@@ -379,8 +416,6 @@ done:
 	for (i = 0; i < NROPES; i++) {
 		lock_release(stakes_locks[i]);
 		lock_release(hooks_locks[i]);
-	}
-	for (i = 0; i < NROPES; i++) {
 		lock_release(ropes_locks[i]);
 	}
 
@@ -390,8 +425,12 @@ done:
 		lock_destroy(hooks_locks[i]);
 		lock_destroy(ropes_locks[i]);
 	}
+
 	lock_destroy(ropes_left_lock);
-	lock_destroy(ready_to_exit_lock);
+	lock_destroy(balloon_thread_exit_lock);
+	lock_destroy(main_thread_exit_lock);
+	cv_destroy(balloon_thread_exit_cv);
+	cv_destroy(main_thread_exit_cv);
 
 	kprintf("Main thread done\n");
 
