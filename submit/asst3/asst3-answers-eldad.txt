@@ -1,0 +1,8 @@
+# Assigment 3 - Octorber 21th
+
+## Code Reading Exercise
+
+### Question 1
+Q: What are the ELF magic numbers?
+
+
