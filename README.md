@@ -8,40 +8,56 @@ Status: In Progress
 
 #### `open()`
 Description:
+
 Inputs:
+
 Outputs:
 
 #### `read()`
 Description:
+
 Inputs:
+
 Outputs:
 
 #### `write()`
 Description:
+
 Inputs:
+
 Outputs:
 
 #### `lseek()`
 Description:
+
 Inputs:
+
 Outputs:
 
 #### `close()`
 Description:
+
 Inputs:
+
 Outputs:
 
 #### `dup2()`
 Description:
+
 Inputs:
+
 Outputs:
 
 #### `chdir()`
 Description:
+
 Inputs:
+
 Outputs:
 
 #### `__getcwd()`
 Description:
+
 Inputs:
+
 Outputs:
