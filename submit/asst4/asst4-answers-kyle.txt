@@ -1,3 +1,87 @@
 # Asst3 Answers - Kyle
 # 09/09/24 
 
+Question 1: What are the ELF magic numbers?
+
+Answer 1: They are set values that are checked at the start of the load_elf function, in order to check that the ELF file is actually an ELF file. By convention, they are stored in the first four bytes of an ELF file and are '0x7F', 'E', 'L' and 'F'. load_elf is a function that loads a user program, so it is important to check that the program is indeed the correct type. These numbers are defined by the linker that links the object files into the executable file.
+
+Question 2: What is the difference between UIO_USERISPACE and UIO_USERSPACE? When should one use UIO_SYSSPACE instead?
+
+
+
+Background (not my answer):
+- uio is an abstraction for a memory block that contains metadata about it and a position (cursor). it is used for moving blocks around by the kernel.
+- in uio.h, UIO_USERISPACE seems to be a process code, and UIO_USERSPACE seems to be process data. These are both enumerations of type uio_seg
+- uiomove: copies data from a kernel buffer to another data region (uio struct)
+- in BSD, uiomove, uiomove_frombuf, uiomove_nofault are all used to transfer data between buffers and iovecs that possibly cross the user/kernel space boundary. 
+- in load_segment (in load_elf), it sets seg flag to USERISPACE if its an executable, and USERSPACE if it is not an executable.
+
+- in uiomove: 
+	if USERISPACE:
+		if READ:
+			`copyout` ptr to iov->iov_ubase # copyout goes from kernel to user space
+		else # if WRITE
+			`copyin` iov_ubase to ptr # copyin moves from user space to kernel space
+
+Answer 2: UIO_USERISPACE, UIO_USERSPACE, and UIO_SYSSPACE are enumerations of type uio_seg, which are the different options for the source or destination of a uiomove() call. If the uio_seg is USERISPACE, then depending on if it is a read or write, it either is copied from kernel buffer to user-space, or user space to kernel buffer, respectively.
+
+Question 3: Why can the struct uio that is used to read in a segment be allocated on the stack in load_segment() (i.e., where does the memory read actually go)?
+
+Answer 3: The struct uio can be allocated on the stack because the segment is loaded at the virtual address passed in as vaddr, not directly into the uio struct itself.
+
+Question 4: In runprogram(), why is it important to call vfs_close() before going to usermode?
+
+Background (not my answer):
+- reading: the original vnode paper: https://web.archive.org/web/20160311231552/http://www.solarisinternals.com/si/reading/vnode.pdf
+
+Notes on the above paper: 
+- the names inode and vnode are done to distinguish file system-dependant and file system-independant representation 
+
+- vnode: a virtual node, an abstract type that can represent a regular file, a directory, a block device (whatever that is lol), a symbolic link, a socket, pipe, etc. 
+
+- what does runprogram() do? 
+- open file at path passed in as progname by calling vfs_open(filepath, READONLY)
+- assert that current address space has not been initialized (meaning we are a new process)
+- create a new address space, switch to it, and activate it
+- load executable into ptr called entrypoint
+- close the program file now that executable is loaded
+	- this decrements the refcount, which is used for garbage collection so that vnodes can be deallocated. 
+- define user stack in new addr space
+- jump into that process (this will not return)
+
+
+
+Answer 4: It is important to call vfs_close() before going to userland, because by opening the executable file to read it and load it into memory, we increment the reference count to signal that we are using the vnode that represents this file. We need to decrement the refcount, which can be done by calling vfs_close(). If we don't do this, the reference count will be inaccurate, which means it may not get deallocated even when nothing is pointing to it (it is unreachable and will not be used again).
+
+Question 5: What function forces the processor to switch into usermode? Is this function machine dependent?
+
+Background (not my answer): 
+- wtf is an ersatz trapframe? lol google has no idea :/ what is this documentation. I guess its just a trap frame where a0, a1, a2 carry the process info: argc, argv, and env.
+- mips_usermode() seems to force us into usermode, and it sounds machine-dependant based on the name mips_usermode. lol. 
+- runprogram calls enter_new_process which calls mips_usermode which calls asm_usermode, which is a function inside exception-mips1.S, which just copies a0 onto the stack jumps into 
+
+Answer 5: Hard to say at which level we are actually forced into user mode. Since this is ambiguous, I will just outline my understanding and hope that one of these things is what the question is looking for. 
+runprogram calls enter_new_process which calls mips_usermode which calls asm_usermode, which is a function inside exception-mips1.S, which just copies a0 onto the stack jumps into it. Arguably, the function that actually puts us into usermode is asm_usermode (the comment says 'This actually does it. See exception-*.S.'), defined in exception-*.S. This tells us that it is machine-dependant, as it depends on which type of machine it is (mips, arm, x86, etc.) .
+
+Question 6: In what file are copyin and copyout defined? memmove? Why can't copyin and copyout be implemented as simply as memmove?
+
+Answer 6: copyin and copyout are meant for moving data in and out of the kernel space. They are defined in kern/include/copyinout.h, and implemented in kern/vm/copyinout.c. These functions cannot be implemented as simply as memmove, because if the copy fails, we must keep track of what exactly failed and alert the kernel properly.
+
+Question 7: What (briefly) is the purpose of userptr_t?
+
+Answer 7: userptr_t is used to distinguish against kernel pointers when in the kernel. User pointers are pointers that *came* from user space They don't necessarily need to point to user space. 
+
+Question 8: What is the numerical value of the exception code for a MIPS system call?
+
+Answer 8: The exception code for a mips system call is 8, as defined in kern/arch/mips/include/trapframe.h line 91.
+
+Question 9: How many bytes is an instruction in MIPS? (Answer this by reading syscall() carefully, not by looking somewhere else.)
+
+Answer 9: We can see that a mips instruction is 4 bytes by the fact that it increments the program counter tf->tf_epc by 4 after calling the syscall.
+
+Question 10: Why do you "probably want to change" the implementation of kill_curthread()?
+
+Answer 10: Because the implementation currently calls panic() for any exception in a user program, including an interrupt. We will want to handle these exceptions more gracefully without completely killing the machine, in the case that a faulty program is ran. 
+
+Question 10: What would be required to implement a system call that took more than 4 arguments?
+
