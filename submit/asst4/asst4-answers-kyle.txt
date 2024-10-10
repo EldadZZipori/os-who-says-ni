@@ -83,5 +83,27 @@ Question 10: Why do you "probably want to change" the implementation of kill_cur
 
 Answer 10: Because the implementation currently calls panic() for any exception in a user program, including an interrupt. We will want to handle these exceptions more gracefully without completely killing the machine, in the case that a faulty program is ran. 
 
-Question 10: What would be required to implement a system call that took more than 4 arguments?
+Question 11: What would be required to implement a system call that took more than 4 arguments?
 
+Answer 11: As specified in build/userland/lib/libc/syscalls.S, the first four arguments are stored in a0-3, and the rest are stored on the stack. So you would simply need to place the extra arguments on the stack. The MIPS calling convention organizes the stack frame such that the extra arguments are at sp+16, sp+24, etc.
+
+Question 12: What is the purpose of the SYSCALL macro?
+
+Answer 12: The purpose of the SYSCALL macro is to place the syscall number into the register that the kernel expects to find it in (v0), and jump to the shared syscall code, __syscall. These are both defined in build/userland/lib/libc/mips/syscalls-mips.S.
+
+Question 13: What is the MIPS instruction that actually triggers a system call? (Answer this by reading the source in userland/lib/libc/arch/mips, not looking somewhere else.)
+
+Answer 13: The MIPS instruction that triggers a system call is just the `syscall` instruction. This is called in the shared syscall MIPS code, __syscall. 
+
+Question 14: After reading syscalls-mips.S and syscall.c, you should be prepared to answer the following question: OS/161 supports 64-bit values; lseek() takes and returns a 64-bit offset value. Thus, lseek() takes a 32-bit file handle (arg0), a 64-bit offset (arg1), a 32-bit whence (arg2), and needs to return a 64-bit offset value. In void syscall(struct trapframe *tf) where will you find each of the three arguments (in which registers) and how will you return the 64-bit offset?
+
+Answer 14: The calling convention for syscalls, defined in syscall.c, specifies that the first 4 32-bit argument registers a0-a3, and 64-bit arguments are passed in *aligned* pairs of registers. Any extra arguments go on the user stack starting at sp+16.
+Therefore, the arguments will be placed as follows: 32-bit file handle (arg0) goes in a0, 64-bit offset (arg1) goes in a2 and a3, and 32-bit whence (arg2) goes at sp+16. According to the same calling convention, the return value will be returned in the v0 and v1 registers. It would be just v0 if return value was 32-bit. 
+
+Question 15: As you were reading the code in runprogram.c and loadelf.c, you probably noticed how the kernel manipulates the files. Which kernel function is called to open a file? Which macro is called to read the file? What about to write a file? Which data structure is used in the kernel to represent an open file? 
+
+Answer 15: The kernel function uio_kinit() is used to initialize a uio object to read from a kernel buffer, but the kernel function emu_open() (part of lamebus device code) is used to actually open the file. It depends on at which level you are talking about. The macro VOP_READ() is used to read the file. To write a file, the macro VOP_WRITE() is used. The vnode datastructure, with its own reference count, is used to represent an open file.
+
+Question 16: What is the purpose of VOP_INCREF and VOP_DECREF?
+
+Answer 16: The purpose of VOP_INCREF and VOP_DECREF are to increment and decrement the reference count of the vnode. This is for garbage collection purposes; once the reference count to a vnode is zero, nothing points to it, and nothing should ever access it again (on purpose), so it should be deallocated.
