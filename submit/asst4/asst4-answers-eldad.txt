@@ -1,8 +1,63 @@
-# Assigment 3 - Octorber 21th
+# Assigment 4 - Octorber 21th
 
 ## Code Reading Exercise
 
 ### Question 1
 Q: What are the ELF magic numbers?
 
+A: The ELF magic numbers are special numbers with no meaning that are uniquly used to identify the version of ELF used and...
+They are -
+a) ELFMAG0 - 0x7f
+b) ELFMAG1 - 'E'/0x45
+c) ELFMAG2 - 'L'/0x4C
+d) ELFMAG3 - 'F'/0x46
 
+### Question 2 
+Q: What is the difference between UIO_USERISPACE and UIO_USERSPACE? When should one use UIO_SYSSPACE instead?
+
+A: When a memory block is executeable (i.e. a program/process) we need to use UIO_USERISPACE and when it is not (i.e. file reading or just memory data) we need UIO_USERSPACE.
+UIO_SYSSPACE is used by the kernel only, it is used when the kernel need to do I/O operations.
+
+### Question 3
+Q: Why can the struct uio that is used to read in a segment be allocated on the stack in load_segment() (i.e., where does the memory read actually go)?
+
+A:
+
+### Question 4 
+Q: In runprogram(), why is it important to call vfs_close() before going to usermode?
+
+A: The virtual file system should only be accessed in the kernal context. We do not want someone to directly access the way the OS is
+virtually using/managing its memory/files. We close the virtual file system before transfering back to user context as we don't want
+users context to have any option to manipulate such a thing.
+
+### Question 5
+Q: What function forces the processor to switch into usermode? Is this function machine dependent?
+
+A: enter_new_process() calls mips_usermode() which forces a context change into usermode. This function is implemented in the arch/mips folder - it is machine dependent.
+
+### Question 6
+Q: In what file are copyin and copyout defined? memmove? Why can't copyin and copyout be implemented as simply as memmove?
+
+A: 
+1. Copyin/copyout is defined in kern/include/copyinout.h.
+2. memmove is defined in common/libc/stirng/memmove.c
+3. memmove is used both by kernel and user context. We don't want to allow a user to move memeory around directly. So copyin and copyout copies 
+memory from the kernel->user and user->kernel in a structured way that does not allow direct control for the user.
+
+### Question 7
+Q: What (briefly) is the purpose of userptr_t?
+
+A:
+
+### Question 8 
+Q: What is the numerical value of the exception code for a MIPS system call?
+
+A: The number is - 8
+```c
+ #define EX_SYS    8    /* Syscall */
+```
+
+### Question 9 
+Q: How many bytes is an instruction in MIPS? (Answer this by reading syscall() carefully, not by looking somewhere else.)
+
+A: 
