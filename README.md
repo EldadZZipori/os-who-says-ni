@@ -73,4 +73,6 @@ Outputs:
 
 ## Resources
 
+[OS161 Source Code Layout - os161.org](http://www.os161.org/resources/layout.html)
+
 [SFS Definition - harvard.edu](https://www.eecs.harvard.edu/~cs161/assignments/a4.html)
