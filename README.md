@@ -70,3 +70,7 @@ Description:
 Inputs:
 
 Outputs:
+
+## Resources
+
+[SFS Definition - harvard.edu](https://www.eecs.harvard.edu/~cs161/assignments/a4.html)
