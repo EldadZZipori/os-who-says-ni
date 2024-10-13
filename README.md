@@ -29,12 +29,18 @@ Inputs:
 Outputs:
 - Non-negative number of bytes read, or -1 for error. Must set `errno` on error. Number of bytes read does not necessarily have to be equal to `buflen`, and does not signify end of file if it isn't.
 
-#### `write()`
-Description:
+#### `ssize_t write(int fs, const void *buf, size_t nbytes)`
+Description: Writes to a file given its file descriptor (should get from open() function). While buf is a void pointer
+we should decide on what it has to be as we will need to build a uio struct to write to the vnode in reality.
+**must be atomic relative to other IO operations**. Note: write will be done at offset.
 
 Inputs:
+- `int fd`: File descriptor of the open file
+- `void *buf`: Memory address to copy from to the file
+- `size_t nbytes`: Indicates the size of the memory to be written to the file
 
 Outputs:
+- Returns the cout of bytes written to the file. Will return -1 on error. 0 means no bytes could be written to file.
 
 #### `lseek()`
 Description:
