@@ -42,12 +42,21 @@ Inputs:
 Outputs:
 - Returns the cout of bytes written to the file. Will return -1 on error. 0 means no bytes could be written to file.
 
-#### `lseek()`
-Description:
+#### `off_t lseek(int fd, off_t pos, int whence);`
+Description: Moves the offset location in a file to a new position. The way to move the curser depends on the whence flag. 
 
-Inputs:
+Inputs::
+-`int fd`: File descriptor of the open file
+-`off_t pos`: signed quntity to move the cursor by.
+-`int whence`: Determines how to move the cursor 
+- `SEK_SET`, the new position is pos.
+- `SEEK_CUR`, the new position is the current position plus pos.
+- `SEEK_END`, the new position is the position of end-of-file plus pos.
+- anything else, lseek fails.
 
 Outputs:
+- Returns the new position on success
+- Return -1 on error and sets errno according to the error
 
 #### `close()`
 Description:
