@@ -1,18 +1,19 @@
 #include <proctable.h>
 #include <proc.h>
+#include <types.h>
 
-void pt_bootstrap()
+void pt_bootstrap(void)
 {
     KASSERT(kproc != NULL);
 
-    kproc_table = kmalloc(sizeof(struct proctable));
+    kproc_table = (struct proctable*)kmalloc(sizeof(struct proctable));
 
     if (kproc_table == NULL) 
     {
         panic("Could not create proccess table\n");
     }
 
-    kproc_table->table = kmalloc(BASE_PROC_AMOUNT*sizeof(struct proc*));
+    kproc_table->table = (struct proc**)kmalloc(BASE_PROC_AMOUNT*sizeof(struct proc*));
     if (kproc_table->table == NULL) 
     {
         panic("Could not create proccess table\n");
@@ -22,9 +23,8 @@ void pt_bootstrap()
     kproc_table->curr_size = BASE_PROC_AMOUNT;
     kproc_table->process_counter = 1;               // The kernel processor must exists 
 }
-void pt_adjust_size()
+void pt_adjust_size(void)
 {
-  return;
 }
 void pt_add_proc(struct proc* file)
 {
