@@ -24,13 +24,13 @@ void pt_bootstrap()
 }
 void pt_adjust_size()
 {
-
+  return;
 }
 void pt_add_proc(struct proc* file)
 {
-
+    (void) file;
 }
 void pt_remove_proc(struct proc* file)
 {
-
+    (void) file;
 }
