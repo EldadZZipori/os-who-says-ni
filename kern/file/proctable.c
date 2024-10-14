@@ -1,6 +1,13 @@
-#include <proctable.h>
-#include <proc.h>
+/*
+ * Include order matters. 
+ * Make sure to add this file in conf.kern
+ */
+
 #include <types.h>
+#include <proc.h>
+#include <proctable.h>
+
+
 
 void pt_bootstrap(void)
 {
