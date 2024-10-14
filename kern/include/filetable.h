@@ -3,7 +3,7 @@
 
 #define BASE_SIZE 10   // The base size of the file table. Dynamiclly changes when full
 
-const struct filetable* kern_filetable;
+const struct filetable* kfile_table;
 
 /*
  * @brief represents the open files table
