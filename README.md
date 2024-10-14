@@ -6,6 +6,11 @@ OS161 is an educational OS. The full documentation for it can be found here - [O
 ## Assignment 4: Implementing file-related syscalls
 Status: In Progress
 
+#### Files
+
+- `kern/include/file.h` machine independent declerations of file functions and struct
+- 
+
 #### `int open(const char *filename, int flags);`
 #### `int open(const char *filename, int flags, mode_t mode)`
 Description: Opens a file, device, or other kernel object returning a file descriptor suitable for passing to `read()`, `write()`, or `close()`. Must be atomic (I think just with respect to other threads accessing the same file).
@@ -29,7 +34,7 @@ Inputs:
 Outputs:
 - Non-negative number of bytes read, or -1 for error. Must set `errno` on error. Number of bytes read does not necessarily have to be equal to `buflen`, and does not signify end of file if it isn't.
 
-#### `ssize_t write(int fs, const void *buf, size_t nbytes)`
+#### `ssize_t write(int fd, const void *buf, size_t nbytes)`
 Description: Writes to a file given its file descriptor (should get from open() function). While buf is a void pointer
 we should decide on what it has to be as we will need to build a uio struct to write to the vnode in reality.
 **must be atomic relative to other IO operations**. Note: write will be done at offset.
@@ -58,12 +63,16 @@ Outputs:
 - Returns the new position on success
 - Return -1 on error and sets errno according to the error
 
-#### `close()`
-Description:
+#### `int close(int fd)`
+Description: Closes a file given its file descriptor. Other files are not affected even if they are attached to the closed file.
 
 Inputs:
+-`int fd`: File decriptor of the open file.
 
 Outputs:
+- Returns 0 on success and -1 on error. errno is set accordingly 
+-`EBADF` fd is not a valid file handle.
+-`EIO`	A hard I/O error occurred.
 
 #### `dup2()`
 Description:
