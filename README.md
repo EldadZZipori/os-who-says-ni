@@ -6,10 +6,19 @@ OS161 is an educational OS. The full documentation for it can be found here - [O
 ## Assignment 4: Implementing file-related syscalls
 Status: In Progress
 
+#### Work Sessions
+
+- `October 14th` all commits during this day are from a live coding session (collabrative)
+
 #### Files
 
 - `kern/include/file.h` machine independent declerations of file functions and struct
-- 
+- `kern/include/filetable.h` machine independent declerations of file table functions and struct
+- `kern/include/proctable.h` machine independent declerations of proccess table functions and struct
+
+- `kern/file/file.c` implementation of file functions and struct
+- `kern/file/filetable.c` implementation of file table functions and struct
+- `kern/file/proctable.c` implementation of proccess table functions and struct
 
 #### `int open(const char *filename, int flags);`
 #### `int open(const char *filename, int flags, mode_t mode)`

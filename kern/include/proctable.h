@@ -23,8 +23,8 @@ struct proctable
     unsigned int process_counter;   //  Amount of processes currently running
 };
 
-void pt_bootstrap();
-void pt_adjust_size();
+void pt_bootstrap(void);
+void pt_adjust_size(void);
 void pt_add_proc(struct proc* file);
 void pt_remove_proc(struct proc* file);
 #endif

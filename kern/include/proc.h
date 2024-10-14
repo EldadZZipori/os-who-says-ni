@@ -39,6 +39,8 @@
 #include <spinlock.h>
 #include <thread.h> /* required for struct threadarray */
 
+#include <limits.h>
+
 struct addrspace;
 struct vnode;
 
@@ -57,6 +59,15 @@ struct proc {
 	struct vnode *p_cwd;		/* current working directory */
 
 	/* add more material here as needed */
+	/* Added members for Assignment 4 */
+
+	/* Open File Descriptor table */
+	unsigned int fdtable[__OPEN_MAX];
+
+	/* Amount of currently opened files for this proccess */	
+	unsigned int fdtable_num_entries;
+
+
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */
@@ -82,6 +93,11 @@ struct addrspace *proc_getas(void);
 
 /* Change the address space of the current process, and return the old one. */
 struct addrspace *proc_setas(struct addrspace *);
+
+
+/* Added functionality for Assignment 4 */
+void proc_add_file();
+void proc_remove_file();
 
 
 #endif /* _PROC_H_ */

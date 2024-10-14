@@ -82,6 +82,10 @@ proc_create(const char *name)
 	/* VFS fields */
 	proc->p_cwd = NULL;
 
+	/* Added for Assignment 4 */
+	//proc->fdtable = {}; 
+	proc->fdtable_num_entries = 0;
+
 	return proc;
 }
 
