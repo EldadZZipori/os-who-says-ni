@@ -455,3 +455,5 @@ optfile net	test/nettest.c
 ########################################
 
 file        file/proctable.c
+file        file/filetable.c
+file        file/file.c

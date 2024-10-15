@@ -16,7 +16,7 @@ struct proctable* kproc_table;
  */
 struct proctable
 {  
-    struct proc** table;            // Pointer to array of all running proccesses
+    struct proc** processes;            // Pointer to array of all running proccesses
 
     unsigned int curr_size;         // Current size of the table, dynamically allocated
 

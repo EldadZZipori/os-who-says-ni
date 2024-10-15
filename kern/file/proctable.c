@@ -20,13 +20,13 @@ void pt_bootstrap(void)
         panic("Could not create proccess table\n");
     }
 
-    kproc_table->table = (struct proc**)kmalloc(BASE_PROC_AMOUNT*sizeof(struct proc*));
-    if (kproc_table->table == NULL) 
+    kproc_table->processes = (struct proc**)kmalloc(BASE_PROC_AMOUNT*sizeof(struct proc*));
+    if (kproc_table->processes == NULL) 
     {
         panic("Could not create proccess table\n");
     }
 
-    kproc_table->table[0] = kproc;
+    kproc_table->processes[0] = kproc;
     kproc_table->curr_size = BASE_PROC_AMOUNT;
     kproc_table->process_counter = 1;               // The kernel processor must exists 
 }
