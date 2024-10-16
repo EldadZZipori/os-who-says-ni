@@ -61,5 +61,9 @@ int sys___time(userptr_t user_seconds, userptr_t user_nanoseconds);
 
 
 /* Assigment 4 - File Systemcalls*/
-int	sys___getcwd(userptr_t buf, size_t buflen, int * retval);
+int	
+sys___getcwd(userptr_t buf, size_t buflen, int * retval);
+
+int
+sys_open(userptr_t path, int flags, int* retval);
 #endif /* _SYSCALL_H_ */

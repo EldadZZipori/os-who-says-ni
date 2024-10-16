@@ -6,17 +6,30 @@
 #include <vfs.h>
 #include <uio.h>
 #include <copyinout.h>
+#include <kern/errno.h>
 #include <vnode.h>
 
 
-struct abstractfile*
-create_abstractfile(unsigned int status ,struct vnode* node)
+int
+af_create(unsigned int status ,struct vnode* vn, struct abstractfile* af)
 {
-    struct abstractfile* af = kmalloc(sizeof(struct abstractfile));
+    af = kmalloc(sizeof(struct abstractfile));
+    if (af == NULL)
+    {
+        return ENOMEM;
+    }
     af->offset = 0;
-    af->node = node;
+    af->vn = vn;
     af->ref_count = 1;
     af->status = status;
 
-    return af;
+    return 0;
+}
+
+int 
+af_destroy(struct abstractfile* af)
+{
+    (void)af;
+
+    return 0;
 }

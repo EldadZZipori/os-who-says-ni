@@ -1,6 +1,7 @@
 #include <types.h>
 #include <proc.h>
 #include <synch.h>
+#include <kern/errno.h>
 #include <filetable.h>
 
 // Make sure to destroy
@@ -57,8 +58,8 @@ ft_adjust_size(void)
 
 }
 
-unsigned int 
-ft_add_file(struct abstractfile* file) 
+int 
+ft_add_file(struct abstractfile* file, int* location) 
 {
     KASSERT(kfile_table != NULL); 
     KASSERT(kfile_table->files != NULL);
@@ -76,13 +77,18 @@ ft_add_file(struct abstractfile* file)
         if(kfile_table->files[i] == NULL)
         {
             kfile_table->files[i] = file;
-            i = kfile_table->curr_size;     // Exit the loop
+            *location = kfile_table->curr_size;     // Exit the loop
+        }
+        else if(i == (kfile_table->curr_size -1))
+        {
+            /* Either have this or make a table that dynamiclly adjusts size */
+            return ENFILE;
         }
     }
     
     kfile_table->files_counter++;
     
-    return kfile_table->files_counter;
+    return 0;
 
 }
 

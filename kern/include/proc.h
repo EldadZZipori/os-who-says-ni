@@ -41,6 +41,11 @@
 
 #include <limits.h>
 
+/**
+ * Constants
+ */
+#define FDTABLE_EMPTY -1
+
 struct addrspace;
 struct vnode;
 
@@ -62,8 +67,9 @@ struct proc {
 	/* Added members for Assignment 4 */
 
 	/* Open File Descriptor table */
-	unsigned int fdtable[__OPEN_MAX];
-	struct lock** fdtable_lks;
+	int fdtable[__OPEN_MAX];	// Holds the index of the file in the open file table
+	//struct lock** fdtable_index_lks;
+	struct lock* fdtable_lk;
 
 	/* Amount of currently opened files for this proccess */	
 	unsigned int fdtable_num_entries;

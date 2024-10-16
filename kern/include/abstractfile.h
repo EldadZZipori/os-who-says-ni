@@ -11,12 +11,13 @@ struct abstractfile
     unsigned int ref_count;
     unsigned int status;    // Indicates how the file is open (i.e. read/write/etc)
     unsigned int offset;    // Indicates location of the curser in the file (what line to read/write next)
-    struct vnode* node;     // Pointer to the file in the virtual file system
+    struct vnode* vn;     // Pointer to the file in the virtual file system
 };
 
 
-struct abstractfile*
-create_abstractfile(unsigned int status ,struct vnode* node);
+int
+af_create(unsigned int status ,struct vnode* node, struct abstractfile* af);
 
-
+int 
+af_destroy(struct abstractfile* af);
 #endif

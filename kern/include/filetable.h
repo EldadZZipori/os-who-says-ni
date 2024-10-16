@@ -1,7 +1,7 @@
 #ifndef _FILE_TABLE_H_
 #define _FILE_TABLE_H_
 
-#define FILETABLE_INIT_SIZE 10   // The base size of the file table. Dynamiclly changes when full
+#define FILETABLE_INIT_SIZE 100   // The base size of the file table. Dynamiclly changes when full
 
 struct filetable* kfile_table;
 
@@ -31,7 +31,7 @@ ft_destroy(struct filetable* ft);
 
 /**
  * @brief Dynamiclly changes the size of kfile_talbe to allow for more open files
- */
+ */node
 void 
 ft_adjust_size(void);
 
@@ -39,9 +39,13 @@ ft_adjust_size(void);
  * @brief Adds a file to the open file table
  * 
  * @param file : A non-NULL file that has just been open
+ * 
+ * @param location: location of the file in the filetable (populated by the function)
+ * 
+ * @return compliance with errno, 0 on success
  */
-unsigned int 
-ft_add_file(struct abstractfile* file);
+int 
+ft_add_file(struct abstractfile* file, int* location);
 
 /**
  * @brief Removes file at specified index from open file table. 

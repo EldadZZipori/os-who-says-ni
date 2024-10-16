@@ -5,6 +5,8 @@
 
 #include <types.h>
 #include <proc.h>
+#include <synch.h>
+#include <kern/errno.h>
 #include <proctable.h>
 
 
@@ -39,13 +41,28 @@ pt_adjust_size(void)
 }
 
 void 
-pt_add_proc(struct proc* file)
+pt_add_proc(struct proc* pr)
 {
-    (void) file;
+    (void) pr;
 }
 
 void 
-pt_remove_proc(struct proc* file)
+pt_remove_proc(struct proc* pr)
 {
-    (void) file;
+    (void) pr;
+}
+
+int 
+pt_find_free_fd(struct proc* pr, int* fd)
+{
+    for (int i = 0; i < __OPEN_MAX; i++)
+    {
+        if (pr->fdtable[i] == -1)
+        {
+            *fd = i;
+            return 0;
+        }
+    }
+
+    return EMFILE;
 }

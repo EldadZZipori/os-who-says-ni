@@ -112,8 +112,9 @@ boot(void)
 	proc_bootstrap();
 
 	/* Assignment 4 structures */
-	pt_bootstrap();
 	ft_bootstrap();
+	pt_bootstrap();
+
 
 	thread_bootstrap();
 	hardclock_bootstrap();

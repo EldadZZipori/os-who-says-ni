@@ -33,8 +33,11 @@ void
 pt_adjust_size(void);
 
 void 
-pt_add_proc(struct proc* file);
+pt_add_proc(struct proc* pr);
 
 void 
-pt_remove_proc(struct proc* file);
+pt_remove_proc(struct proc* pr);
+
+int 
+pt_find_free_fd(struct proc* pr, int* fd);
 #endif

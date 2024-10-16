@@ -174,12 +174,16 @@ proc_destroy(struct proc *proc)
 	spinlock_cleanup(&proc->p_lock);
 
 	/* Added for Assignement 4 */
-	for (unsigned int i = 0; i < __OPEN_MAX; i++)
+	/*for (unsigned int i = 0; i < __OPEN_MAX; i++)
 	{
-		lock_destroy(proc->fdtable_lks[i]);
+		lock_destroy(proc->fdtable_index_lks[i]);
 	}
 
-	kfree(proc->fdtable_lks);
+	kfree(proc->fdtable_index_lks);
+	*/
+
+	lock_destroy(proc->fdtable_lk);
+
 	kfree(proc->p_name);
 	kfree(proc);
 }
@@ -196,8 +200,8 @@ proc_bootstrap(void)
 	}
 
 	/* Added for Assignment 4 */
-	kproc->fdtable_lks = (struct lock**)kmalloc(__OPEN_MAX*sizeof(struct lock*));
-	if(kproc->fdtable_lks == NULL)
+	/*kproc->fdtable_index_lks = (struct lock**)kmalloc(__OPEN_MAX*sizeof(struct lock*));
+	if(kproc->fdtable_index_lks == NULL)
 	{
 		panic("Creating locks for kproc failed\n");
 	}
@@ -206,12 +210,18 @@ proc_bootstrap(void)
 	for (unsigned int i = 0; i < __OPEN_MAX; i++)
 	{
 		snprintf(proc_loc, 32, "kproc lock %d", i);
-		kproc->fdtable_lks[i] = lock_create(proc_loc);
+		kproc->fdtable_index_lks[i] = lock_create(proc_loc);
 
-		if (kproc->fdtable_lks[i] == NULL)
+		if (kproc->fdtable_index_lks[i] == NULL)
 		{
 			panic("Creating locks for kproc failed\n");
 		}
+	}*/
+
+	kproc->fdtable_lk = lock_create("Process table lock");
+	if (kproc->fdtable_lk == NULL)
+	{
+		panic("Creating lock or kproc failed\n");
 	}
 
 }

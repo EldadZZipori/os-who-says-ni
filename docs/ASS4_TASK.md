@@ -20,3 +20,8 @@ Question
 
 - [x] Just creeate a proccess table and make sure that after bootstrap we can see it in gdb, with the kernel proccess.
  
+## October 15th 2024
+- Worked together in a vscode livesession (this will show up as Eldad's work)
+
+## October 16th 2024
+- Worked together vscode livesession (this will show up as Eldad's work)
