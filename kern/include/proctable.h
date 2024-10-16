@@ -24,6 +24,7 @@ struct proctable
 };
 
 void pt_bootstrap(void);
+void pt_destroy(void);
 void pt_adjust_size(void);
 void pt_add_proc(struct proc* file);
 void pt_remove_proc(struct proc* file);

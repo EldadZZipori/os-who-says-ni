@@ -15,6 +15,6 @@ struct abstractfile
 
 
 //int open(const char *filename, int flags);
-//int open(const char *filename, int flags, mode_t mode);
+int open(const char *filename, int flags, mode_t mode);
 
 #endif
