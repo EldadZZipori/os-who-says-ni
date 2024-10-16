@@ -41,6 +41,7 @@
 #include <thread.h>
 #include <proc.h>
 #include <proctable.h>
+#include <filetable.h>
 #include <current.h>
 #include <synch.h>
 #include <vm.h>

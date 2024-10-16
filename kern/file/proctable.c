@@ -8,6 +8,7 @@
 #include <proctable.h>
 
 
+// Make sure to destroy
 
 void pt_bootstrap(void)
 {

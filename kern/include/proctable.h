@@ -1,7 +1,7 @@
 #ifndef _PROC_TABLE_H_
 #define _PROC_TABLE_H_
 
-#include "current.h"
+//#include "current.h"
 
 /* 
  * Constants

@@ -1,7 +1,7 @@
-
 #include <types.h>
 #include <filetable.h>
 
+// Make sure to destroy
 void ft_bootstrap() 
 {
     kfile_table = (struct filetable*)kmalloc(sizeof(struct filetable));
@@ -11,7 +11,7 @@ void ft_bootstrap()
         panic("Could not create file table\n");
     }
 
-    kfile_table->files = (struct file**)kmalloc(FILETABLE_INIT_SIZE*sizeof(struct file*));
+    kfile_table->files = (struct abstractfile**)kmalloc(FILETABLE_INIT_SIZE*sizeof(struct abstractfile*));
     if (kfile_table->files == NULL) 
     {
         panic("Could not create proccess table\n");
@@ -33,7 +33,7 @@ void ft_adjust_size(void)
 
 }
 
-unsigned int ft_add_file(struct file* file) 
+unsigned int ft_add_file(struct abstractfile* file) 
 {
     KASSERT(kfile_table != NULL); 
     KASSERT(kfile_table->files != NULL);
@@ -46,7 +46,7 @@ unsigned int ft_add_file(struct file* file)
     }
 
     /* Find an empty spot in the table */
-    for(int i = 0; i < kfile_table->curr_size; i++)
+    for(unsigned int i = 0; i < kfile_table->curr_size; i++)
     {
         if(kfile_table->files[i] == NULL)
         {

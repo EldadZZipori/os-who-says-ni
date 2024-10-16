@@ -44,6 +44,7 @@
 
 #include <types.h>
 #include <spl.h>
+#include <synch.h>
 #include <proc.h>
 #include <current.h>
 #include <addrspace.h>
@@ -172,6 +173,13 @@ proc_destroy(struct proc *proc)
 	threadarray_cleanup(&proc->p_threads);
 	spinlock_cleanup(&proc->p_lock);
 
+	/* Added for Assignement 4 */
+	for (unsigned int i = 0; i < __OPEN_MAX; i++)
+	{
+		lock_destroy(proc->fdtable_lks[i]);
+	}
+
+	kfree(proc->fdtable_lks);
 	kfree(proc->p_name);
 	kfree(proc);
 }
@@ -186,6 +194,26 @@ proc_bootstrap(void)
 	if (kproc == NULL) {
 		panic("proc_create for kproc failed\n");
 	}
+
+	/* Added for Assignment 4 */
+	kproc->fdtable_lks = (struct lock**)kmalloc(__OPEN_MAX*sizeof(struct lock*));
+	if(kproc->fdtable_lks == NULL)
+	{
+		panic("Creating locks for kproc failed\n");
+	}
+
+	char *proc_loc = (char *) kmalloc(32 * sizeof(char));
+	for (unsigned int i = 0; i < __OPEN_MAX; i++)
+	{
+		snprintf(proc_loc, 32, "kproc lock %d", i);
+		kproc->fdtable_lks[i] = lock_create(proc_loc);
+
+		if (kproc->fdtable_lks[i] == NULL)
+		{
+			panic("Creating locks for kproc failed\n");
+		}
+	}
+
 }
 
 /*

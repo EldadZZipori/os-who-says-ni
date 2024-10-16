@@ -63,6 +63,7 @@ struct proc {
 
 	/* Open File Descriptor table */
 	unsigned int fdtable[__OPEN_MAX];
+	struct lock** fdtable_lks;
 
 	/* Amount of currently opened files for this proccess */	
 	unsigned int fdtable_num_entries;
