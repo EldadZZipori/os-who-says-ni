@@ -457,4 +457,5 @@ optfile net	test/nettest.c
 file        file/proctable.c
 file        file/abstractfile.c
 file        file/filetable.c
+file        syscall/__getcwd.c
 

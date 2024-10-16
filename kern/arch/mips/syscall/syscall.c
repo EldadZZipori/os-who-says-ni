@@ -34,6 +34,7 @@
 #include <mips/trapframe.h>
 #include <thread.h>
 #include <current.h>
+#include <abstractfile.h>
 #include <syscall.h>
 
 
@@ -107,6 +108,11 @@ syscall(struct trapframe *tf)
 	    case SYS___time:
 		err = sys___time((userptr_t)tf->tf_a0,
 				 (userptr_t)tf->tf_a1);
+		break;
+		case SYS___getcwd:
+			err = sys___getcwd(	(userptr_t)tf->tf_a0, 
+								tf->tf_a1,
+								&retval);
 		break;
 
 	    /* Add stuff here */

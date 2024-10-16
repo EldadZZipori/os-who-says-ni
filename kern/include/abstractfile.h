@@ -18,14 +18,5 @@ struct abstractfile
 struct abstractfile*
 create_abstractfile(unsigned int status ,struct vnode* node);
 
-//int open(const char *filename, int flags);
-int 
-open(const char *filename, int flags, mode_t mode);
-
-int 
-__getcwd(char *buf, size_t buflen);
-
-int
-chdir(const char *pathname);
 
 #endif
