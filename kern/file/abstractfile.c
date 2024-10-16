@@ -66,6 +66,21 @@ __getcwd(char *buf, size_t buflen)
 int
 chdir(const char *pathname)
 {
-    (void)pathname;
-    return 0;//vfs_chdir(pathname);
+    int result;
+    size_t pathlen = sizeof(pathname);
+	struct iovec iov;   // Used for read/write I/O calls
+	struct uio ku;      // Memory block for kernel/user space
+
+    char kbuf[pathlen];
+
+    // Only need to copy out
+    copyinstr((userptr_t)pathname, kbuf, pathlen, NULL);
+
+    // use copyin copyout
+	uio_kinit(&iov, &ku, kbuf, sizeof(kbuf), 0, UIO_READ);
+
+    result = vfs_chdir(&ku);
+
+
+    return result;
 }
