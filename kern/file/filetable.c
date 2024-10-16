@@ -1,4 +1,5 @@
 #include <types.h>
+#include <proc.h>
 #include <filetable.h>
 
 // Make sure to destroy
