@@ -50,7 +50,8 @@ __getcwd(char *buf, size_t buflen)
 
     char kbuf[buflen];
 
-    copyinstr((userptr_t)buf, kbuf, buflen, NULL);
+    // Only need to copy out
+    //copyinstr((userptr_t)buf, kbuf, buflen, NULL);
 
     // use copyin copyout
 	uio_kinit(&iov, &ku, kbuf, sizeof(kbuf), 0, UIO_READ);
