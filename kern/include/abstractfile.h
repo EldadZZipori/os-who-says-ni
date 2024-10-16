@@ -1,6 +1,7 @@
 #ifndef _ABSTRACT_FILE_H_
 #define _ABSTRACT_FILE_H_
-#include "types.h"
+#include <types.h>
+#include <vnode.h>
 
 /*
  * @brief represents an open file
@@ -13,6 +14,9 @@ struct abstractfile
     struct vnode* node;     // Pointer to the file in the virtual file system
 };
 
+
+struct abstractfile*
+create_abstractfile(unsigned int status ,struct vnode* node);
 
 //int open(const char *filename, int flags);
 int 

@@ -31,5 +31,5 @@ options sfs			# Always use the file system
 
 options dumbvm			# Chewing gum and baling wire.
 
-options synchprobs		# Enable this only when doing the
+#options synchprobs		# Enable this only when doing the
 				# synchronization problems.

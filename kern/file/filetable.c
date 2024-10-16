@@ -45,9 +45,9 @@ ft_bootstrap()
 }
 
 void 
-ft_destroy(filetable* ft)
+ft_destroy(struct filetable* ft)
 {
-
+    (void)ft;
 }
 
 

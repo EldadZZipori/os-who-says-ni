@@ -27,7 +27,7 @@ void
 ft_bootstrap(void);
 
 void 
-ft_destroy(filetable* ft);
+ft_destroy(struct filetable* ft);
 
 /**
  * @brief Dynamiclly changes the size of kfile_talbe to allow for more open files
