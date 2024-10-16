@@ -8,7 +8,8 @@ struct filetable* kfile_table;
 /*
  * @brief represents the open files table
  */
-struct filetable
+struct 
+filetable
 {  
     struct abstractfile** files;      // All files open on the file table
 
@@ -22,21 +23,25 @@ struct filetable
 /**
  * @brief Initializes the open file table for the kernel use
  */
-void ft_bootstrap(void);
+void 
+ft_bootstrap(void);
 
-void ft_destroy(void);
+void 
+ft_destroy(filetable* ft);
 
 /**
  * @brief Dynamiclly changes the size of kfile_talbe to allow for more open files
  */
-void ft_adjust_size(void);
+void 
+ft_adjust_size(void);
 
 /**
  * @brief Adds a file to the open file table
  * 
  * @param file : A non-NULL file that has just been open
  */
-unsigned int ft_add_file(struct abstractfile* file);
+unsigned int 
+ft_add_file(struct abstractfile* file);
 
 /**
  * @brief Removes file at specified index from open file table. 
@@ -48,5 +53,6 @@ unsigned int ft_add_file(struct abstractfile* file);
               Question: What if another file closes? Could this be 
               an invalid fd? 
  */
-void ft_remove_file(unsigned int fd);
+void 
+ft_remove_file(unsigned int fd);
 #endif

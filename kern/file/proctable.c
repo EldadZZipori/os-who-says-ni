@@ -10,7 +10,8 @@
 
 // Make sure to destroy
 
-void pt_bootstrap(void)
+void 
+pt_bootstrap(void)
 {
     KASSERT(kproc != NULL);
 
@@ -31,14 +32,20 @@ void pt_bootstrap(void)
     kproc_table->curr_size = BASE_PROC_AMOUNT;
     kproc_table->process_counter = 1;               // The kernel processor must exists 
 }
-void pt_adjust_size(void)
+
+void 
+pt_adjust_size(void)
 {
 }
-void pt_add_proc(struct proc* file)
+
+void 
+pt_add_proc(struct proc* file)
 {
     (void) file;
 }
-void pt_remove_proc(struct proc* file)
+
+void 
+pt_remove_proc(struct proc* file)
 {
     (void) file;
 }

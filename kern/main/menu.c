@@ -212,6 +212,7 @@ cmd_pwd(int nargs, char **args)
 	(void)nargs;
 	(void)args;
 
+	/* use of uio here!!! */
 	uio_kinit(&iov, &ku, buf, sizeof(buf)-1, 0, UIO_READ);
 	result = vfs_getcwd(&ku);
 	if (result) {
