@@ -61,5 +61,5 @@ void
 ft_remove_file(unsigned int index);
 
 int 
-__open(char* kpath, int flags, struct abstractfile* af);
+__open(char* kpath, int flags, struct abstractfile** af);
 #endif

@@ -64,16 +64,16 @@ ft_bootstrap()
     char device2[] = "con:";
     char device3[] = "con:";
 
-    if( __open(device1, O_RDONLY, stdin))
+    if( __open(device1, O_RDONLY, &stdin))
     {
         panic("Could not open std");
     }
 
-    if(__open(device2, O_RDONLY, stderr))
+    if(__open(device2, O_RDONLY, &stderr))
     {
         panic("Could not open std");
     }
-    if(__open(device3, O_WRONLY, stdout))
+    if(__open(device3, O_WRONLY, &stdout))
     {
         panic("Could not open std");
     }
@@ -144,7 +144,7 @@ ft_remove_file(unsigned int index)
 }
 
 int 
-__open(char kpath[__PATH_MAX], int flags, struct abstractfile* af)
+__open(char kpath[__PATH_MAX], int flags, struct abstractfile** af)
 {
     int result = 0;
     struct vnode* vn;
@@ -157,7 +157,7 @@ __open(char kpath[__PATH_MAX], int flags, struct abstractfile* af)
         return result;
     }
 
-    result = af_create(flags, vn, &af);
+    result = af_create(flags, vn, af);
     if (result)
     {
         vfs_close(vn);
@@ -176,11 +176,11 @@ __open(char kpath[__PATH_MAX], int flags, struct abstractfile* af)
         if (result)
         {
             vfs_close(vn);
-            af_destroy(&af);
+            af_destroy(af);
             return result;
         }
 
-        af->offset = st.st_size;
+        (*af)->offset = st.st_size;
     }
     
     return 0;

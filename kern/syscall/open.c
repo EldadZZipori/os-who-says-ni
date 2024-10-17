@@ -52,7 +52,7 @@ sys_open(userptr_t path, int flags, int* retval)
     }
     struct abstractfile* af = NULL;
 
-    result = __open(kpath, flags, af);
+    result = __open(kpath, flags, &af);
     if (result)
     {
         return result;
