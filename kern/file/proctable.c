@@ -55,6 +55,11 @@ pt_remove_proc(struct proc* pr)
 int 
 pt_find_free_fd(struct proc* pr, int* fd)
 {
+    if (pr->fdtable_num_entries == __OPEN_MAX)
+    {
+        return EMFILE;
+    }
+
     for (int i = 0; i < __OPEN_MAX; i++)
     {
         if (pr->fdtable[i] == -1)

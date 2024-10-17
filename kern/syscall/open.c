@@ -35,9 +35,10 @@ sys_open(userptr_t path, int flags, int* retval)
 
     char kpath[__PATH_MAX];
     /*
-     *  O_RDONLY   00     
-     *  O_WRONLY   01      
-     *  O_RDWR     10    
+     * Main flags for file opening, others are addons.
+     * O_RDONLY   00     
+     * O_WRONLY   01      
+     * O_RDWR     10    
      */
     int access_mode = flags & O_ACCMODE;
     if (access_mode == 3) 
@@ -115,9 +116,12 @@ sys_open(userptr_t path, int flags, int* retval)
     kproc->fdtable[fd] = file_location;
 
     /*
-     * both vfs_open and vfs_lookup that open up a vnode file use VOP_DECREF   
+     * both vfs_open and vfs_lookup that open up a vnode file use VOP_DECREF  
+     * Increase the reference count of the v-ndode
+     * Increase the amount of open file descriptors for the process table 
      */
     VOP_INCREF(af->vn);
+    kproc->fdtable_num_entries ++;
     
     *retval = fd;
 

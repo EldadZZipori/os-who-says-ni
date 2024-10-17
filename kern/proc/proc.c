@@ -173,7 +173,7 @@ proc_destroy(struct proc *proc)
 	threadarray_cleanup(&proc->p_threads);
 	spinlock_cleanup(&proc->p_lock);
 
-	/* Added for Assignement 4 */
+	/* Assignment 4 - File related clearnups */
 	/*for (unsigned int i = 0; i < __OPEN_MAX; i++)
 	{
 		lock_destroy(proc->fdtable_index_lks[i]);
@@ -181,7 +181,7 @@ proc_destroy(struct proc *proc)
 
 	kfree(proc->fdtable_index_lks);
 	*/
-
+	
 	lock_destroy(proc->fdtable_lk);
 
 	kfree(proc->p_name);
@@ -199,7 +199,7 @@ proc_bootstrap(void)
 		panic("proc_create for kproc failed\n");
 	}
 
-	/* Added for Assignment 4 */
+	/* Added for Assignment 4 - File related allocations*/
 	/*kproc->fdtable_index_lks = (struct lock**)kmalloc(__OPEN_MAX*sizeof(struct lock*));
 	if(kproc->fdtable_index_lks == NULL)
 	{

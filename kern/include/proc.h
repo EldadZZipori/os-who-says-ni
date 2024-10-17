@@ -66,10 +66,17 @@ struct proc {
 	/* add more material here as needed */
 	/* Added members for Assignment 4 */
 
-	/* Open File Descriptor table */
-	int fdtable[__OPEN_MAX];	// Holds the index of the file in the open file table
-	//struct lock** fdtable_index_lks;
+	/* 
+	 * Open File Descriptor table 
+	 * maps a process's file decriptor (fd) to its actual index in the
+	 * open file table of the whole system
+	 * 
+	 * Comes with a lock to avoid race conditions on fd during open/close/read/etc operations
+	 */
+	int fdtable[__OPEN_MAX];		
 	struct lock* fdtable_lk;
+
+	//struct lock** fdtable_index_lks; TBD if needed
 
 	/* Amount of currently opened files for this proccess */	
 	unsigned int fdtable_num_entries;
