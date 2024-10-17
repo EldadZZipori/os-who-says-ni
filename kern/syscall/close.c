@@ -26,6 +26,7 @@ sys_close(int fd)
     
     if (index_in_fd == FDTABLE_EMPTY)
     {
+        lock_release(curproc->fdtable_lk);
         return EBADF;
     }
 
