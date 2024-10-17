@@ -2,11 +2,13 @@
 #include <stat.h>
 #include <vnode.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <synch.h>
 #include <proc.h>
 #include <current.h>
 #include <abstractfile.h>
 #include <filetable.h>
+#include <vfs.h>
 
 
 
@@ -37,22 +39,26 @@ ssize_t sys_write(int filehandle, const void *buf, size_t size)
 
     if (filehandle < 0 || filehandle > OPEN_MAX) return EBADF;
 
+    // copy user argument buf (contents to write) to kernel space
+    // this should be done anytime a kernel function is called with a 
+    // user-space pointer
     result = copyin(buf, kbuf, size); // copy size bytes from but to kbuf
     if (result)
     { 
-        return EFAULT;
+        return result; // will return EFAULT if copyin fails
     }
 
-    lock_acquire(curproc->fdtable_lks[filehandle]); // acquire lock for local fd.
+    // acquire lock for process' fd table - first layer of file structure
+    lock_acquire(curproc->fdtable_lk); // acquire lock for process' fd table.
     int ft_idx = curproc->fdtable[filehandle]; 
 
-    // check that file table index is valid
     if (ft_idx == FDTABLE_EMPTY || ft_idx > kfile_table->curr_size) 
     {
-        lock_release(curproc->fdtable[filehandle]); 
+        lock_release(curproc->fdtable_lk); 
         return EBADF;
     }
 
+    // acquire lock for abstract file - second layer of file structure
     lock_acquire(kfile_table->files_lk[ft_idx]); // acquire absfile lock
 
     // get ptr to abstract file
@@ -60,24 +66,37 @@ ssize_t sys_write(int filehandle, const void *buf, size_t size)
 
     int offset = af->offset;
     int status = af->status;
-    struct vn* = af->vn;
+    struct vnode *vn = af->vn;
 
-
-
-    
-
-
-
-
-
-
-    if (filehandle < 0 || filehandle) 
-    { 
+    // check that file is open for writing
+    if (status != O_WRONLY && status != O_RDWR && status != O_APPEND) 
+    {
+        lock_release(kfile_table->files_lk[ft_idx]);
+        lock_release(curproc->fdtable_lk);
         return EBADF;
     }
 
-    VOP_WRIT()
-    
-    return 0;
+    // create a uio struct to write to the file
+    struct uio uio;
+    struct iovec iov;
+    uio_kinit(&iov, &uio, kbuf, size, offset, UIO_WRITE);
+
+    // write to the file
+    result = VOP_WRITE(vn, &uio);
+    if (result) 
+    {
+        lock_release(kfile_table->files_lk[ft_idx]);
+        lock_release(curproc->fdtable_lk);
+        return result;
+    }
+
+    // update the offset in the abstract file
+    af->offset = uio.uio_offset;
+
+    // release locks
+    lock_release(kfile_table->files_lk[ft_idx]);
+    lock_release(curproc->fdtable_lk);
+
+    return size - uio.uio_resid;
 
 }
