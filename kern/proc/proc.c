@@ -204,6 +204,7 @@ proc_destroy(struct proc *proc)
 
 	kfree(proc->fdtable_index_lks);
 	*/
+	proc->fdtable_lk = lock_create("Process table lock");
 	
 	lock_destroy(proc->fdtable_lk);
 
@@ -240,12 +241,6 @@ proc_bootstrap(void)
 			panic("Creating locks for kproc failed\n");
 		}
 	}*/
-
-	kproc->fdtable_lk = lock_create("Process table lock");
-	if (kproc->fdtable_lk == NULL)
-	{
-		panic("Creating lock or kproc failed\n");
-	}
 
 }
 
