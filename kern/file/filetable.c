@@ -93,11 +93,11 @@ ft_add_file(struct abstractfile* file, int* location)
 }
 
 void 
-ft_remove_file(unsigned int fd) 
+ft_remove_file(unsigned int index) 
 {
     KASSERT(kfile_table != NULL); 
     KASSERT(kfile_table->files != NULL);
-    KASSERT(fd < kfile_table->curr_size);
+    KASSERT(index < kfile_table->curr_size);
 
-    kfile_table->files[fd] = NULL;
+    kfile_table->files[index] = NULL;
 }

@@ -94,7 +94,7 @@ sys_open(userptr_t path, int flags, int* retval)
     lock_acquire(kproc->fdtable_lk);
 
     int fd;
-    result = pt_find_free_fd(kproc, &fd);
+    result = pt_find_free_fd(curproc, &fd);
     if (result)
     {
         vfs_close(vn);
@@ -109,11 +109,11 @@ sys_open(userptr_t path, int flags, int* retval)
     {
         vfs_close(vn);
         af_destroy(af);
-        lock_release(kproc->fdtable_lk);
+        lock_release(curproc->fdtable_lk);
         return result;
     }
 
-    kproc->fdtable[fd] = file_location;
+    curproc->fdtable[fd] = file_location;
 
     /*
      * both vfs_open and vfs_lookup that open up a vnode file use VOP_DECREF  

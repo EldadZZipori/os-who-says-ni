@@ -62,7 +62,7 @@ pt_find_free_fd(struct proc* pr, int* fd)
 
     for (int i = 0; i < __OPEN_MAX; i++)
     {
-        if (pr->fdtable[i] == -1)
+        if (pr->fdtable[i] == FDTABLE_EMPTY)
         {
             *fd = i;
             return 0;

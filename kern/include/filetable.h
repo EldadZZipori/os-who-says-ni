@@ -52,11 +52,11 @@ ft_add_file(struct abstractfile* file, int* location);
  *        Requires that fd is non-negative and less than the file 
  *        table size. 
  * 
- * @param fd: A non-negative file descriptor, returned by some call 
+ * @param index: A non-negative file descriptor, returned by some call 
               to open(), dup2(), etc. 
               Question: What if another file closes? Could this be 
               an invalid fd? 
  */
 void 
-ft_remove_file(unsigned int fd);
+ft_remove_file(unsigned int index);
 #endif
