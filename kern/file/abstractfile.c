@@ -11,23 +11,23 @@
 
 
 int
-af_create(unsigned int status ,struct vnode* vn, struct abstractfile* af)
+af_create(unsigned int status ,struct vnode* vn, struct abstractfile** af)
 {
-    af = kmalloc(sizeof(struct abstractfile));
+    *af = kmalloc(sizeof(struct abstractfile));
     if (af == NULL)
     {
         return ENOMEM;
     }
-    af->offset = 0;
-    af->vn = vn;
-    af->ref_count = 1;
-    af->status = status;
+    (*af)->offset = 0;
+    (*af)->vn = vn;
+    (*af)->ref_count = 1;
+    (*af)->status = status;
 
     return 0;
 }
 
 int 
-af_destroy(struct abstractfile* af)
+af_destroy(struct abstractfile** af)
 {
     (void)af;
 

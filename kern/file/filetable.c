@@ -144,7 +144,7 @@ ft_remove_file(unsigned int index)
 }
 
 int 
-__open(char kpath[__PATH_MAX], int flags, struct abstractfile* af)
+__open(char kpath[__PATH_MAX], int flags, struct abstractfile** af)
 {
     int result = 0;
     struct vnode* vn;
@@ -157,7 +157,7 @@ __open(char kpath[__PATH_MAX], int flags, struct abstractfile* af)
         return result;
     }
 
-    result = af_create(flags, vn, af);
+    result = af_create(flags, vn, &af);
     if (result)
     {
         vfs_close(vn);
@@ -180,7 +180,7 @@ __open(char kpath[__PATH_MAX], int flags, struct abstractfile* af)
             return result;
         }
 
-        af->offset = st.st_size;
+        (*af)->offset = st.st_size;
     }
     
     return 0;
