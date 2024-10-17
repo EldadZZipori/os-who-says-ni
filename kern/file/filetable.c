@@ -8,6 +8,8 @@
 #include <vfs.h>
 #include <filetable.h>
 
+#define STD_DEVICE "con:"
+
 // Make sure to destroy
 void 
 ft_bootstrap() 
@@ -53,12 +55,25 @@ ft_bootstrap()
     struct abstractfile* stdout = NULL;
     struct abstractfile* stderr = NULL;
 
-    char *device = kmalloc(4*sizeof(char));
-    strcpy(device, "con:");
+    //char *device = kmalloc(4*sizeof(char));
+    //strcpy(device, "con:");
+
+    // FIX!!! BAD FIX HERE
     
-    if( __open(device, O_RDONLY, stdin) ||
-        __open(device, O_WRONLY, stdout)||
-        __open(device, O_RDONLY, stderr))
+    char device1[] = "con:";
+    char device2[] = "con:";
+    char device3[] = "con:";
+
+    if( __open(device1, O_RDONLY, stdin))
+    {
+        panic("Could not open std");
+    }
+
+    if(__open(device2, O_RDONLY, stderr))
+    {
+        panic("Could not open std");
+    }
+    if(__open(device3, O_WRONLY, stdout))
     {
         panic("Could not open std");
     }
@@ -129,7 +144,7 @@ ft_remove_file(unsigned int index)
 }
 
 int 
-__open(char* kpath, int flags, struct abstractfile* af)
+__open(char kpath[__PATH_MAX], int flags, struct abstractfile* af)
 {
     int result = 0;
     struct vnode* vn;
