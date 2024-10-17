@@ -58,7 +58,7 @@ sys_open(userptr_t path, int flags, int* retval)
         return result;
     }
 
-    lock_acquire(kproc->fdtable_lk);
+    lock_acquire(curproc->fdtable_lk);
 
     int fd;
     result = pt_find_free_fd(curproc, &fd);
@@ -66,6 +66,7 @@ sys_open(userptr_t path, int flags, int* retval)
     {
         vfs_close(af->vn);
         af_destroy(&af);
+        lock_release(curproc->fdtable_lk);
         return result;
     }
 
@@ -88,12 +89,12 @@ sys_open(userptr_t path, int flags, int* retval)
      * Increase the amount of open file descriptors for the process table 
      */
     VOP_INCREF(af->vn);
-    kproc->fdtable_num_entries ++;
+    curproc->fdtable_num_entries ++;
     
     *retval = fd;
     //copyout(&fd, retval, sizeof(fd));
 
-    lock_release(kproc->fdtable_lk);
+    lock_release(curproc->fdtable_lk);
 
 
     return 0;
