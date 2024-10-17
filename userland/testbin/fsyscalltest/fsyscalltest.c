@@ -359,7 +359,7 @@ dir_test()
 int
 main()
 {
-	printf("Starting test prey to god");
+	printf("Starting test prey to the gods\n");
 
 	test_openfile_limits();
 	printf("Passed Part 1 of fsyscalltest\n");
