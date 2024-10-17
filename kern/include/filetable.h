@@ -31,7 +31,7 @@ ft_destroy(struct filetable* ft);
 
 /**
  * @brief Dynamiclly changes the size of kfile_talbe to allow for more open files
- */node
+ */
 void 
 ft_adjust_size(void);
 

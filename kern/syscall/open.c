@@ -90,7 +90,7 @@ sys_open(userptr_t path, int flags, int* retval)
         af->offset = st.st_size;
     }
     
-    lock_acquire(kproc->fdtable_lks[fd]);
+    lock_acquire(kproc->fdtable_lk);
 
     int fd;
     result = pt_find_free_fd(kproc, &fd);
@@ -108,7 +108,7 @@ sys_open(userptr_t path, int flags, int* retval)
     {
         vfs_close(vn);
         af_destroy(af);
-        lock_release(kproc->fdtable_lks[fd]);
+        lock_release(kproc->fdtable_lk);
         return result;
     }
 
@@ -121,7 +121,7 @@ sys_open(userptr_t path, int flags, int* retval)
     
     *retval = fd;
 
-    lock_release(kproc->fdtable_lks[fd]);
+    lock_release(kproc->fdtable_lk);
 
 
     return 0;
