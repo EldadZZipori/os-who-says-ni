@@ -111,11 +111,6 @@ boot(void)
 	ram_bootstrap();
 	proc_bootstrap();
 
-	/* Assignment 4 structures */
-	ft_bootstrap();
-	pt_bootstrap();
-
-
 	thread_bootstrap();
 	hardclock_bootstrap();
 	vfs_bootstrap();
@@ -140,6 +135,13 @@ boot(void)
 	vfs_setbootfs("emu0");
 
 	kheap_nextgeneration();
+
+	/* 
+	 * Assignment 4 structures 
+	 * Location of this is important
+	 */
+	ft_bootstrap();
+	pt_bootstrap();
 
 	/*
 	 * Make sure various things aren't screwed up.

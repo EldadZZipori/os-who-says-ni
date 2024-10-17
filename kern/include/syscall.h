@@ -66,4 +66,14 @@ sys___getcwd(userptr_t buf, size_t buflen, int * retval);
 
 int
 sys_open(userptr_t path, int flags, int* retval);
+
+ssize_t 
+sys_read(int filehandle, userptr_t buf, size_t size, int *retval);
+
+ssize_t 
+sys_write(int filehandle, userptr_t buf, size_t size, int *retval);
+
+int
+sys_close(int fd);
 #endif /* _SYSCALL_H_ */
+

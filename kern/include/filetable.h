@@ -59,4 +59,7 @@ ft_add_file(struct abstractfile* file, int* location);
  */
 void 
 ft_remove_file(unsigned int index);
+
+int 
+__open(char* kpath, int flags, struct abstractfile* af);
 #endif

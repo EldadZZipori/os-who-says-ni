@@ -20,7 +20,6 @@
 int
 sys_close(int fd)
 {
-    int result;
     int index_in_fd = curproc->fdtable[fd];
 
     lock_acquire(curproc->fdtable_lk);

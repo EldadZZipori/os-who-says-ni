@@ -7,6 +7,7 @@
 #include <proc.h>
 #include <synch.h>
 #include <kern/errno.h>
+#include <filetable.h>
 #include <proctable.h>
 
 

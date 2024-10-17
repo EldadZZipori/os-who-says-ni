@@ -47,6 +47,9 @@
 #include <synch.h>
 #include <proc.h>
 #include <current.h>
+#include <proctable.h>
+#include <filetable.h>
+#include <abstractfile.h>
 #include <addrspace.h>
 #include <vnode.h>
 
@@ -86,6 +89,21 @@ proc_create(const char *name)
 	/* Added for Assignment 4 */
 	//proc->fdtable = {}; 
 	proc->fdtable_num_entries = 0;
+
+	/*
+	 * If the file table already exists 
+	 * i.e. the vfs is initilized too
+	 */
+	if (kfile_table != NULL)
+	{
+		// more for next assignment
+		kfile_table->files[0]->ref_count++;
+		kfile_table->files[1]->ref_count++;
+		kfile_table->files[2]->ref_count++;
+	}
+	proc->fdtable[0] = 0;
+    proc->fdtable[1] = 1;
+    proc->fdtable[2] = 2;
 
 	return proc;
 }

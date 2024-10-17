@@ -33,7 +33,7 @@
  *    SYSCALL(symbol, number)
  *
  * Warning: gccs before 3.0 run cpp in -traditional mode on .S files.
- * So if you use an older gcc you'll need to change the token pasting
+ * So if you use an older gcc youll need to change the token pasting
  * in SYSCALL().
  */
 
@@ -44,7 +44,7 @@
  * Definition for each syscall.
  * All we do is load the syscall number into v0, the register the
  * kernel expects to find it in, and jump to the shared syscall code.
- * (Note that the addiu instruction is in the jump's delay slot.)
+ * (Note that the addiu instruction is in the jumps delay slot.)
  */
 #define SYSCALL(sym, num) \
    .set noreorder		; \
@@ -70,7 +70,7 @@ sym:				; \
  *    On error return, nonzero in a3 register; errno value in v0.
  *
  * The use of a3 as a return register to hold the success flag is
- * gross, but I didn't make it up.
+ * gross, but I didnt make it up.
  *
  * Note that by longstanding Unix convention and POSIX decree, errno
  * is not to be set unless the call actually fails.

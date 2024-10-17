@@ -20,4 +20,5 @@ af_create(unsigned int status ,struct vnode* node, struct abstractfile* af);
 
 int 
 af_destroy(struct abstractfile* af);
+
 #endif

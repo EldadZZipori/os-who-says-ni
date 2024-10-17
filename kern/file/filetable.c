@@ -1,7 +1,11 @@
 #include <types.h>
 #include <proc.h>
 #include <synch.h>
+#include <abstractfile.h>
+#include <kern/fcntl.h>
 #include <kern/errno.h>
+#include <stat.h>
+#include <vfs.h>
 #include <filetable.h>
 
 // Make sure to destroy
@@ -41,8 +45,30 @@ ft_bootstrap()
     
 
     kfile_table->curr_size = FILETABLE_INIT_SIZE;
-    kfile_table->files_counter = 0;
+
+    /* STD input/out/error should be opened */
+    kfile_table->files_counter = 3; 
+
+    struct abstractfile* stdin = NULL;
+    struct abstractfile* stdout = NULL;
+    struct abstractfile* stderr = NULL;
+
+    char *device = kmalloc(4*sizeof(char));
+    strcpy(device, "con:");
+    
+    if( __open(device, O_RDONLY, stdin) ||
+        __open(device, O_WRONLY, stdout)||
+        __open(device, O_RDONLY, stderr))
+    {
+        panic("Could not open std");
+    }
+
+    kfile_table->files[0] = stdin;
+    kfile_table->files[1] = stdout;
+    kfile_table->files[1] = stderr;
     // TODO: set all things to NULL
+
+    
 }
 
 void 
@@ -100,4 +126,47 @@ ft_remove_file(unsigned int index)
     KASSERT(index < kfile_table->curr_size);
 
     kfile_table->files[index] = NULL;
+}
+
+int 
+__open(char* kpath, int flags, struct abstractfile* af)
+{
+    int result = 0;
+    struct vnode* vn;
+    /* 
+     * As per man page ignoring mode for OS161
+     */
+    result = vfs_open(kpath, sizeof(kpath), 0, &vn);
+    if (result)
+    {
+        return result;
+    }
+
+    result = af_create(flags, vn, af);
+    if (result)
+    {
+        vfs_close(vn);
+        return result;
+    }
+
+    /* When the file is in append mode set the offset to the end of the file */
+    if (flags & O_APPEND)
+    {
+        struct stat st;   
+
+        //  vop_stat        - Return info about a file. The pointer is a
+        //                    pointer to struct stat; see kern/stat.h.
+        //  See vnode.h
+        result = VOP_STAT(vn, &st);
+        if (result)
+        {
+            vfs_close(vn);
+            af_destroy(af);
+            return result;
+        }
+
+        af->offset = st.st_size;
+    }
+    
+    return 0;
 }

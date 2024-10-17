@@ -1,13 +1,16 @@
-#include <uio.h>
+
 #include <vnode.h>
-#include <errno.h>
-#include <fcntl.h>
+#include <kern/errno.h>
+#include <kern/fcntl.h>
 #include <synch.h>
 #include <proc.h>
 #include <current.h>
+#include <uio.h>
+#include <copyinout.h>
 #include <abstractfile.h>
 #include <filetable.h>
 #include <vfs.h>
+#include <syscall.h>
 
 /** 
  * @brief Reads from a file represented by a file descriptor.
@@ -28,7 +31,7 @@
  * EFAULT 	Part or all of the address space pointed to by buf is invalid.
  * EIO 	    A hardware I/O error occurred reading the data.
 */
-ssize_t read(int filehandle, void *buf, size_t size)
+ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
 { 
     // declare variables
     int result;
@@ -96,5 +99,6 @@ ssize_t read(int filehandle, void *buf, size_t size)
     lock_release(curproc->fdtable_lk);
 
     // return number of bytes read
-    return size - uio.uio_resid;
+    *retval = size - uio.uio_resid;
+    return 0;
 }

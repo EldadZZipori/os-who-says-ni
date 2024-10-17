@@ -31,8 +31,6 @@ sys_open(userptr_t path, int flags, int* retval)
 
     int result;
 
-    *retval = -1;
-
     char kpath[__PATH_MAX];
     /*
      * Main flags for file opening, others are addons.
@@ -52,52 +50,21 @@ sys_open(userptr_t path, int flags, int* retval)
     {
         return result;
     }
-
-    struct vnode* vn = NULL;
-    /* 
-     * As per man page ignoring mode for OS161
-     */
-    result = vfs_open(kpath, sizeof(kpath), 0, &vn);
-    if (result)
-    {
-        return result;
-    }
-    
     struct abstractfile* af = NULL;
 
-    result = af_create(flags, vn, af);
+    result = __open(kpath, flags, af);
     if (result)
     {
-        vfs_close(vn);
         return result;
     }
 
-    /* When the file is in append mode set the offset to the end of the file */
-    if (flags & O_APPEND)
-    {
-        struct stat st;   
-
-        //  vop_stat        - Return info about a file. The pointer is a
-        //                    pointer to struct stat; see kern/stat.h.
-        //  See vnode.h
-        result = VOP_STAT(vn, &st);
-        if (result)
-        {
-            vfs_close(vn);
-            af_destroy(af);
-            return result;
-        }
-
-        af->offset = st.st_size;
-    }
-    
     lock_acquire(kproc->fdtable_lk);
 
     int fd;
     result = pt_find_free_fd(curproc, &fd);
     if (result)
     {
-        vfs_close(vn);
+        vfs_close(af->vn);
         af_destroy(af);
         return result;
     }
@@ -107,7 +74,7 @@ sys_open(userptr_t path, int flags, int* retval)
     result = ft_add_file(af, &file_location);
     if(result)
     {
-        vfs_close(vn);
+        vfs_close(af->vn);
         af_destroy(af);
         lock_release(curproc->fdtable_lk);
         return result;
@@ -123,7 +90,8 @@ sys_open(userptr_t path, int flags, int* retval)
     VOP_INCREF(af->vn);
     kproc->fdtable_num_entries ++;
     
-    *retval = fd;
+    //*retval = fd;
+    copyout(&fd,(userptr_t)retval, sizeof(fd));
 
     lock_release(kproc->fdtable_lk);
 

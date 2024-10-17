@@ -1,14 +1,15 @@
 #include <uio.h>
 #include <stat.h>
 #include <vnode.h>
-#include <errno.h>
-#include <fcntl.h>
+#include <kern/errno.h>
+#include <kern/fcntl.h>
 #include <synch.h>
 #include <proc.h>
 #include <current.h>
 #include <abstractfile.h>
 #include <filetable.h>
 #include <vfs.h>
+#include <syscall.h>
 
 
 
@@ -29,7 +30,7 @@
  * Note: Returns zero if nothing could be written but no error occured, which only occurs at the end of fixed-size objects.
  */
 
-ssize_t sys_write(int filehandle, const void *buf, size_t size)
+ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
 {
     int ft_idx;
     int kfiletable_idx;
@@ -94,7 +95,6 @@ ssize_t sys_write(int filehandle, const void *buf, size_t size)
     if (status == O_APPEND) 
     {
         uio.uio_offset = file_stat.st_size;
-        // TODO Assignment 4: Do I need to update af->offset too? 
     }
 
     // write to the file
@@ -116,6 +116,7 @@ ssize_t sys_write(int filehandle, const void *buf, size_t size)
     lock_release(kfile_table->files_lk[ft_idx]);
     lock_release(curproc->fdtable_lk);
 
-    return size - uio.uio_resid;
+    *retval = size - uio.uio_resid;
+    return 0;
 
 }

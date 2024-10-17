@@ -25,3 +25,12 @@ Question
 
 ## October 16th 2024
 - Worked together vscode livesession (this will show up as Eldad's work)
+
+## October 17th 2024
+
+#### Updated action items
+- [ ] read() entry point in syscall.c
+- [ ] write() entry point in syscall.c
+- [ ] implement lseek() 
+- [ ] lseek() entry point in syscall.c 
+
