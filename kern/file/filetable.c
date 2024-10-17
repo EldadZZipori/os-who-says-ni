@@ -136,7 +136,7 @@ __open(char* kpath, int flags, struct abstractfile* af)
     /* 
      * As per man page ignoring mode for OS161
      */
-    result = vfs_open(kpath, sizeof(kpath), 0, &vn);
+    result = vfs_open(kpath, flags, 0, &vn);
     if (result)
     {
         return result;
