@@ -1,4 +1,4 @@
-#include <uio.h>
+#include <types.h>
 #include <stat.h>
 #include <vnode.h>
 #include <kern/errno.h>
@@ -10,6 +10,8 @@
 #include <filetable.h>
 #include <vfs.h>
 #include <syscall.h>
+#include <copyinout.h>
+#include <uio.h>
 
 
 
@@ -33,7 +35,6 @@
 ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
 {
     int ft_idx;
-    int kfiletable_idx;
     int result; 
     char kbuf[size];
     struct uio uio;
@@ -53,9 +54,9 @@ ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
 
     // acquire lock for process' fd table - first layer of file structure
     lock_acquire(curproc->fdtable_lk); // acquire lock for process' fd table.
-    int ft_idx = curproc->fdtable[filehandle]; 
+    ft_idx = curproc->fdtable[filehandle]; 
 
-    if (ft_idx == FDTABLE_EMPTY || ft_idx > kfile_table->curr_size) 
+    if (ft_idx == FDTABLE_EMPTY || ft_idx > (int)kfile_table->curr_size) 
     {
         lock_release(curproc->fdtable_lk); 
         return EBADF;

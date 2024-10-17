@@ -1,16 +1,16 @@
-
-#include <vnode.h>
+#include <types.h>
 #include <kern/errno.h>
 #include <kern/fcntl.h>
 #include <synch.h>
 #include <proc.h>
 #include <current.h>
-#include <uio.h>
-#include <copyinout.h>
 #include <abstractfile.h>
 #include <filetable.h>
-#include <vfs.h>
 #include <syscall.h>
+#include <vnode.h>
+#include <vfs.h>
+#include <copyinout.h>
+#include <uio.h>
 
 /** 
  * @brief Reads from a file represented by a file descriptor.
@@ -35,6 +35,7 @@ ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
 { 
     // declare variables
     int result;
+    int ft_idx;
     char kbuf[size]; // this will later be transferred to buf using copyout
     struct uio uio;
     struct iovec iov;
@@ -44,9 +45,9 @@ ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
 
     // acquire lock for process' fd table - first layer of file structure
     lock_acquire(curproc->fdtable_lk); // acquire lock for process' fd table.
-    int ft_idx = curproc->fdtable[filehandle]; 
+    ft_idx = curproc->fdtable[filehandle]; 
 
-    if (ft_idx == FDTABLE_EMPTY || ft_idx > kfile_table->curr_size) 
+    if (ft_idx == FDTABLE_EMPTY || ft_idx > (int)kfile_table->curr_size) 
     {
         lock_release(curproc->fdtable_lk); 
         return EBADF;
