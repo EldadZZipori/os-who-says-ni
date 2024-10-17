@@ -94,6 +94,8 @@ proc_create(const char *name)
 	 * If the file table already exists 
 	 * i.e. the vfs is initilized too
 	 */
+	proc->fdtable_lk = lock_create("Process table lock");
+	
 	if (kfile_table != NULL)
 	{
 		// more for next assignment
@@ -204,7 +206,6 @@ proc_destroy(struct proc *proc)
 
 	kfree(proc->fdtable_index_lks);
 	*/
-	proc->fdtable_lk = lock_create("Process table lock");
 	
 	lock_destroy(proc->fdtable_lk);
 
