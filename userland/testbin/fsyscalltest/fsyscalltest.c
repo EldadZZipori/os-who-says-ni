@@ -179,6 +179,7 @@ test_openfile_limits()
 	for(i = 0; i < (OPEN_MAX-3); i++)
 	{
 		fd = open(file, O_RDWR|O_CREAT|O_TRUNC, 0664);
+		printf("Acquired fd %d\n", fd);
 		if (fd<0)
 			err(1, "%s: open for %dth time", file, (i+1));
 
@@ -193,8 +194,13 @@ test_openfile_limits()
 		openFDs[i] = fd;
 	}
 
+	printf("Next one should fail.\n");
+
 	/* This one should fail. */
 	fd = open(file, O_RDWR|O_CREAT|O_TRUNC, 0664);
+
+	printf("The one that should fail returned fd: %d\n", fd);
+
 	if(fd > 0)
 		err(1, "Opening file for %dth time should fail, as %d "
 		    "is the maximum allowed number of open files and the "
