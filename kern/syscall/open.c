@@ -65,7 +65,7 @@ sys_open(userptr_t path, int flags, int* retval)
     if (result)
     {
         vfs_close(af->vn);
-        af_destroy(af);
+        af_destroy(&af);
         return result;
     }
 
@@ -75,7 +75,7 @@ sys_open(userptr_t path, int flags, int* retval)
     if(result)
     {
         vfs_close(af->vn);
-        af_destroy(af);
+        af_destroy(&af);
         lock_release(curproc->fdtable_lk);
         return result;
     }
