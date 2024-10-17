@@ -88,7 +88,7 @@ proc_create(const char *name)
 
 	/* Added for Assignment 4 */
 	//proc->fdtable = {}; 
-	proc->fdtable_num_entries = 0;
+	proc->fdtable_num_entries = 3;
 
 	/*
 	 * If the file table already exists 
@@ -104,6 +104,11 @@ proc_create(const char *name)
 	proc->fdtable[0] = 0;
     proc->fdtable[1] = 1;
     proc->fdtable[2] = 2;
+
+	for (int i = 3; i < __OPEN_MAX; i++)
+	{
+		proc->fdtable[i] = FDTABLE_EMPTY;
+	}
 
 	return proc;
 }
