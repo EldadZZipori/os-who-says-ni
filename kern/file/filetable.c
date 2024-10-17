@@ -118,7 +118,8 @@ ft_add_file(struct abstractfile* file, int* location)
         if(kfile_table->files[i] == NULL)
         {
             kfile_table->files[i] = file;
-            *location = kfile_table->curr_size;     // Exit the loop
+            *location = i;     // Exit the loop
+            break;
         }
         else if(i == (kfile_table->curr_size -1))
         {
