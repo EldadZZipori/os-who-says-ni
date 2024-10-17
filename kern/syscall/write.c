@@ -35,6 +35,8 @@ ssize_t sys_write(int filehandle, const void *buf, size_t size)
     int kfiletable_idx;
     int result; 
     char kbuf[size];
+    struct uio uio;
+    struct iovec iov;
     struct stat file_stat;
 
     if (filehandle < 0 || filehandle > OPEN_MAX) return EBADF;
@@ -77,15 +79,16 @@ ssize_t sys_write(int filehandle, const void *buf, size_t size)
     }
 
     // create a uio struct to write to the file
-    struct uio uio;
-    struct iovec iov;
     uio_kinit(&iov, &uio, kbuf, size, offset, UIO_WRITE);
 
     // get file info including size for append mode
-    VOP_STAT(vn, &file_stat);
-
-    // read file size 
-
+    result = VOP_STAT(vn, &file_stat);
+    if (result) 
+    {
+        lock_release(kfile_table->files_lk[ft_idx]);
+        lock_release(curproc->fdtable_lk);
+        return EIO;
+    }
 
     // update the offset in the uio struct depending on the file status
     if (status == O_APPEND) 
@@ -93,13 +96,17 @@ ssize_t sys_write(int filehandle, const void *buf, size_t size)
         uio.uio_offset = file_stat.st_size;
         // TODO Assignment 4: Do I need to update af->offset too? 
     }
+
     // write to the file
     result = VOP_WRITE(vn, &uio);
     if (result) 
     {
         lock_release(kfile_table->files_lk[ft_idx]);
         lock_release(curproc->fdtable_lk);
-        return result;
+        return result; // will return EIO if VOP_WRITE fails or ENOSPC if there is no space left on the device
+                       // ENOSPC is hard to find. It is returned inside sfs_write. 
+                       // trace: sys_write -> VOP_WRITE -> sfs_write -> sfs_io -> sfs_blockio -> sfs_bmap 
+                       // -> sfs_balloc -> bitmap_alloc -> ENOSPC
     }
 
     // update the offset in the abstract file
