@@ -31,11 +31,11 @@
 
 ssize_t sys_write(int filehandle, const void *buf, size_t size)
 {
-    int result; 
     int ft_idx;
     int kfiletable_idx;
+    int result; 
     char kbuf[size];
-
+    struct stat file_stat;
 
     if (filehandle < 0 || filehandle > OPEN_MAX) return EBADF;
 
@@ -81,6 +81,18 @@ ssize_t sys_write(int filehandle, const void *buf, size_t size)
     struct iovec iov;
     uio_kinit(&iov, &uio, kbuf, size, offset, UIO_WRITE);
 
+    // get file info including size for append mode
+    VOP_STAT(vn, &file_stat);
+
+    // read file size 
+
+
+    // update the offset in the uio struct depending on the file status
+    if (status == O_APPEND) 
+    {
+        uio.uio_offset = file_stat.st_size;
+        // TODO Assignment 4: Do I need to update af->offset too? 
+    }
     // write to the file
     result = VOP_WRITE(vn, &uio);
     if (result) 
