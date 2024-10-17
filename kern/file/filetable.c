@@ -80,7 +80,7 @@ ft_bootstrap()
 
     kfile_table->files[0] = stdin;
     kfile_table->files[1] = stdout;
-    kfile_table->files[1] = stderr;
+    kfile_table->files[2] = stderr;
     // TODO: set all things to NULL
 
     
