@@ -90,8 +90,8 @@ sys_open(userptr_t path, int flags, int* retval)
     VOP_INCREF(af->vn);
     kproc->fdtable_num_entries ++;
     
-    //*retval = fd;
-    copyout(&fd,(userptr_t)retval, sizeof(fd));
+    *retval = fd;
+    //copyout(&fd, retval, sizeof(fd));
 
     lock_release(kproc->fdtable_lk);
 
