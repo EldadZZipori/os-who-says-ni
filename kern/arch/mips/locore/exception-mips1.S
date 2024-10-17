@@ -66,7 +66,7 @@
    .type mips_utlb_handler,@function
    .ent mips_utlb_handler
 mips_utlb_handler:
-   j common_exception		/* Don't need to do anything special */
+   j common_exception		/* Dont need to do anything special */
    nop				/* Delay slot */
    .globl mips_utlb_end
 mips_utlb_end:
@@ -84,7 +84,7 @@ mips_utlb_end:
    .type mips_general_handler,@function
    .ent mips_general_handler
 mips_general_handler:
-   j common_exception		/* Don't need to do anything special */
+   j common_exception		/* Dont need to do anything special */
    nop				/* Delay slot */
    .globl mips_general_end
 mips_general_end:
@@ -144,28 +144,28 @@ common_exception:
     * The order here must match mips/include/trapframe.h.
     *
     * gdb disassembles this code to try to figure out what registers
-    * are where, and it isn't very bright. So in order to make gdb be
+    * are where, and it isnt very bright. So in order to make gdb be
     * able to trace the stack back through here, we play some silly
     * games.
     *
     * In particular:
     *    (1) We store the return address register into the epc slot,
-    *        which makes gdb think it's the return address slot. Then
+    *        which makes gdb think its the return address slot. Then
     *        we store the real epc value over that.
     *    (2) We store the current sp into the sp slot, which makes gdb
-    *        think it's the stack pointer slot. Then we store the real
+    *        think its the stack pointer slot. Then we store the real
     *        value.
     *    (3) gdb also assumes that saved registers in a function are
     *        saved in order. This is why we put epc where it is, and
     *        handle the real value of ra afterwards.
-    *    (4) Because gdb will think we're saving k0 and k1, we need to
+    *    (4) Because gdb will think were saving k0 and k1, we need to
     *        leave slots for them in the trap frame, even though the
     *        stuff we save there is useless.
     *
     * This logic has not been tested against a recent gdb and has
     * probably bitrotted. Someone(TM) should figure out what gdb
     * currently expects -- or maybe even patch gdb to understand a
-    * better form of this that doesn't waste so many cycles.
+    * better form of this that doesnt waste so many cycles.
     */
    sw ra, 160(sp)	/* dummy for gdb */
    sw s8, 156(sp)	/* save s8 */
@@ -228,7 +228,7 @@ common_exception:
    sw   t4, 24(sp)               /* Copr.0 reg 13 == exception cause */
 
    /*
-    * Pretend to save $0 for gdb's benefit.
+    * Pretend to save $0 for gdbs benefit.
     */
    sw $0, 12(sp)
 
@@ -260,7 +260,7 @@ common_exception:
    jal mips_trap		/* call it */
    nop				/* delay slot */
 
-   /* Something must be here or gdb doesn't find the stack frame. */
+   /* Something must be here or gdb doesnt find the stack frame. */
    nop
 
    /*
