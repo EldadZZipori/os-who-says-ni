@@ -145,7 +145,7 @@ ft_remove_file(unsigned int index)
      */
 
     // No need to decrease ref on the vnode as vfs_close does that
-    af_destroy(kfile_table->files[index]);
+    af_destroy(&kfile_table->files[index]);
     kfile_table->files[index] = NULL;
 
     kfile_table->files_counter--; // This should be the only place that files_counter of the main file table decreases

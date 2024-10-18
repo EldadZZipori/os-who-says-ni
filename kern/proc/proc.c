@@ -219,7 +219,7 @@ proc_destroy(struct proc *proc)
 	/* Assignment 4 - File related clearnups */
 
 	// Make sure to close all references to the files once the process is done.
-	for (int i = 0; i < proc->fdtable_num_entries; i++)
+	for (unsigned int i = 0; i < proc->fdtable_num_entries; i++)
 	{
 		__close(proc->fdtable[i]);
 	}
