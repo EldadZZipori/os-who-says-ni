@@ -34,6 +34,7 @@
 #include <mips/trapframe.h>
 #include <thread.h>
 #include <current.h>
+#include <copyinout.h>
 #include <abstractfile.h>
 #include <syscall.h>
 
@@ -81,6 +82,8 @@ syscall(struct trapframe *tf)
 {
 	int callno;
 	int32_t retval;
+	int64_t retval64;
+	int is_ret64 = 0;
 	int err;
 
 	KASSERT(curthread != NULL);
@@ -115,7 +118,16 @@ syscall(struct trapframe *tf)
 								tf->tf_a1,
 								&retval);
 		case SYS_chdir:
-			err = sys_chdir( (userptr_t)tf->tf_a0);
+			err = sys_chdir( 	(userptr_t)tf->tf_a0);
+		break;
+		case SYS_lseek:
+			int *whence_val;
+			copyin((userptr_t)(tf->tf_sp + 16), val, sizeof(int32_t));
+			err = sys_lseek( 	tf->tf_a0,
+								(off_t)(tf->tf_a2 | (tf->tf_a3 << 32)),
+								val,
+								&retval64);
+			is_ret64 = 1;
 		break;
 		case SYS_open:
 			err = sys_open(		(userptr_t)tf->tf_a0,
@@ -156,7 +168,15 @@ syscall(struct trapframe *tf)
 	}
 	else {
 		/* Success. */
-		tf->tf_v0 = retval;
+		if(is_ret64) 
+		{
+			tf->tf_v0 = retval64 & 0xFFFFFFFF;
+			tf->tf_v1 = (retval64 >> 32) & 0xFFFFFFFF;
+		}
+		else 
+		{
+			tf->tf_v0 = retval;
+		}
 		tf->tf_a3 = 0;      /* signal no error */
 	}
 

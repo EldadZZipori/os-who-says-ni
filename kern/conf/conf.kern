@@ -459,6 +459,7 @@ file        file/abstractfile.c
 file        file/filetable.c
 file        syscall/__getcwd.c
 fle         syscall/chdir.c
+fle         syscall/lseek.c
 file        syscall/open.c
 file        syscall/close.c
 file        syscall/read.c

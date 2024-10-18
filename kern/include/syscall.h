@@ -81,5 +81,8 @@ sys_close(int fd);
 
 int
 chdir(userptr_t pathname);
+
+int
+lseek(int fd, off_t pos, int whence, int *retval)
 #endif /* _SYSCALL_H_ */
 
