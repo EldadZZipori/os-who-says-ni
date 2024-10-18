@@ -458,6 +458,7 @@ file        file/proctable.c
 file        file/abstractfile.c
 file        file/filetable.c
 file        syscall/__getcwd.c
+fle         syscall/chdir.c
 file        syscall/open.c
 file        syscall/close.c
 file        syscall/read.c

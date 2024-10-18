@@ -109,11 +109,13 @@ syscall(struct trapframe *tf)
 			err = sys___time(	(userptr_t)tf->tf_a0,
 				 				(userptr_t)tf->tf_a1);
 		break;
-		/* Added for Assginment 4: */
+		/* Added for Assginment 4: Filesystem Calls */
 		case SYS___getcwd:
 			err = sys___getcwd(	(userptr_t)tf->tf_a0, 
 								tf->tf_a1,
 								&retval);
+		case SYS_chdir:
+			err = sys_chdir( (userptr_t)tf->tf_a0);
 		break;
 		case SYS_open:
 			err = sys_open(		(userptr_t)tf->tf_a0,

@@ -60,7 +60,10 @@ int sys_reboot(int code);
 int sys___time(userptr_t user_seconds, userptr_t user_nanoseconds);
 
 
-/* Assigment 4 - File Systemcalls*/
+/* 
+ * Assigment 4 
+ * File Systemcalls
+ */
 int	
 sys___getcwd(userptr_t buf, size_t buflen, int * retval);
 
@@ -75,5 +78,8 @@ sys_write(int filehandle, userptr_t buf, size_t size, int *retval);
 
 int
 sys_close(int fd);
+
+int
+chdir(userptr_t pathname);
 #endif /* _SYSCALL_H_ */
 

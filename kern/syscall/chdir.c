@@ -11,35 +11,35 @@
 #include <syscall.h>
 
 int
-sys___getcwd(userptr_t buf, size_t buflen, int * retval)
+chdir(userptr_t pathname)
 {
     lock_acquire(curproc->fdtable_lk);
 
     int result;
+    size_t pathlen = sizeof(pathname);
 	struct iovec iov;   // Used for read/write I/O calls
 	struct uio ku;      // Memory block for kernel/user space
 
-    char kbuf[buflen];
+    char kbuf[pathlen];
+
+    // Only need to copy out
+    result = copyinstr(pathname, kbuf, pathlen, NULL);
+    if (result)
+    {
+        lock_release(curproc->fdtable_lk);
+        return result;
+    }
 
     // use copyin copyout
 	uio_kinit(&iov, &ku, kbuf, sizeof(kbuf), 0, UIO_READ);
 
-    result = vfs_getcwd(&ku);
+    result = vfs_chdir(&ku);
     if (result)
     {
         lock_release(curproc->fdtable_lk);
         return result;
     }
 
-    *retval = buflen - ku.uio_resid;
-
-    result = copyout(&ku, buf, sizeof(ku));
-    if (result)
-    {
-        lock_release(curproc->fdtable_lk);
-        return result;
-    }
     lock_release(curproc->fdtable_lk);
-
     return 0;
 }
