@@ -86,8 +86,10 @@ proc_create(const char *name)
 	/* VFS fields */
 	proc->p_cwd = NULL;
 
-	/* Added for Assignment 4 */
-	//proc->fdtable = {}; 
+	/* 
+	 * Added for Assignment 4
+	 * When a process is created it should always have three file descriptors for it
+	 */
 	proc->fdtable_num_entries = 3;
 
 	/*
@@ -96,6 +98,12 @@ proc_create(const char *name)
 	 */
 	proc->fdtable_lk = lock_create("Process table lock");
 	
+
+	/*
+	 * The file descriptor table will only be bootstraped after 
+	 * the kernel. So we cannot and should not increase the ref_count
+	 * before it is created.
+	 */
 	if (kfile_table != NULL)
 	{
 		// more for next assignment
@@ -103,10 +111,18 @@ proc_create(const char *name)
 		kfile_table->files[1]->ref_count++;
 		kfile_table->files[2]->ref_count++;
 	}
+
+	/*
+	 * IMPORTANT NOTE - the main open file descriptor table 
+	 * is in-charge of creating these files in reality.
+	 */
 	proc->fdtable[0] = 0;
     proc->fdtable[1] = 1;
     proc->fdtable[2] = 2;
 
+	/*
+	 * Make sure that all file descripors indicate that they are empty 
+	 */
 	for (int i = 3; i < __OPEN_MAX; i++)
 	{
 		proc->fdtable[i] = FDTABLE_EMPTY;

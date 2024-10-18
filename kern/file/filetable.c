@@ -15,6 +15,8 @@
 void 
 ft_bootstrap() 
 {
+
+    /* Allocation of all memory needed for a file */
     kfile_table = (struct filetable*)kmalloc(sizeof(struct filetable));
 
     if (kfile_table == NULL) 
@@ -46,18 +48,15 @@ ft_bootstrap()
 		}
 	}
     
-
+    /* Make sure to track the size of the file - room to make it dynamic in the future */
     kfile_table->curr_size = FILETABLE_INIT_SIZE;
 
-    /* STD input/out/error should be opened */
+    /* Create the standard input/out/error for all processes */
     kfile_table->files_counter = 3; 
 
     struct abstractfile* stdin = NULL;
     struct abstractfile* stdout = NULL;
     struct abstractfile* stderr = NULL;
-
-    //char *device = kmalloc(4*sizeof(char));
-    //strcpy(device, "con:");
 
     // FIX!!! BAD FIX HERE
     
@@ -82,7 +81,6 @@ ft_bootstrap()
     kfile_table->files[0] = stdin;
     kfile_table->files[1] = stdout;
     kfile_table->files[2] = stderr;
-    // TODO: set all things to NULL
 
     
 }
@@ -142,9 +140,15 @@ ft_remove_file(unsigned int index)
     KASSERT(kfile_table->files != NULL);
     KASSERT(index < kfile_table->curr_size);
 
+    /*
+     * Completely remove the file from the table 
+     */
+    VOP_DECREF(kfile_table->files[index]->vn);
+    af_destroy(kfile_table->files[index]);
     kfile_table->files[index] = NULL;
-
     kfile_table->files_counter--;
+
+
 }
 
 int 

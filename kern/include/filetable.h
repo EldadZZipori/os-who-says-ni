@@ -60,9 +60,28 @@ ft_add_file(struct abstractfile** file, int* location);
 void 
 ft_remove_file(unsigned int index);
 
+
+/** 
+ * @brief this is a helper function to open file internally in the kernel. the systemcall for open
+ * will reuse this code so make sure it is safe to use in the kernel before calling it.
+ * 
+ * @param kpath path to file
+ * @param flags how to open the file
+ * @param af the returned high level file will be returned through this variable.
+ * 
+ * @return returns 0 on success, on error comply with errno
+ */
 int 
 __open(char* kpath, int flags, struct abstractfile** af);
 
+/** 
+ * @brief this is a helper function to close file internally in the kernel. the systemcall for open
+ * will reuse this code so make sure it is safe to use in the kernel before calling it.
+ * 
+ * @param fs the filde descriptor of the file. Will be selected from the current running process
+ * 
+ * @return returns 0 on success, on error comply with errno
+ */
 int
 __close(int fd);
 #endif

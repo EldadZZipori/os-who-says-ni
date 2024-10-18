@@ -15,9 +15,24 @@ struct abstractfile
 };
 
 
+/**
+ * @brief Allocates space and abstract file. This function already sets the reference count to 1.
+ * 
+ * @param status flags used to open this file
+ * @param vnode the virtual file this higher level file points to.
+ * @param af the created file will be passed through this pointer
+ * 
+ * @return returns 0 on success, on error comply with errno
+ */
 int
 af_create(unsigned int status ,struct vnode* node, struct abstractfile** af);
 
+/**
+ * @brief destroys a file, this should be called by the open file table when the reference count to the file is zero
+ * @param af the file to destroy
+ * 
+ * @return returns 0 on success, on error comply with errno
+ */
 int 
 af_destroy(struct abstractfile** af);
 

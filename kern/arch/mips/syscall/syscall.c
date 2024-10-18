@@ -82,8 +82,11 @@ syscall(struct trapframe *tf)
 {
 	int callno;
 	int32_t retval;
-	int64_t retval64;
+
+	/* This will be used in case the return value is 64bit */
+	int64_t retval64;	
 	int is_ret64 = 0;
+
 	int err;
 
 	KASSERT(curthread != NULL);
@@ -104,13 +107,12 @@ syscall(struct trapframe *tf)
 	retval = 0;
 
 	/*
-	 * 
+	 * This is used when there is a input that is 64bits
+	 * Note 1 - currently only supporting 64 bits input in second argument
+	 * Note 2 - the LSB is actually in a3 and the MSB is in a2
 	 */
 	long long singed_tf2 = (long long) tf->tf_a2;
 	long long singed_tf3 = (long long) tf->tf_a3;
-
-	// Everything is flipped? ???? CHECK THIS
-	// HELP!!!!!
 	off_t offset = (singed_tf3 | (singed_tf2 << 32));
 
 	switch (callno) {
@@ -180,7 +182,11 @@ syscall(struct trapframe *tf)
 		tf->tf_a3 = 1;      /* signal an error */
 	}
 	else {
-		/* Success. */
+		/*
+		 * Success
+		 * Check if return value should be 64 bits or not. 
+		 * This only depends on the type of syscall that was invoked 
+		 */
 		if(is_ret64) 
 		{
 			tf->tf_v1 = retval64 & 0xFFFFFFFF;

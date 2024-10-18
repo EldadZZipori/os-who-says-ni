@@ -37,6 +37,12 @@ pt_bootstrap(void)
 }
 
 void 
+pt_destroy(void)
+{
+
+}
+
+void 
 pt_adjust_size(void)
 {
 }
@@ -45,12 +51,16 @@ void
 pt_add_proc(struct proc* pr)
 {
     (void) pr;
+
+    // Implement in assignment 5
 }
 
 void 
 pt_remove_proc(struct proc* pr)
 {
     (void) pr;
+     // Implement in assignment 5
+
 }
 
 int 
