@@ -122,10 +122,10 @@ syscall(struct trapframe *tf)
 		break;
 		case SYS_lseek:
 			int *whence_val;
-			copyin((userptr_t)(tf->tf_sp + 16), val, sizeof(int32_t));
+			copyin((userptr_t)(tf->tf_sp + 16), whence_val, sizeof(int32_t));
 			err = sys_lseek( 	tf->tf_a0,
 								(off_t)(tf->tf_a2 | (tf->tf_a3 << 32)),
-								val,
+								whence_val,
 								&retval64);
 			is_ret64 = 1;
 		break;

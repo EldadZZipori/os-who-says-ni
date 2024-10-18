@@ -83,6 +83,6 @@ int
 chdir(userptr_t pathname);
 
 int
-lseek(int fd, off_t pos, int whence, int *retval)
+lseek(int fd, off_t pos, int whence, int *retval64)
 #endif /* _SYSCALL_H_ */
 
