@@ -35,6 +35,7 @@ sys_close(int fd)
      * Makes it available to reuse.
      */ 
     curproc->fdtable[fd] = FDTABLE_EMPTY; 
+    curproc->fdtable_num_entries--;
     kfile_table->files[index_in_fd]->ref_count --;
 
     /* 
