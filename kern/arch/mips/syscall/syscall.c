@@ -105,6 +105,9 @@ syscall(struct trapframe *tf)
 
 	long long singed_tf2 = (long long) tf->tf_a2;
 	long long singed_tf3 = (long long) tf->tf_a3;
+
+	// Everything is flipped? ???? CHECK THIS
+	// HELP!!!!!
 	off_t offset = (singed_tf3 | (singed_tf2 << 32));
 
 	switch (callno) {
