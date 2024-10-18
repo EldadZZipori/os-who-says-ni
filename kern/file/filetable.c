@@ -6,6 +6,7 @@
 #include <kern/errno.h>
 #include <stat.h>
 #include <vfs.h>
+#include <current.h>
 #include <filetable.h>
 
 #define STD_DEVICE "con:"
@@ -186,5 +187,36 @@ __open(char kpath[__PATH_MAX], int flags, struct abstractfile** af)
         (*af)->offset = st.st_size;
     }
     
+    return 0;
+}
+
+int
+__close(int fd)
+{
+    int index_in_fd = curproc->fdtable[fd];
+
+    if (index_in_fd == FDTABLE_EMPTY)
+    {
+        lock_release(curproc->fdtable_lk);
+        return EBADF;
+    }
+    /*
+     * Removes the file descriptor for this process only
+     * Makes it available to reuse.
+     */ 
+    curproc->fdtable[fd] = FDTABLE_EMPTY; 
+    curproc->fdtable_num_entries--;
+    kfile_table->files[index_in_fd]->ref_count --;
+
+    /* 
+     *  We are assuming here that the vfs sructre knows to remove the v-node 
+     *  once it has no references.
+     */
+    vfs_close(kfile_table->files[index_in_fd]->vn);
+
+    if (kfile_table->files[index_in_fd]->ref_count == 0)
+    {
+        ft_remove_file(index_in_fd);
+    }
     return 0;
 }

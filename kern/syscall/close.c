@@ -20,37 +20,16 @@
 int
 sys_close(int fd)
 {
-    int index_in_fd = curproc->fdtable[fd];
-
+    int result;
     lock_acquire(curproc->fdtable_lk);
-    
-    if (index_in_fd == FDTABLE_EMPTY)
+
+    result = __close(fd);
+    if (result)
     {
-        lock_release(curproc->fdtable_lk);
-        return EBADF;
-    }
-
-    /*
-     * Removes the file descriptor for this process only
-     * Makes it available to reuse.
-     */ 
-    curproc->fdtable[fd] = FDTABLE_EMPTY; 
-    curproc->fdtable_num_entries--;
-    kfile_table->files[index_in_fd]->ref_count --;
-
-    /* 
-     *  We are assuming here that the vfs sructre knows to remove the v-node 
-     *  once it has no references.
-     */
-    vfs_close(kfile_table->files[index_in_fd]->vn);
-
-    if (kfile_table->files[index_in_fd]->ref_count == 0)
-    {
-        ft_remove_file(index_in_fd);
+        return result;
     }
 
     lock_release(curproc->fdtable_lk);
-
 
     return 0;
 }

@@ -34,8 +34,10 @@ sys_dup2(int oldfd, int newfd, int* retval)
     // acquire lock for process' fd table - first layer of file structure
     lock_acquire(curproc->fdtable_lk); // acquire lock for process' fd table.
 
+    int acttual_index = curproc->fdtable[oldfd];
+
     // check oldfd is a valid file descriptor
-    if (curproc->fdtable[oldfd] == FDTABLE_EMPTY) 
+    if (acttual_index == FDTABLE_EMPTY) 
     {
         lock_release(curproc->fdtable_lk);
         return EBADF;
@@ -54,13 +56,22 @@ sys_dup2(int oldfd, int newfd, int* retval)
     if (curproc->fdtable[newfd] != FDTABLE_EMPTY) 
     {
         // THIS IS MAYBE JANK
-        sys_close(newfd);
+        // THIS IS TRASH - ELDAD
+        //sys_close(newfd); - this was trash
+        __close(newfd);
     }
 
     // copy oldfd to newfd
-    curproc->fdtable[newfd] = curproc->fdtable[oldfd];
+    curproc->fdtable[newfd] = acttual_index;
+
+    /* Don't forget to indicate that another thing is now using this file */
+    curproc->fdtable_num_entries++;
+    kfile_table->files[acttual_index]->ref_count++;
+    VOP_INCREF(kfile_table->files[acttual_index]->vn);
+    
 
     *retval = newfd; 
+    lock_release(curproc->fdtable_lk);
     return 0;
 
 
