@@ -88,7 +88,7 @@ sys_open(userptr_t path, int flags, int* retval)
      * Increase the reference count of the v-ndode
      * Increase the amount of open file descriptors for the process table 
      */
-    VOP_INCREF(af->vn);
+    // VOP_INCREF(af->vn);
     curproc->fdtable_num_entries ++;
     
     *retval = fd;
