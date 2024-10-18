@@ -124,7 +124,7 @@ syscall(struct trapframe *tf)
 			int *whence_val;
 			copyin((userptr_t)(tf->tf_sp + 16), whence_val, sizeof(int32_t));
 			err = sys_lseek( 	tf->tf_a0,
-								(off_t)(tf->tf_a2 | (tf->tf_a3 << 32)),
+								(off_t)(tf->tf_a2 | (((int64_t)tf->tf_a3) << 32)),
 								whence_val,
 								&retval64);
 			is_ret64 = 1;
