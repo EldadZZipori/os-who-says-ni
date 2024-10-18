@@ -41,6 +41,15 @@ sys_dup2(int oldfd, int newfd, int* retval)
         return EBADF;
     }
 
+    // check we have at least one space in process fdtable 
+    if (curproc->fdtable_num_entries >= OPEN_MAX) 
+    {
+        lock_release(curproc->fdtable_lk);
+        return EMFILE;
+    }
+
+    // TODO: Is there a global limit on open files? if so, check it here and return EMFILE
+
     // if newfd is an already opened file, close it
     if (curproc->fdtable[newfd] != FDTABLE_EMPTY) 
     {
