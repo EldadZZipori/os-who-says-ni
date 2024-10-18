@@ -87,6 +87,7 @@ simple_test()
 static void
 test_dup2()
 {
+	printf("Running test_dup2\n");
 	static char writebuf[41] = 
 		"Twiddle dee dee, Twiddle dum dum.......\n";
 	static char readbuf[81];
@@ -175,6 +176,7 @@ static int openFDs[OPEN_MAX-3 + 1];
 static void
 test_openfile_limits()
 {
+	printf("Running test_openfile_limits");
 	const char *file;
 	int fd, rv, i;
 
@@ -253,6 +255,7 @@ test_openfile_limits()
 static void
 simultaneous_write_test()
 {
+	printf("Running simultaneous_write_test\n");
   	static char writebuf1[41] = "Cabooble-madooddle, bora-bora-bora.....\n";
 	static char writebuf2[41] = "Yada, yada, yada, yada, yada, yada.....\n";
 	static char readbuf[41];
@@ -266,54 +269,64 @@ simultaneous_write_test()
 	file2 = "testfile2";
 
 	fd1 = open(file1, O_RDWR|O_CREAT|O_TRUNC, 0664);
+	printf("open() returned fd = %d\n", fd1);
 	if (fd1<0) {
 		err(1, "%s: open for write", file1);
 	}
 	fd2 = open(file2, O_RDWR|O_CREAT|O_TRUNC, 0664);
+	printf("open() returned fd = %d\n", fd2);
 	if (fd2<0) {
 		err(1, "%s: open for write", file2);
 	}
 
 	rv = write(fd1, writebuf1, 40);
+	printf("write() returned %d\n", rv);
 	if (rv<0) {
 		err(1, "%s: write", file1);
 	}
 
 	rv = write(fd2, writebuf2, 40);
+	printf("write() returned %d\n", rv);
 	if (rv<0) {
 		err(1, "%s: write", file2);
 	}
 
 	/* Rewind both files */
 	lseek_ret = lseek(fd1, -(40-seekpos), SEEK_CUR);
-	printf("%ld\n", (long)lseek_ret);
-	printf("%d\n", seekpos);
+	printf("lseek() returned %d\n", (int)lseek_ret);
 	if (lseek_ret != seekpos) {
 		err(1, "%s: lseek", file1);
 	}
 
 	lseek_ret = lseek(fd2, seekpos, SEEK_SET);
+	printf("lseek() returned %d\n", (int)lseek_ret);
 	if (lseek_ret != seekpos) {
 		err(1, "%s: lseek", file2);
 	}
 
 	/* Read and test the data from the first file */
 	rv = read(fd1, readbuf, 40-seekpos);
+	printf("read() returned %d\n", rv);
 	if (rv<0) {
 		err(1, "%s: read", file1);
 	}	
 	readbuf[40] = 0;
 	
+	printf("Expected: \"%s\", actual: \"%s\"\n", &writebuf1[seekpos],
+	       readbuf);
 	if (strcmp(readbuf, &writebuf1[seekpos]))
 		errx(1, "Buffer data mismatch for %s!", file1);
 	
 	/* Read and test the data from the second file */
 	rv = read(fd2, readbuf, 40-seekpos);
+	printf("read() returned %d\n", rv);
 	if (rv<0) {
 		err(1, "%s: read", file2);
 	}
 	readbuf[40] = 0;
 
+	printf("Expected: \"%s\", actual: \"%s\"\n", writebuf2,
+	       readbuf);
 	if (strcmp(readbuf, &writebuf2[seekpos])) {
 		printf("Expected: \"%s\", actual: \"%s\"\n", writebuf2,
 		       readbuf);
@@ -321,11 +334,13 @@ simultaneous_write_test()
 	}
 
 	rv = close(fd1);
+	printf("close() returned %d\n", rv);
 	if (rv<0) {
 		err(1, "%s: close", file1);
 	}
 
 	rv = close(fd2);
+	printf("close() returned %d\n", rv);
 	if (rv<0)
 	{
 		err(1, "%s: close", file2);
@@ -336,6 +351,7 @@ simultaneous_write_test()
 static void
 _getcwd(char *buf, int len)
 {
+	printf("Running _getcwd\n");
 	int ret;
 
 	ret = __getcwd(buf, len);
@@ -362,6 +378,7 @@ _getcwd(char *buf, int len)
 static void
 dir_test()
 {
+	printf("Running dir_test\n");
 	char chdir_name[] = "testbin";
 	char buf[NAME_MAX+1];
 	int ret;
