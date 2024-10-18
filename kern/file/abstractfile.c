@@ -29,7 +29,17 @@ af_create(unsigned int status ,struct vnode* vn, struct abstractfile** af)
 int 
 af_destroy(struct abstractfile** af)
 {
-    (void)af;
-
+    struct abstractfile* local_af = (*af);
+    
+    // Should not destroy a file that still has references to it
+    if(local_af->ref_count != 0)
+    {
+        return EINVAL;
+    }
+    
+    // No need to decrease ref on the vnode as vfs_close does that!!!
+    local_af->vn = NULL;
+    kfree(local_af);
+    
     return 0;
 }

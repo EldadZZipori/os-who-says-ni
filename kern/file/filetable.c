@@ -143,10 +143,12 @@ ft_remove_file(unsigned int index)
     /*
      * Completely remove the file from the table 
      */
-    VOP_DECREF(kfile_table->files[index]->vn);
+
+    // No need to decrease ref on the vnode as vfs_close does that
     af_destroy(kfile_table->files[index]);
     kfile_table->files[index] = NULL;
-    kfile_table->files_counter--;
+
+    kfile_table->files_counter--; // This should be the only place that files_counter of the main file table decreases
 
 
 }
@@ -214,8 +216,8 @@ __close(int fd)
      * Makes it available to reuse.
      */ 
     curproc->fdtable[fd] = FDTABLE_EMPTY; 
-    curproc->fdtable_num_entries--;
-    kfile_table->files[index_in_fd]->ref_count --;
+    curproc->fdtable_num_entries--; // This shuld be the only place where the entries count of the individual process decreases
+    kfile_table->files[index_in_fd]->ref_count --; // this should be the only place where ref_count of an absreact file decreases
 
     /* 
      *  We are assuming here that the vfs sructre knows to remove the v-node 

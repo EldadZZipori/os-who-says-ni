@@ -140,6 +140,8 @@ proc_create(const char *name)
 void
 proc_destroy(struct proc *proc)
 {
+	// ASSIGNMENT 5 remember to check wher kproc get destroed. Remeber to remove all open files in thei process
+
 	/*
 	 * You probably want to destroy and null out much of the
 	 * process (particularly the address space) at exit time if
@@ -215,14 +217,12 @@ proc_destroy(struct proc *proc)
 	spinlock_cleanup(&proc->p_lock);
 
 	/* Assignment 4 - File related clearnups */
-	/*for (unsigned int i = 0; i < __OPEN_MAX; i++)
-	{
-		lock_destroy(proc->fdtable_index_lks[i]);
-	}
 
-	kfree(proc->fdtable_index_lks);
-	*/
-	
+	// Make sure to close all references to the files once the process is done.
+	for (int i = 0; i < proc->fdtable_num_entries; i++)
+	{
+		__close(proc->fdtable[i]);
+	}
 	lock_destroy(proc->fdtable_lk);
 
 	kfree(proc->p_name);

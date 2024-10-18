@@ -39,7 +39,7 @@ pt_bootstrap(void)
 void 
 pt_destroy(void)
 {
-
+    // Implement in assignment 
 }
 
 void 
