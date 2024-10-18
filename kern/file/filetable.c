@@ -193,11 +193,16 @@ __open(char kpath[__PATH_MAX], int flags, struct abstractfile** af)
 int
 __close(int fd)
 {
+    // check if the file descriptor is valid
+    if (fd < 0 || fd >= __OPEN_MAX)
+    {
+        return EBADF;
+    }
+
     int index_in_fd = curproc->fdtable[fd];
 
     if (index_in_fd == FDTABLE_EMPTY)
     {
-        lock_release(curproc->fdtable_lk);
         return EBADF;
     }
     /*

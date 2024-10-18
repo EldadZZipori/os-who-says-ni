@@ -32,9 +32,12 @@
  */
 
 #include "test.h"
+#include <stdio.h>
 
 void
 test_close(void)
 {
+	printf("starting close test\n");
 	test_close_fd();
+	printf("closing test done\n");
 }

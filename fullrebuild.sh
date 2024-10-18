@@ -1,5 +1,7 @@
 #!/bin/bash
 
+SECONDS = 0
+
 # Navigate to the source directory
 cd ~/os161/src || exit
 
@@ -19,4 +21,6 @@ bmake install
 
 # Navigate to the root directory
 cd ~/os161/src/root || exit
+
+echo "took $SECONDS seconds"
 

@@ -26,6 +26,7 @@ sys_close(int fd)
     result = __close(fd);
     if (result)
     {
+        lock_release(curproc->fdtable_lk);
         return result;
     }
 
