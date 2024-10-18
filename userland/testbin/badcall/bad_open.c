@@ -68,8 +68,10 @@ open_empty(void)
 void
 test_open(void)
 {
+	printf("Starting open tests\n");
 	test_open_path();
 
 	open_badflags();
 	open_empty();
+	printf("Open tests done\n");
 }
