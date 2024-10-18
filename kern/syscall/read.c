@@ -64,7 +64,7 @@ ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
     struct vnode *vn = af->vn;
 
     // If the file does not have a read flag, return an error
-    if (status & (O_RDONLY| O_RDWR) == 0 ) 
+    if ((status & (O_RDONLY| O_RDWR)) == 0 ) 
     {
         lock_release(kfile_table->files_lk[ft_idx]);
         lock_release(curproc->fdtable_lk);
