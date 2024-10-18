@@ -17,8 +17,6 @@ chdir(userptr_t pathname)
 
     int result;
     size_t pathlen = sizeof(pathname);
-	struct iovec iov;   // Used for read/write I/O calls
-	struct uio ku;      // Memory block for kernel/user space
 
     char kbuf[pathlen];
 
@@ -31,9 +29,7 @@ chdir(userptr_t pathname)
     }
 
     // use copyin copyout
-	uio_kinit(&iov, &ku, kbuf, sizeof(kbuf), 0, UIO_READ);
-
-    result = vfs_chdir(&ku);
+    result = vfs_chdir(kbuf);
     if (result)
     {
         lock_release(curproc->fdtable_lk);

@@ -1,15 +1,18 @@
-#include <uio.h>
+#include <types.h>
 #include <stat.h>
 #include <vnode.h>
 #include <kern/errno.h>
-#include <fcntl.h>
+#include <kern/fcntl.h>
 #include <synch.h>
 #include <proc.h>
 #include <current.h>
 #include <abstractfile.h>
 #include <filetable.h>
-#include <stat.h>
 #include <vfs.h>
+#include <syscall.h>
+#include <copyinout.h>
+#include <kern/seek.h>
+#include <uio.h>
 
 int
 lseek(int fd, off_t pos, int whence, int *retval_64)
@@ -33,6 +36,7 @@ lseek(int fd, off_t pos, int whence, int *retval_64)
     }
     
     int actual_pos = 0;
+    struct stat file_stat;
     switch (whence)
     {
     case SEEK_SET:
@@ -42,7 +46,6 @@ lseek(int fd, off_t pos, int whence, int *retval_64)
         actual_pos = actual_file->offset + pos;
         break;
     case SEEK_END:
-        struct stat file_stat;
         if (VOP_STAT(actual_file->vn, &file_stat)) 
         {
             lock_release(curproc->fdtable_lk);
@@ -55,14 +58,14 @@ lseek(int fd, off_t pos, int whence, int *retval_64)
         break;
     }
 
-    if (actual_file < 0)
+    if (actual_pos < 0)
     {
         lock_release(curproc->fdtable_lk);
         return EINVAL;
     }
 
-    actual_file->offset = actual_file;
-    *retval_64 = actual_file;
+    actual_file->offset = actual_pos;
+    *retval_64 = actual_pos;
 
     lock_release(curproc->fdtable_lk);
 
