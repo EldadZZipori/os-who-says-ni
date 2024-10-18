@@ -38,7 +38,7 @@ sys_lseek(int fd, off_t pos, int sp, int64_t *retval_64)
         return ESPIPE;
     }
     
-    int actual_pos = 0;
+    off_t actual_pos = 0;
     struct stat file_stat;
     switch (whence_val)
     {
