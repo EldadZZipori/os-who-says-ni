@@ -458,10 +458,10 @@ file        file/proctable.c
 file        file/abstractfile.c
 file        file/filetable.c
 file        syscall/__getcwd.c
-file         syscall/chdir.c
-file         syscall/lseek.c
+file        syscall/chdir.c
+file        syscall/lseek.c
 file        syscall/open.c
 file        syscall/close.c
 file        syscall/read.c
 file        syscall/write.c
-
+file        syscall/dup2.c
