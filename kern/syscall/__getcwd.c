@@ -22,6 +22,7 @@ sys___getcwd(userptr_t buf, size_t buflen, int * retval)
     char kbuf[buflen];
 
     // use copyin copyout
+    copyin(buf, kbuf, sizeof(kbuf));
 	uio_kinit(&iov, &ku, kbuf, sizeof(kbuf), 0, UIO_READ);
 
     result = vfs_getcwd(&ku);
@@ -33,7 +34,7 @@ sys___getcwd(userptr_t buf, size_t buflen, int * retval)
 
     *retval = buflen - ku.uio_resid;
 
-    result = copyout(&ku, buf, sizeof(ku));
+    result = copyout(kbuf, buf, sizeof(ku));
     if (result)
     {
         lock_release(curproc->fdtable_lk);
