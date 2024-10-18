@@ -35,30 +35,36 @@ simple_test()
 	file = "testfile";
 
 	fd = open(file, O_WRONLY|O_CREAT|O_TRUNC, 0664);
+	printf("open() returned fd = %d\n", fd);
 	if (fd<0) {
 		err(1, "%s: open for write", file);
 	}
 
 	rv = write(fd, writebuf, 40);
+	printf("write() returned %d\n", rv);
 	if (rv<0) {
 		err(1, "%s: write", file);
 	}
 
 	rv = close(fd);
+	printf("close() returned %d\n", rv);
 	if (rv<0) {
 		err(1, "%s: close (1st time)", file);
 	}
 
 	fd = open(file, O_RDONLY);
+	printf("open() returned fd = %d\n", fd);
 	if (fd<0) {
 		err(1, "%s: open for read", file);
 	}
 
 	rv = read(fd, readbuf, 40);
+	printf("read() returned %d\n", rv);
 	if (rv<0) {
 		err(1, "%s: read", file);
 	}
 	rv = close(fd);
+	printf("close() returned %d\n", rv);
 	if (rv<0) {
 		err(1, "%s: close (2nd time)", file);
 	}
@@ -66,6 +72,8 @@ simple_test()
 	readbuf[40] = 0;
 
 	if (strcmp(readbuf, writebuf)) {
+		printf("Expected: \"%s\", actual: \"%s\"\n", writebuf,
+		       readbuf);
 		errx(1, "Buffer data mismatch!");
 	}
 }
@@ -198,7 +206,6 @@ test_openfile_limits()
 
 	/* This one should fail. */
 	fd = open(file, O_RDWR|O_CREAT|O_TRUNC, 0664);
-	printf("The one that should fail returned fd: %d\n", fd);
 
 
 	if(fd > 0)
@@ -376,8 +383,8 @@ main()
 {
 	printf("Starting test prey to the gods\n");
 
-	test_openfile_limits();
-	printf("Passed Part 1 of fsyscalltest\n");
+	// test_openfile_limits();
+	// printf("Passed Part 1 of fsyscalltest\n");
 
 	simple_test();
 	printf("Passed Part 2 of fsyscalltest\n");

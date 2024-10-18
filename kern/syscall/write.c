@@ -72,8 +72,9 @@ ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
     int status = af->status;
     struct vnode *vn = af->vn;
 
+
     // check that file is open for writing
-    if (status != O_WRONLY && status != O_RDWR && status != O_APPEND) 
+    if ((status & (O_WRONLY | O_RDWR | O_APPEND)) == 0)
     {
         lock_release(kfile_table->files_lk[ft_idx]);
         lock_release(curproc->fdtable_lk);
