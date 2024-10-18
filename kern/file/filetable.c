@@ -142,6 +142,8 @@ ft_remove_file(unsigned int index)
     KASSERT(index < kfile_table->curr_size);
 
     kfile_table->files[index] = NULL;
+
+    kfile_table->files_counter--;
 }
 
 int 

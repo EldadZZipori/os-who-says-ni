@@ -198,8 +198,8 @@ test_openfile_limits()
 
 	/* This one should fail. */
 	fd = open(file, O_RDWR|O_CREAT|O_TRUNC, 0664);
-
 	printf("The one that should fail returned fd: %d\n", fd);
+
 
 	if(fd > 0)
 		err(1, "Opening file for %dth time should fail, as %d "
@@ -209,25 +209,34 @@ test_openfile_limits()
 
 	/* Let's close one file and open another one, which should succeed. */
 	rv = close(openFDs[0]);
+	printf("close() returned %d. Next open should succeed.\n", rv);	
 	if (rv<0)
 		err(1, "%s: close for the 1st time", file);
-	
+
+
 	fd = open(file, O_RDWR|O_CREAT|O_TRUNC, 0664);
+	printf("Re-open returned fd: %d", fd);
 	if (fd<0)
 		err(1, "%s: re-open after closing", file);
 
+
 	rv = close(fd);
+	printf("Second close returned %d\n", rv);
 	if (rv<0)
 		err(1, "%s: close for the 2nd time", file);
+
 
 	/* Begin closing with index "1", because we already closed the one
 	 * at slot "0".
 	 */
+
+	printf("Closing all open file descriptors.\n");
 	for(i = 1; i < OPEN_MAX - 3; i++)
 	{
 		rv = close(openFDs[i]);
 		if (rv<0)
 			err(1, "%s: close file descriptor %d", file, i);
+		printf("Closing fd %d returned %d\n", openFDs[i], rv);
 	}
 }
 
