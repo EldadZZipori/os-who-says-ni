@@ -103,7 +103,7 @@ syscall(struct trapframe *tf)
 
 	retval = 0;
 
-	int *whence_val;
+	int whence_val;
 
 	switch (callno) {
 	    case SYS_reboot:
@@ -123,7 +123,7 @@ syscall(struct trapframe *tf)
 			err = sys_chdir( 	(userptr_t)tf->tf_a0);
 		break;
 		case SYS_lseek:
-			copyin((userptr_t)(tf->tf_sp + 16), whence_val, sizeof(int32_t));
+			copyin((userptr_t)(tf->tf_sp + 16), &whence_val, sizeof(int32_t));
 			err = sys_lseek( 	tf->tf_a0,
 								(off_t)(tf->tf_a2 | (((int64_t)tf->tf_a3) << 32)),
 								whence_val,

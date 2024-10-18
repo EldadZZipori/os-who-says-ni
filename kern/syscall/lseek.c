@@ -15,7 +15,7 @@
 #include <uio.h>
 
 int
-lseek(int fd, off_t pos, int whence, int *retval_64)
+sys_lseek(int fd, off_t pos, int whence, int64_t *retval_64)
 {
     lock_acquire(curproc->fdtable_lk);
 

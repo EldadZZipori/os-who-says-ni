@@ -80,10 +80,10 @@ int
 sys_close(int fd);
 
 int
-chdir(userptr_t pathname);
+sys_chdir(userptr_t pathname);
 
 int
-lseek(int fd, off_t pos, int whence, int *retval64);
+sys_lseek(int fd, off_t pos, int whence, int64_t *retval64);
 
 int 
 sys_dup2(int oldfd, int newfd, int *retval);

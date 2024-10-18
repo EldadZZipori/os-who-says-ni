@@ -11,7 +11,7 @@
 #include <syscall.h>
 
 int
-chdir(userptr_t pathname)
+sys_chdir(userptr_t pathname)
 {
     lock_acquire(curproc->fdtable_lk);
 
