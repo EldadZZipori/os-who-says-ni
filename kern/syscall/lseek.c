@@ -30,9 +30,9 @@ sys_lseek(int fd, off_t pos, int sp, int64_t *retval_64)
         return EBADF;
     }
 
-    struct abstractfile* actual_file = kfile_table->files[actual_index];
+    ;
 
-    if (!VOP_ISSEEKABLE(actual_file->vn))
+    if (!VOP_ISSEEKABLE(kfile_table->files[actual_index]->vn))
     {
         lock_release(curproc->fdtable_lk);
         return ESPIPE;
@@ -46,10 +46,10 @@ sys_lseek(int fd, off_t pos, int sp, int64_t *retval_64)
         actual_pos = pos;
         break;
     case SEEK_CUR:
-        actual_pos = actual_file->offset + pos;
+        actual_pos = kfile_table->files[actual_index]->offset + pos;
         break;
     case SEEK_END:
-        if (VOP_STAT(actual_file->vn, &file_stat)) 
+        if (VOP_STAT(kfile_table->files[actual_index]->vn, &file_stat)) 
         {
             lock_release(curproc->fdtable_lk);
             return EIO;
@@ -67,7 +67,7 @@ sys_lseek(int fd, off_t pos, int sp, int64_t *retval_64)
         return EINVAL;
     }
 
-    actual_file->offset = actual_pos;
+    kfile_table->files[actual_index]->offset = actual_pos;
     *retval_64 = actual_pos;
 
     lock_release(curproc->fdtable_lk);

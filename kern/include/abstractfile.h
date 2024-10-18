@@ -10,7 +10,7 @@ struct abstractfile
 {  
     unsigned int ref_count;
     unsigned int status;    // Indicates how the file is open (i.e. read/write/etc)
-    unsigned int offset;    // Indicates location of the curser in the file (what line to read/write next)
+    off_t offset;    // Indicates location of the curser in the file (what line to read/write next)
     struct vnode* vn;     // Pointer to the file in the virtual file system
 };
 

@@ -45,7 +45,7 @@ ft_adjust_size(void);
  * @return compliance with errno, 0 on success
  */
 int 
-ft_add_file(struct abstractfile* file, int* location);
+ft_add_file(struct abstractfile** file, int* location);
 
 /**
  * @brief Removes file at specified index from open file table. 

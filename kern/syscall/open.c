@@ -72,7 +72,7 @@ sys_open(userptr_t path, int flags, int* retval)
 
     int file_location;
 
-    result = ft_add_file(af, &file_location);
+    result = ft_add_file(&af, &file_location);
     if(result)
     {
         vfs_close(af->vn);

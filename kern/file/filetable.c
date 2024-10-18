@@ -101,7 +101,7 @@ ft_adjust_size(void)
 }
 
 int 
-ft_add_file(struct abstractfile* file, int* location) 
+ft_add_file(struct abstractfile** file, int* location) 
 {
     KASSERT(kfile_table != NULL); 
     KASSERT(kfile_table->files != NULL);
@@ -118,7 +118,7 @@ ft_add_file(struct abstractfile* file, int* location)
     {
         if(kfile_table->files[i] == NULL)
         {
-            kfile_table->files[i] = file;
+            kfile_table->files[i] = *file;
             *location = i;     // Exit the loop
             break;
         }

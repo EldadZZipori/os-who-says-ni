@@ -68,7 +68,7 @@ ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
     // get ptr to abstract file
     struct abstractfile *af = kfile_table->files[ft_idx];
 
-    int offset = af->offset;
+    off_t offset = af->offset;
     int status = af->status;
     struct vnode *vn = af->vn;
 
