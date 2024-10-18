@@ -133,7 +133,6 @@ syscall(struct trapframe *tf)
 			err = sys_open(		(userptr_t)tf->tf_a0,
 								tf->tf_a1,
 								&retval);
-			
 		break;
 		case SYS_read:
 			err = sys_read(		tf->tf_a0,
@@ -148,7 +147,7 @@ syscall(struct trapframe *tf)
 							 	&retval);
 		break;
 		case SYS_close: 
-			err = sys_close(tf->tf_a0);
+			err = sys_close(	tf->tf_a0);
 		break;
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
