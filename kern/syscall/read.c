@@ -63,8 +63,8 @@ ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
     int status = af->status;
     struct vnode *vn = af->vn;
 
-    // check that file is open for reading
-    if (status != O_RDONLY && status != O_RDWR) 
+    // If the file does not have a read flag, return an error
+    if (status & (O_RDONLY| O_RDWR) == 0 ) 
     {
         lock_release(kfile_table->files_lk[ft_idx]);
         lock_release(curproc->fdtable_lk);
