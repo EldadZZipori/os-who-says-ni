@@ -286,6 +286,7 @@ simultaneous_write_test()
 
 	/* Rewind both files */
 	lseek_ret = lseek(fd1, -(40-seekpos), SEEK_CUR);
+	printf("%ld\n", (long)lseek_ret);
 	if (lseek_ret != seekpos) {
 		err(1, "%s: lseek", file1);
 	}
@@ -383,8 +384,8 @@ main()
 {
 	printf("Starting test prey to the gods\n");
 
-	// test_openfile_limits();
-	// printf("Passed Part 1 of fsyscalltest\n");
+	test_openfile_limits();
+	printf("Passed Part 1 of fsyscalltest\n");
 
 	simple_test();
 	printf("Passed Part 2 of fsyscalltest\n");

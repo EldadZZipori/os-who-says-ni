@@ -103,6 +103,10 @@ syscall(struct trapframe *tf)
 
 	retval = 0;
 
+	long long singed_tf2 = (long long) tf->tf_a2;
+	long long singed_tf3 = (long long) tf->tf_a3;
+	off_t offset = (singed_tf3 | (singed_tf2 << 32));
+
 	switch (callno) {
 	    case SYS_reboot:
 			err = sys_reboot(tf->tf_a0);
@@ -123,7 +127,7 @@ syscall(struct trapframe *tf)
 		break;
 		case SYS_lseek:
 			err = sys_lseek( 	tf->tf_a0,
-								(off_t)(tf->tf_a2 | (((int64_t)tf->tf_a3) << 32)),
+								offset,
 								tf->tf_sp,
 								&retval64);
 			is_ret64 = 1;
@@ -173,8 +177,8 @@ syscall(struct trapframe *tf)
 		/* Success. */
 		if(is_ret64) 
 		{
-			tf->tf_v0 = retval64 & 0xFFFFFFFF;
-			tf->tf_v1 = (retval64 >> 32) & 0xFFFFFFFF;
+			tf->tf_v1 = retval64 & 0xFFFFFFFF;
+			tf->tf_v0 = (retval64 >> 32) & 0xFFFFFFFF;
 		}
 		else 
 		{
