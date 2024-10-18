@@ -83,7 +83,7 @@ int
 sys_chdir(userptr_t pathname);
 
 int
-sys_lseek(int fd, off_t pos, int whence, int64_t *retval64);
+sys_lseek(int fd, off_t pos, int sp, int64_t *retval64);
 
 int 
 sys_dup2(int oldfd, int newfd, int *retval);

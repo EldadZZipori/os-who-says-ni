@@ -15,9 +15,12 @@
 #include <uio.h>
 
 int
-sys_lseek(int fd, off_t pos, int whence, int64_t *retval_64)
+sys_lseek(int fd, off_t pos, int sp, int64_t *retval_64)
 {
     lock_acquire(curproc->fdtable_lk);
+    int whence_val;
+    copyin((userptr_t)(sp + 16), &whence_val, sizeof(int32_t));
+
 
     int actual_index = curproc->fdtable[fd];
     
@@ -37,7 +40,7 @@ sys_lseek(int fd, off_t pos, int whence, int64_t *retval_64)
     
     int actual_pos = 0;
     struct stat file_stat;
-    switch (whence)
+    switch (whence_val)
     {
     case SEEK_SET:
         actual_pos = pos;
