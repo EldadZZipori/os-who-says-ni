@@ -13,18 +13,6 @@
 #include <copyinout.h>
 #include <uio.h>
 
-/**
- * @brief Duplicates a file descriptor.
- * 
- * @param oldfd: The file descriptor to duplicate.
- * @param newfd: The new file descriptor to assign to the duplicated file descriptor.
- * 
- * @return newfd on success, or -1 if an error code, and sets errno to the following:
- * 
- * EBADF 	    oldfd is not a valid file handle, or newfd is a value that cannot be a valid file handle.
- * EMFILE		The process's file table was full, or a process-specific limit on open files was reached.
- * ENFILE		The system's file table was full, if such a thing is possible, or a global limit on open files was reached.
-*/
 int 
 sys_dup2(int oldfd, int newfd, int* retval)  
 { 
@@ -78,10 +66,13 @@ sys_dup2(int oldfd, int newfd, int* retval)
     // copy oldfd to newfd
     curproc->fdtable[newfd] = acttual_index;
 
-    /* Don't forget to indicate that another thing is now using this file */
+    /* 
+     * Don't forget to indicate that another thing is now using this file 
+     * One of few cases we want to do this manually and not in open
+     */
     curproc->fdtable_num_entries++;
     kfile_table->files[acttual_index]->ref_count++;
-    VOP_INCREF(kfile_table->files[acttual_index]->vn);
+    VOP_INCREF(kfile_table->files[acttual_index]->vn); 
     
 
     *retval = newfd; 

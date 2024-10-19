@@ -13,20 +13,11 @@
 int
 sys_chdir(userptr_t pathname)
 {
+    int result;
+    char kpath[__PATH_MAX];
+    
     lock_acquire(curproc->fdtable_lk);
 
-    /*if (sizeof(pathname) > __PATH_MAX )
-    {
-        lock_release(curproc->fdtable_lk);
-        return 
-    }*/
-    int result;
-    //size_t pathlen = sizeof(pathname);
-
-    
-    char kpath[__PATH_MAX];
-
-    // Only need to copy out
     result = copyinstr(pathname, kpath, __PATH_MAX, NULL);
     if (result)
     {
@@ -34,7 +25,6 @@ sys_chdir(userptr_t pathname)
         return result;
     }
 
-    // use copyin copyout
     result = vfs_chdir(kpath);
     if (result)
     {

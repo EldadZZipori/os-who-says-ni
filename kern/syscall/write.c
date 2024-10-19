@@ -14,24 +14,6 @@
 #include <uio.h>
 
 
-
-/**
- * @brief Writes to a file represented by a file descriptor.
- *
- * @param filehandle: Process-local file descriptor as returned from open()
- * @param buf: Void I/O buffer. May be used by other threads.
- * @param size: Number of bytes to write 
- * 
- * @return The number of bytes written, or -1 if an error code, and sets errno to the following:
- * 
- * EBADF 	fd is not a valid file descriptor, or was not opened for writing.
- * EFAULT 	Part or all of the address space pointed to by buf is invalid.
- * ENOSPC 	There is no free space remaining on the filesystem containing the file.
- * EIO 	    A hardware I/O error occurred writing the data.
- * 
- * Note: Returns zero if nothing could be written but no error occured, which only occurs at the end of fixed-size objects.
- */
-
 ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
 {
     int ft_idx;

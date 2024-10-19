@@ -13,15 +13,14 @@
 int
 sys___getcwd(userptr_t buf, size_t buflen, int * retval)
 {
-    lock_acquire(curproc->fdtable_lk);
-
     int result;
-	struct iovec iov;   // Used for read/write I/O calls
-	struct uio ku;      // Memory block for kernel/user space
+	struct iovec iov;  
+	struct uio ku;     
 
     char kbuf[buflen];
+    
+    lock_acquire(curproc->fdtable_lk);
 
-    // use copyin copyout
     copyin(buf, kbuf, sizeof(kbuf));
 	uio_kinit(&iov, &ku, kbuf, sizeof(kbuf), 0, UIO_READ);
 

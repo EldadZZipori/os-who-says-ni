@@ -1,7 +1,11 @@
 #ifndef _FILE_TABLE_H_
 #define _FILE_TABLE_H_
 
-#define FILETABLE_INIT_SIZE 100   // The base size of the file table. Dynamiclly changes when full
+/* 
+ * For now this is the amount of  total files we are allowing in our system. 
+ * would be better to dynamiclly change the size of the table.
+ */
+#define FILETABLE_INIT_SIZE 100  
 
 struct filetable* kfile_table;
 

@@ -30,8 +30,14 @@ sys_open(userptr_t path, int flags, int* retval)
 {
 
     int result;
+    int file_location;
+    int fd;
 
     char kpath[__PATH_MAX];
+    struct abstractfile* af = NULL;
+
+    lock_acquire(curproc->fdtable_lk);
+
     /*
      * Main flags for file opening, others are addons.
      * O_RDONLY   00     
@@ -41,6 +47,7 @@ sys_open(userptr_t path, int flags, int* retval)
     int access_mode = flags & O_ACCMODE;
     if (access_mode == 3) 
     {
+        lock_release(curproc->fdtable_lk);
         return EINVAL;
     }
 
@@ -48,19 +55,18 @@ sys_open(userptr_t path, int flags, int* retval)
     result = copyin(path, kpath, sizeof(kpath));
     if (result)
     {
+        lock_release(curproc->fdtable_lk);
         return result;
     }
-    struct abstractfile* af = NULL;
 
     result = __open(kpath, flags, &af);
     if (result)
     {
+        vfs_close(af->vn);
+        lock_release(curproc->fdtable_lk);
         return result;
     }
 
-    lock_acquire(curproc->fdtable_lk);
-
-    int fd;
     result = pt_find_free_fd(curproc, &fd);
     if (result)
     {
@@ -70,7 +76,6 @@ sys_open(userptr_t path, int flags, int* retval)
         return result;
     }
 
-    int file_location;
 
     result = ft_add_file(&af, &file_location);
     if(result)
@@ -88,14 +93,11 @@ sys_open(userptr_t path, int flags, int* retval)
      * Increase the reference count of the v-ndode
      * Increase the amount of open file descriptors for the process table 
      */
-    // VOP_INCREF(af->vn);
     curproc->fdtable_num_entries ++;
     
     *retval = fd;
-    //copyout(&fd, retval, sizeof(fd));
 
     lock_release(curproc->fdtable_lk);
-
 
     return 0;
 }

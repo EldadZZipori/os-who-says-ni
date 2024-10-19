@@ -4,7 +4,8 @@
 //#include "current.h"
 
 /* 
- * Constants
+ * For now this is the amount of processes we are allowing in our system. 
+ * would be better to dynamiclly change the size of the table.
  */
 #define BASE_PROC_AMOUNT 32
 

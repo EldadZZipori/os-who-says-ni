@@ -12,33 +12,15 @@
 #include <copyinout.h>
 #include <uio.h>
 
-/** 
- * @brief Reads from a file represented by a file descriptor.
- * 
- * @param filehandle: Process-local file descriptor as returned from open()
- * @param buf: Void I/O buffer. May be used by other threads.
- * @param size: Number of bytes to read
- * 
- * @return The number of bytes read, or -1 if an error code, and sets errno to the following:
- * 
- * Note: Must advance the seek position by the number of bytes read.
- * 
- * Must be atomic relative to other I/O to the same file. (I.e., no two reads should return the same data.)
- * 
- * Returns the following error codes: 
- * 
- * EBADF 	fd is not a valid file descriptor, or was not opened for reading.
- * EFAULT 	Part or all of the address space pointed to by buf is invalid.
- * EIO 	    A hardware I/O error occurred reading the data.
-*/
 ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
 { 
-    // declare variables
     int result;
     int ft_idx;
-    char kbuf[size]; // this will later be transferred to buf using copyout
+    char kbuf[size]; 
+    
     struct uio uio;
     struct iovec iov;
+    struct abstractfile *af;
 
     // acquire lock for process' fd table - first layer of file structure
     lock_acquire(curproc->fdtable_lk); // acquire lock for process' fd table.
@@ -62,7 +44,7 @@ ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
     lock_acquire(kfile_table->files_lk[ft_idx]); // acquire absfile lock
 
     // get ptr to abstract file
-    struct abstractfile *af = kfile_table->files[ft_idx];
+    af = kfile_table->files[ft_idx];
 
     off_t offset = af->offset;
     int status = af->status;
