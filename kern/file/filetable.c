@@ -69,7 +69,7 @@ ft_bootstrap()
         panic("Could not open std");
     }
 
-    if(__open(device2, O_RDONLY, &stderr))
+    if(__open(device2, O_WRONLY, &stderr))
     {
         panic("Could not open std");
     }
