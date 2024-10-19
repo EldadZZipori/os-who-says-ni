@@ -58,7 +58,7 @@ ft_bootstrap()
     struct abstractfile* stdout = NULL;
     struct abstractfile* stderr = NULL;
 
-    // FIX!!! BAD FIX HERE
+    // FIX!!! BAD FIX HERE - DONT KNOW HOW HELP
     
     char device1[] = "con:";
     char device2[] = "con:";
@@ -89,6 +89,19 @@ void
 ft_destroy(struct filetable* ft)
 {
     (void)ft;
+    unsigned int i;
+    for (i = 0; i < ft->curr_size; i++)
+    {
+        lock_destroy(ft->files_lk[i]);
+    }
+
+    for (i = 0; i < ft->files_counter; i++)
+    {
+        af_destroy(ft->files[i]);
+    }
+    
+    kfree(ft);
+
 }
 
 
