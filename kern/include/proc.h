@@ -110,8 +110,12 @@ struct addrspace *proc_setas(struct addrspace *);
 
 
 /* Added functionality for Assignment 4 */
-void proc_add_file();
-void proc_remove_file();
-
+/**
+ * @brief helper function to use to validate a valid file descriptor
+ * 
+ * @return returns 0 if file descriptor is valid, comply with errno
+ */
+int
+__check_fd(int fd);
 
 #endif /* _PROC_H_ */

@@ -17,9 +17,24 @@
 int
 sys_lseek(int fd, off_t pos, int sp, int64_t *retval_64)
 {
-    lock_acquire(curproc->fdtable_lk);
     int whence_val;
-    copyin((userptr_t)(sp + 16), &whence_val, sizeof(int32_t));
+    int result;
+
+    lock_acquire(curproc->fdtable_lk);
+
+    result = __check_fd(fd);
+    if (result) 
+    {
+        lock_release(curproc->fdtable_lk);
+        return result;
+    }
+
+    result = copyin((userptr_t)(sp + 16), &whence_val, sizeof(int32_t));
+    if (result)
+    {
+        lock_release(curproc->fdtable_lk);
+        return result;
+    }
 
 
     int actual_index = curproc->fdtable[fd];
@@ -57,6 +72,7 @@ sys_lseek(int fd, off_t pos, int sp, int64_t *retval_64)
         actual_pos = file_stat.st_size + pos;
         break; 
     default:
+        lock_release(curproc->fdtable_lk);
         return EINVAL;
         break;
     }

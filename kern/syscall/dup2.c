@@ -28,11 +28,25 @@
 int 
 sys_dup2(int oldfd, int newfd, int* retval)  
 { 
-    // check file descriptors are in range
-    if (oldfd < 0 || oldfd > OPEN_MAX || newfd < 0 || newfd > OPEN_MAX) return EBADF;
+    int result;
+
 
     // acquire lock for process' fd table - first layer of file structure
     lock_acquire(curproc->fdtable_lk); // acquire lock for process' fd table.
+
+    result = __check_fd(oldfd);
+    if (result)
+    {
+        lock_release(curproc->fdtable_lk);
+        return result;
+    }
+    result = __check_fd(newfd);
+    if (result)
+    {
+        lock_release(curproc->fdtable_lk);
+        return result;
+    }
+    
 
     int acttual_index = curproc->fdtable[oldfd];
 

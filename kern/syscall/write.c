@@ -41,7 +41,15 @@ ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
     struct iovec iov;
     struct stat file_stat;
 
-    if (filehandle < 0 || filehandle >= OPEN_MAX) return EBADF;
+
+    // acquire lock for process' fd table - first layer of file structure
+    lock_acquire(curproc->fdtable_lk); // acquire lock for process' fd table.
+    result = __check_fd(filehandle);
+    if (result)
+    {
+        lock_release(curproc->fdtable_lk);
+        return result;
+    }
 
     // copy user argument buf (contents to write) to kernel space
     // this should be done anytime a kernel function is called with a 
@@ -49,11 +57,10 @@ ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
     result = copyin(buf, kbuf, size); // copy size bytes from but to kbuf
     if (result)
     { 
+        lock_release(curproc->fdtable_lk);
         return result; // will return EFAULT if copyin fails
     }
-
-    // acquire lock for process' fd table - first layer of file structure
-    lock_acquire(curproc->fdtable_lk); // acquire lock for process' fd table.
+    
     ft_idx = curproc->fdtable[filehandle]; 
 
     if (ft_idx == FDTABLE_EMPTY || ft_idx > (int)kfile_table->curr_size) 

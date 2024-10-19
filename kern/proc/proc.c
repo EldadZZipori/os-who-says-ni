@@ -52,6 +52,7 @@
 #include <abstractfile.h>
 #include <addrspace.h>
 #include <vnode.h>
+#include <kern/errno.h>
 
 /*
  * The process for the kernel; this holds all the kernel-only threads.
@@ -239,26 +240,6 @@ proc_bootstrap(void)
 	if (kproc == NULL) {
 		panic("proc_create for kproc failed\n");
 	}
-
-	/* Added for Assignment 4 - File related allocations*/
-	/*kproc->fdtable_index_lks = (struct lock**)kmalloc(__OPEN_MAX*sizeof(struct lock*));
-	if(kproc->fdtable_index_lks == NULL)
-	{
-		panic("Creating locks for kproc failed\n");
-	}
-
-	char *proc_loc = (char *) kmalloc(32 * sizeof(char));
-	for (unsigned int i = 0; i < __OPEN_MAX; i++)
-	{
-		snprintf(proc_loc, 32, "kproc lock %d", i);
-		kproc->fdtable_index_lks[i] = lock_create(proc_loc);
-
-		if (kproc->fdtable_index_lks[i] == NULL)
-		{
-			panic("Creating locks for kproc failed\n");
-		}
-	}*/
-
 }
 
 /*
@@ -405,4 +386,12 @@ proc_setas(struct addrspace *newas)
 	proc->p_addrspace = newas;
 	spinlock_release(&proc->p_lock);
 	return oldas;
+}
+
+int
+__check_fd(int fd)
+{
+	if (fd < 0 || fd >= OPEN_MAX) return EBADF;
+
+	return 0;
 }

@@ -40,11 +40,16 @@ ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
     struct uio uio;
     struct iovec iov;
 
-    // check if filehandle is valid
-    if (filehandle < 0 || filehandle >= OPEN_MAX) return EBADF;
-
     // acquire lock for process' fd table - first layer of file structure
     lock_acquire(curproc->fdtable_lk); // acquire lock for process' fd table.
+    // check if filehandle is valid
+    result = __check_fd(filehandle);
+    if (result)
+    {
+        lock_release(curproc->fdtable_lk);
+        return result;
+    }
+
     ft_idx = curproc->fdtable[filehandle]; 
 
     if (ft_idx == FDTABLE_EMPTY || ft_idx > (int)kfile_table->curr_size) 

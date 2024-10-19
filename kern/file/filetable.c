@@ -213,9 +213,11 @@ int
 __close(int fd)
 {
     // check if the file descriptor is valid
-    if (fd < 0 || fd >= __OPEN_MAX)
+    int result;
+    result = __check_fd(fd);
+    if (result)
     {
-        return EBADF;
+        return result;
     }
 
     int index_in_fd = curproc->fdtable[fd];
