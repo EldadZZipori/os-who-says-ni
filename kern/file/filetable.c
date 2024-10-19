@@ -27,13 +27,19 @@ ft_bootstrap()
     kfile_table->files = (struct abstractfile**)kmalloc(FILETABLE_INIT_SIZE*sizeof(struct abstractfile*));
     if (kfile_table->files == NULL) 
     {
-        panic("Could not create proccess table\n");
+        panic("Could not create file table\n");
     }
 
     kfile_table->files_lk = (struct lock**)kmalloc(FILETABLE_INIT_SIZE*sizeof(struct lock*));
     if (kfile_table->files_lk == NULL) 
     {
-        panic("Could not create proccess table\n");
+        panic("Could not create file table\n");
+    }
+
+    kfile_table->location_lk = lock_create("file table location lock");
+    if(kfile_table->location_lk == NULL)
+    {
+        panic("cannot create location lock for file table");
     }
 
 	char *ft_loc = (char *) kmalloc(32 * sizeof(char));
@@ -44,7 +50,7 @@ ft_bootstrap()
 
 		if (kfile_table->files_lk[i] == NULL)
 		{
-			panic("Creating locks for kproc failed\n");
+			panic("Creating locks for file table failed\n");
 		}
 	}
     
@@ -99,6 +105,8 @@ ft_destroy(struct filetable* ft)
     {
         af_destroy(&ft->files[i]);
     }
+
+    lock_destroy(kfile_table->location_lk);
     
     kfree(ft);
 
@@ -124,6 +132,7 @@ ft_add_file(struct abstractfile** file, int* location)
         ft_adjust_size();
     }
 
+    lock_acquire(kfile_table->location_lk);
     /* Find an empty spot in the table */
     for(unsigned int i = 0; i < kfile_table->curr_size; i++)
     {
@@ -141,7 +150,8 @@ ft_add_file(struct abstractfile** file, int* location)
     }
     
     kfile_table->files_counter++;
-    
+    lock_release(kfile_table->location_lk);
+
     return 0;
 
 }
