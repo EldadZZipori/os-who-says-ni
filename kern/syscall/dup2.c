@@ -71,7 +71,12 @@ sys_dup2(int oldfd, int newfd, int* retval)
      * One of few cases we want to do this manually and not in open
      */
     curproc->fdtable_num_entries++;
+    
+    // Protect!!!!
+    lock_acquire(kfile_table->files_lk[acttual_index]);
     kfile_table->files[acttual_index]->ref_count++;
+    lock_release(kfile_table->files_lk[acttual_index]);
+
     VOP_INCREF(kfile_table->files[acttual_index]->vn); 
     
 

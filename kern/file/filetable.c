@@ -144,6 +144,7 @@ ft_add_file(struct abstractfile** file, int* location)
         }
         else if(i == (kfile_table->curr_size -1))
         {
+            lock_release(kfile_table->location_lk);
             /* Either have this or make a table that dynamiclly adjusts size */
             return ENFILE;
         }
