@@ -41,7 +41,7 @@ ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
     struct iovec iov;
     struct stat file_stat;
 
-    if (filehandle < 0 || filehandle > OPEN_MAX) return EBADF;
+    if (filehandle < 0 || filehandle >= OPEN_MAX) return EBADF;
 
     // copy user argument buf (contents to write) to kernel space
     // this should be done anytime a kernel function is called with a 

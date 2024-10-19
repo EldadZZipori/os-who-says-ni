@@ -97,7 +97,7 @@ ft_destroy(struct filetable* ft)
 
     for (i = 0; i < ft->files_counter; i++)
     {
-        af_destroy(ft->files[i]);
+        af_destroy(&ft->files[i]);
     }
     
     kfree(ft);
