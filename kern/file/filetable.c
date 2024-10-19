@@ -240,6 +240,7 @@ __close(int fd)
     /*
      * Removes the file descriptor for this process only
      * Makes it available to reuse.
+     * Note that at this point we should have the lock for the current process's file table
      */ 
     curproc->fdtable[fd] = FDTABLE_EMPTY; 
     curproc->fdtable_num_entries--; // This shuld be the only place where the entries count of the individual process decreases

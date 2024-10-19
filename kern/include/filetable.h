@@ -71,6 +71,8 @@ ft_remove_file(unsigned int index);
  * @brief this is a helper function to open file internally in the kernel. the systemcall for open
  * will reuse this code so make sure it is safe to use in the kernel before calling it.
  * 
+ * Whoever calls this function should have the lock on the current process's file table
+ * 
  * @param kpath path to file
  * @param flags how to open the file
  * @param af the returned high level file will be returned through this variable.
@@ -83,6 +85,9 @@ __open(char* kpath, int flags, struct abstractfile** af);
 /** 
  * @brief this is a helper function to close file internally in the kernel. the systemcall for open
  * will reuse this code so make sure it is safe to use in the kernel before calling it.
+ * 
+ * Whoever calls this function should have the lock on the current process's file table, or is doing it
+ * should already have the lock for the process's file table.
  * 
  * @param fs the filde descriptor of the file. Will be selected from the current running process
  * 
