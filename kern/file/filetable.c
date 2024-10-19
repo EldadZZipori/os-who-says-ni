@@ -232,8 +232,11 @@ __close(int fd)
      */ 
     curproc->fdtable[fd] = FDTABLE_EMPTY; 
     curproc->fdtable_num_entries--; // This shuld be the only place where the entries count of the individual process decreases
-    kfile_table->files[index_in_fd]->ref_count --; // this should be the only place where ref_count of an absreact file decreases
 
+    // We probably want to lock this index before writing to it
+    lock_acquire(kfile_table->files_lk[index_in_fd]);
+    kfile_table->files[index_in_fd]->ref_count --; // this should be the only place where ref_count of an absreact file decreases
+    lock_release(kfile_table->files_lk[index_in_fd]);
     /* 
      *  We are assuming here that the vfs sructre knows to remove the v-node 
      *  once it has no references.
