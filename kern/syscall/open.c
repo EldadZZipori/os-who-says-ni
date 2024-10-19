@@ -62,7 +62,6 @@ sys_open(userptr_t path, int flags, int* retval)
     result = __open(kpath, flags, &af);
     if (result)
     {
-        vfs_close(af->vn);
         lock_release(curproc->fdtable_lk);
         return result;
     }
