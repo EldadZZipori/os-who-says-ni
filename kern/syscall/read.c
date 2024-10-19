@@ -52,7 +52,8 @@ ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
 
     // If the file does not have a read flag, return an error
     // O_RDONLY is 0 !!! that is evil
-    if (((status & (O_RDWR)) | (~status & ~O_RDONLY)) == 0 ) 
+    int access_mode = status & O_ACCMODE;
+    if (access_mode != O_RDONLY && access_mode!= O_RDWR) 
     {
         lock_release(kfile_table->files_lk[ft_idx]);
         lock_release(curproc->fdtable_lk);
