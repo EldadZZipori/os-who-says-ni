@@ -19,6 +19,8 @@ struct proctable
 {  
     struct proc** processes;            // Pointer to array of all running proccesses
 
+    // will probably need a look her for assignment 5
+
     unsigned int curr_size;         // Current size of the table, dynamically allocated
 
     unsigned int process_counter;   //  Amount of processes currently running

@@ -1,11 +1,11 @@
 #Todo
 
 ## October 11th 2024
-- [x] Make process table struct
-- [?] Create file struct
-- [x] Create file table struct
-- [ ] Init file table when system boots in main() in main.c
-- [ ] Add syscalls in switch case in kern/arch/mips/syscall/syscall.c
+- [V] Make process table struct
+- [V] Create file struct
+- [V] Create file table struct
+- [V] Init file table when system boots in main() in main.c
+- [V] Add syscalls in switch case in kern/arch/mips/syscall/syscall.c
 
 
 Observations for assignment 5
@@ -29,8 +29,8 @@ Question
 ## October 17th 2024
 
 #### Updated action items
-- [ ] read() entry point in syscall.c
-- [ ] write() entry point in syscall.c
-- [ ] implement lseek() 
-- [ ] lseek() entry point in syscall.c 
+- [V] read() entry point in syscall.c
+- [V] write() entry point in syscall.c
+- [V] implement lseek() 
+- [V] lseek() entry point in syscall.c 
 
