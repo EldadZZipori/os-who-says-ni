@@ -32,11 +32,14 @@
  */
 
 #include "test.h"
+#include <stdio.h>
 
 void
 test_read(void)
 {
+	printf("starting read test\n");
 	test_read_fd();
 	test_read_buf();
+	printf("read test done\n");
 }
 
