@@ -32,10 +32,13 @@
  */
 
 #include "test.h"
+#include <stdio.h>
 
 void
 test_write(void)
 {
+	printf("starting write test\n");
 	test_write_fd();
 	test_write_buf();
+	printf("write test done\n");
 }
