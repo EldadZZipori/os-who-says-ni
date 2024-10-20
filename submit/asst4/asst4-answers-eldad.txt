@@ -47,7 +47,8 @@ memory from the kernel->user and user->kernel in a structured way that does not 
 ### Question 7
 Q: What (briefly) is the purpose of userptr_t?
 
-A:
+A: It used to pointer to data that is in userspace. Usually when we are taking a syscall we will copyin data that data to use
+in the kernel context
 
 ### Question 8 
 Q: What is the numerical value of the exception code for a MIPS system call?
@@ -60,4 +61,50 @@ A: The number is - 8
 ### Question 9 
 Q: How many bytes is an instruction in MIPS? (Answer this by reading syscall() carefully, not by looking somewhere else.)
 
+A: It is 4 bytes, as seen in syscall().
+tf->tf_epc += 4;
+
+### Question 10
+Q: Why do you "probably want to change" the implementation of kill_curthread()?
+
+A: Right now kill_curthread() calls panic no matter what. We probably will not want to collapse the whole system in the future
+when a user program does something bad, that is not too bad.
+
+### Question 11
+Q: What would be required to implement a system call that took more than 4 arguments?
+
+A: Since we only have 4 registers to take arguments for a syscall (a0,a1,a2,a3) we will have to take more arguments from the 
+stack instead. The first extra argument will be at sp+16
+
+### Question 12
+Q: What is the purpose of the SYSCALL macro?
+
+A: It is used to load the syscall instruction number into register v0 (where the kernel expects to find it) and jump to the syscall code at __syscall.
+
+### Question 13
+Q: What is the MIPS instruction that actually triggers a system call? (Answer this by reading the source in userland/lib/libc/arch/mips, not looking somewhere else.) 
+
+A: The instruction is called "syscall"
+
+### Question 14
+Q: After reading syscalls-mips.S and syscall.c, you should be prepared to answer the following question: OS/161 supports 64-bit values; lseek() takes and returns a 64-bit offset value. Thus, lseek() takes a 32-bit file handle (arg0), 
+a 64-bit offset (arg1), a 32-bit whence (arg2), and needs to return a 64-bit offset value. In void syscall(struct trapframe *tf) where will you find each of the three arguments (in which registers) and how will you return the 64-bit offset?
+
+A:
+32bit arg0 file handleis going to be in regiser a0 (note a1 will be empty as they are an aligned pair)
+64bit arg1 offset will be in register a2 and register a3 (note that the lsb will be in a3 and the msb in a2, whis is not documented anywhere)
+32bit arg2 whence will be found on the stack in address (sp+16)
+The 64bit return value will be stored in register v0 and v1 (note that v1 hold the lsd and v0 the lsb)
+
+### Question 15
+Q: As you were reading the code in runprogram.c and loadelf.c, you probably noticed how the kernel manipulates the files. Which kernel function is called to open a file? Which macro is called to read the file? 
+What about to write a file? Which data structure is used in the kernel to represent an open file? 
+
 A: 
+The kernel calls the function vfs_open and vfs_close to open and close files (respectively).
+In order to read and write it uses VOP_READ and VOP_WRITE (but the kernal does not use this macro in the files provided)
+
+### Question 16
+Q: What is the purpose of VOP_INCREF and VOP_DECREF?
+
+A: They increase and decrease the reference count that a vnode has. The vfs takes care of closing the file once it has 0 references

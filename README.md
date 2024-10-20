@@ -6,6 +6,8 @@ OS161 is an educational OS. The full documentation for it can be found here - [O
 ## Assignment 4: Implementing file-related syscalls
 Status: Done
 
+### [Reading Questions](submit/asst4/ass4-answers.md)
+
 ### [Logbook](docs/ASS4_TASK.md)
 
 ### System Diagram
