@@ -18,17 +18,24 @@ They are -
 ### Question 2 
 Q: What is the difference between UIO_USERISPACE and UIO_USERSPACE? When should one use UIO_SYSSPACE instead?
 
-A:
+A: UIO_USERISPACE, UIO_USERSPACE, and UIO_SYSSPACE are enumerations of type uio_seg, which are the different options for the source or destination of a uiomove() call. 
+If the uio_seg is USERISPACE, then depending on if it is a read or write, it either is copied from kernel buffer to user-space, or user space to kernel buffer, respectively.
+When a memory block is executeable (i.e. a program/process) we need to use UIO_USERISPACE, which should be done by the kernel only. 
+When we are doing reading or writing that can be done in user context (i.e. file reading or just memory data) we use UIO_USERSPACE.
+UIO_SYSSPACE is used by the kernel only, it is used when the kernel need to do I/O operations.
 
 ### Question 3
 Q: Why can the struct uio that is used to read in a segment be allocated on the stack in load_segment() (i.e., where does the memory read actually go)?
 
-A:
+A: The struct uio can be allocated on the stack because the segment is loaded at the virtual address passed in as vaddr, not directly into the uio struct itself.
 
 ### Question 4 
 Q: In runprogram(), why is it important to call vfs_close() before going to usermode?
 
-A: 
+A: It is important to call vfs_close() before going going back to user context, because by opening the executable file to read it and load it into memory, 
+we increment the reference count to signal that we are using the vnode that represents this file. 
+We need to decrement the refcount, which can be done by calling vfs_close(). If we don't do this, the reference count will be inaccurate, 
+which means it may not get deallocated even when nothing is pointing to it (it is unreachable and will not be used again).
 
 ### Question 5
 Q: What function forces the processor to switch into usermode? Is this function machine dependent?
@@ -36,7 +43,7 @@ Q: What function forces the processor to switch into usermode? Is this function 
 A: Hard to say at which level we are actually forced into user mode. 
 Since this is ambiguous, I will just outline my understanding and hope that one of these things is what the question is looking for. 
 runprogram calls enter_new_process which calls mips_usermode which calls asm_usermode, which is a function inside exception-mips1.S, which just copies a0 onto the stack jumps into it.
-Arguably, the function that actually puts us into usermode is asm_usermode (the comment says 'This actually does it. See exception-*.S.'), defined in exception-*.S. 
+ Arguably, the function that actually puts us into usermode is asm_usermode (the comment says 'This actually does it. See exception-*.S.'), defined in exception-*.S. 
 This tells us that it is machine-dependant, as it depends on which type of machine it is (mips, arm, x86, etc.) 
 
 ### Question 6
@@ -61,7 +68,7 @@ Q: What is the numerical value of the exception code for a MIPS system call?
 
 A: The number is - 8
 ```c
-#define EX_SYS    8    /* Syscall */
+ #define EX_SYS    8    /* Syscall */
 ```
 
 ### Question 9 
@@ -108,7 +115,9 @@ A:
 Q: As you were reading the code in runprogram.c and loadelf.c, you probably noticed how the kernel manipulates the files. Which kernel function is called to open a file? Which macro is called to read the file? 
 What about to write a file? Which data structure is used in the kernel to represent an open file? 
 
-A: 
+A: The kernel function vfs_open is used to open a file and vfs. The macro VOP_READ is used to read a file, 
+and VOP_WRITE is used to write a file. These operations are all supported using the vnode struct, 
+which is the data structure tah is used in the kernel to represent an *open* file. 
 
 
 ### Question 16
