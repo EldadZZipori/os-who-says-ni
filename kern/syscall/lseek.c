@@ -29,6 +29,7 @@ sys_lseek(int fd, off_t pos, int sp, int64_t *retval_64)
         return result;
     }
 
+    // Last argument is stored in the stack at sp+16
     result = copyin((userptr_t)(sp + 16), &whence_val, sizeof(int32_t));
     if (result)
     {
