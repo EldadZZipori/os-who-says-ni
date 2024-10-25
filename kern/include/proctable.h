@@ -53,8 +53,10 @@ pt_adjust_size(void);
  * @brief addes a new process to the table. Should be used in Fork.
  * 
  * @param pr the new process
+ * 
+ * @return returns the pid of the added process
  */
-void 
+int 
 pt_add_proc(struct proc* pr);
 
 /**
@@ -80,7 +82,9 @@ pt_find_free_fd(struct proc* pr, int* fd);
  * @brief finds available pid
  * 
  * @return an available pid, if non is available returns MAX_PID_REACHED
+ * @warning this should really only be called by other operations in the file
  */
+static
 int
 pt_find_avail_pid(void);
 #endif

@@ -1,11 +1,16 @@
 #include <types.h>
 #include <errno.h>
 #include <proc.h>
+#include <addrspace.h>
+#include <proctable.h>
+#include <current.h>
+#include <filetable.h>
 
 int
 sys_fork(struct trapframe* tf)
 {
     int err;
+    int pid;
 
     // lock the proctable 
 
@@ -16,18 +21,20 @@ sys_fork(struct trapframe* tf)
     // if not, return ENPROC, *not* EMPROC
 
     // create proc
-    struct proc *new = proc_create_runprogram("");
-    if (new == NULL) { 
+    struct proc *new_proc = proc_create_runprogram("");
+    if (new_proc == NULL) { 
         // proc_create failed, handle this error
 
         return ENOMEM; // ran out of space when kmalloc-ing proc
     }
 
     // add to proctable
+    pid = pt_add_proc(new_proc);
 
     // 1. copy address space
-
+    as_copy(curproc, new_proc);
     // 2. copy file table 
+    __copy_fd_table(curproc, new_proc);
 
     // 3. copy architectural state - in tf
 
@@ -38,6 +45,6 @@ sys_fork(struct trapframe* tf)
     // now that thread_fork has been called, only the parent thread executes the following
 
     // return child pid (only parent runs this)
-    *retval = new->pid;
+    *retval = pid;
     return 0;
 }

@@ -81,6 +81,8 @@ struct proc {
 	/* Amount of currently opened files for this proccess */	
 	unsigned int fdtable_num_entries;
 
+	unsigned int my_pid;
+
 
 };
 

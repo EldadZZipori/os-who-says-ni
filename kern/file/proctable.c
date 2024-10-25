@@ -56,16 +56,54 @@ pt_adjust_size(void)
 
     if (kproc_table->curr_size == __PID_MAX)
     {
-        return;
+        return; // Should never really get here as calling function should just return an error if max size reached
     }
+    struct proc** new_proc_list = (struct proc**)kmalloc((kproc_table->curr_size + BASE_PROC_AMOUNT)*sizeof(struct proc*));
+    if (new_proc_list == NULL)
+    {
+        panic("Could not adjust the size of the process table");
+    }
+
+    // give all the pointers to the process to the new processes list
+    for(int i=0; i < kproc_table->curr_size; i++)
+    {
+        new_proc_list[i] = kproc_table->processes[i];
+        kproc_table->processes[i] = NULL;
+    }
+
+    // release the memory allocated for the original list
+    kfree(kproc_table->processes);
+
+
+    // assign the new list to the process table pointer
+    kproc_table->processes = new_proc_list;
+
 }
 
-void 
+int 
 pt_add_proc(struct proc* pr)
 {
     (void) pr;
+    int pid;
 
     // Implement in assignment 5
+    lock_acquire(kproc_table->pid_lk);
+    pid = pt_find_avail_pid();
+    if (pid == MAX_PID_REACHED)
+    {
+        return MAX_PID_REACHED;
+    }
+
+    kproc_table->processes[pid] = pr;
+    kproc_table->process_counter++;
+
+    // pid should only really be given my the process table
+    pr->my_pid = pid;
+
+    lock_release(kproc_table->pid_lk);
+
+    return pid;
+
 }
 
 void 
@@ -96,6 +134,7 @@ pt_find_free_fd(struct proc* pr, int* fd)
     return EMFILE;
 }
 
+static
 int
 pt_find_avail_pid(void)
 {
@@ -107,7 +146,7 @@ pt_find_avail_pid(void)
         return MAX_PID_REACHED;
     }
 
-    lock_acquire(kproc_table->pid_lk);
+    
 
     for (int i = 0; i < kproc_table->curr_size; i++)
     {
@@ -123,8 +162,6 @@ pt_find_avail_pid(void)
         pt_adjust_size();
         pid = kproc_table->curr_size;  // the new size will be the index of the newest pid
     }
-
-    lock_release(kproc_table->pid_lk);
 
     return pid;
 }
