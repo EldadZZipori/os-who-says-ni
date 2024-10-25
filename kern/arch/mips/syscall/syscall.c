@@ -165,6 +165,9 @@ syscall(struct trapframe *tf)
 								tf->tf_a1,
 								&retval);
 		break;
+		case SYS_fork:
+			err = sys_fork(		&retval);
+		break;
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
 		err = ENOSYS;
@@ -224,4 +227,7 @@ void
 enter_forked_process(struct trapframe *tf)
 {
 	(void)tf;
+	// TODO Assignment 5: Call mips_usermode here for child proc
+	// tf->tf_v0 = 0
+	// call mips_usermode
 }

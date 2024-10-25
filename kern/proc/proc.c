@@ -395,3 +395,12 @@ __check_fd(int fd)
 
 	return 0;
 }
+
+void
+__copy_fd_table(struct proc* from, struct proc* to)
+{
+	for (int i=0; i < from->fdtable_num_entries; i++)
+	{
+		to->fdtable[i] = from->fdtable[i];
+	}
+}

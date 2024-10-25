@@ -50,13 +50,13 @@ struct vnode;
 
 struct addrspace {
 #if OPT_DUMBVM
-        vaddr_t as_vbase1;
-        paddr_t as_pbase1;
-        size_t as_npages1;
-        vaddr_t as_vbase2;
+        vaddr_t as_vbase1;              // Virtual address base
+        paddr_t as_pbase1;              // Physical address base
+        size_t as_npages1;              // we know page size = 4096, so this gives size of mem
+        vaddr_t as_vbase2;              // why do we have two of these?
         paddr_t as_pbase2;
         size_t as_npages2;
-        paddr_t as_stackpbase;
+        paddr_t as_stackpbase;          // the physical base of the stack
 #else
         /* Put stuff here for your VM system */
 #endif

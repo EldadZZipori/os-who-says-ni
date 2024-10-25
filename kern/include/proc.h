@@ -118,4 +118,7 @@ struct addrspace *proc_setas(struct addrspace *);
 int
 __check_fd(int fd);
 
+/* Added functionality for Assignment 5 */
+void
+__copy_fd_table(struct proc* from, struct proc* to);
 #endif /* _PROC_H_ */

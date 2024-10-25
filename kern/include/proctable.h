@@ -7,7 +7,9 @@
  * For now this is the amount of processes we are allowing in our system. 
  * would be better to dynamiclly change the size of the table.
  */
-#define BASE_PROC_AMOUNT 32
+#define BASE_PROC_AMOUNT    32
+#define MAX_PID_REACHED     -1
+
 
 struct proctable* kproc_table;
 
@@ -19,7 +21,9 @@ struct proctable
 {  
     struct proc** processes;            // Pointer to array of all running proccesses
 
-    // will probably need a look her for assignment 5
+    // will probably need a lock her for assignment 5
+
+    struct lock* pid_lk;
 
     unsigned int curr_size;         // Current size of the table, dynamically allocated
 
@@ -40,6 +44,7 @@ pt_destroy(void);
 
 /**
  * @brief When the process table is full, re-ajust the size. 
+ * 
  */
 void 
 pt_adjust_size(void);
@@ -70,4 +75,12 @@ pt_remove_proc(struct proc* pr);
  */
 int 
 pt_find_free_fd(struct proc* pr, int* fd);
+
+/**
+ * @brief finds available pid
+ * 
+ * @return an available pid, if non is available returns MAX_PID_REACHED
+ */
+int
+pt_find_avail_pid(void);
 #endif

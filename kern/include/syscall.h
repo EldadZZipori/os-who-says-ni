@@ -220,5 +220,9 @@ sys_lseek(int fd, off_t pos, int sp, int64_t *retval64);
 */
 int 
 sys_dup2(int oldfd, int newfd, int *retval);
+
+/* Assignment 5 - Processes */
+int
+sys_fork(struct trapframe* tf);
 #endif /* _SYSCALL_H_ */
 
