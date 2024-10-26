@@ -30,6 +30,9 @@ pt_bootstrap(void)
     {
         panic("Could not create proccess table\n");
     }
+
+    for (int i=0; i < BASE_PROC_AMOUNT; i++) kproc_table->processes[i] = NULL;
+
     kproc_table->pid_lk = lock_create("proctable pid lock");
     if(kproc_table->pid_lk == NULL)
     {
@@ -58,7 +61,8 @@ pt_adjust_size(void)
     {
         return; // Should never really get here as calling function should just return an error if max size reached
     }
-    struct proc** new_proc_list = (struct proc**)kmalloc((kproc_table->curr_size + BASE_PROC_AMOUNT)*sizeof(struct proc*));
+    int new_size = kproc_table->curr_size + BASE_PROC_AMOUNT;
+    struct proc** new_proc_list = (struct proc**)kmalloc((new_size)*sizeof(struct proc*));
     if (new_proc_list == NULL)
     {
         panic("Could not adjust the size of the process table");
@@ -71,12 +75,15 @@ pt_adjust_size(void)
         kproc_table->processes[i] = NULL;
     }
 
+    for (int i=kproc_table->curr_size; i < new_size; i++) kproc_table->processes[i] = NULL;
+
     // release the memory allocated for the original list
     kfree(kproc_table->processes);
 
 
     // assign the new list to the process table pointer
     kproc_table->processes = new_proc_list;
+    kproc_table->curr_size = new_size;
 
 }
 
@@ -150,6 +157,7 @@ pt_find_avail_pid(void)
         if (kproc_table->processes[i] == NULL)
         {
             pid = i;    // TODO: might need to be +1 as __PID_MIN is 2
+            break;
         }
     }
 
