@@ -235,9 +235,11 @@ enter_forked_process(struct trapframe *tf)
 	// tf->tf_v0 = 0
 	// call mips_usermode
 
-	tf->tf_v0 = 0;		// Set return value to zero
-	tf->tf_a3 = 0;		// Signal no error
-	tf->tf_epc += 4;	// set the next instruction to execute
+	struct trapframe child_tf = *tf; // we need to have a copy of the trapframe local to the new thread
 
-	mips_usermode(tf);
+	child_tf.tf_v0 = 0;		// Set return value to zero
+	child_tf.tf_a3 = 0;		// Signal no error
+	child_tf.tf_epc += 4;	// set the next instruction to execute
+
+	mips_usermode(&child_tf);
 }

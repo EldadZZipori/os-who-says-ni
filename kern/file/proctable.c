@@ -109,7 +109,7 @@ pt_add_proc(struct proc* pr, int pid)
     // pid should only really be given my the process table
     pr->my_pid = pid;
 
-    return pid;
+    return 0;
 
 }
 
