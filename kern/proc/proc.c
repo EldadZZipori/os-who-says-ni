@@ -105,13 +105,14 @@ proc_create(const char *name)
 	 * the kernel. So we cannot and should not increase the ref_count
 	 * before it is created.
 	 */
-	if (kfile_table != NULL)
-	{
-		// more for next assignment
-		kfile_table->files[0]->ref_count++;
-		kfile_table->files[1]->ref_count++;
-		kfile_table->files[2]->ref_count++;
-	}
+	// this is not needed as the only was to create a process is to fork it
+	// if (kfile_table != NULL)
+	// {
+	// 	// more for next assignment
+	// 	kfile_table->files[0]->ref_count++;
+	// 	kfile_table->files[1]->ref_count++;
+	// 	kfile_table->files[2]->ref_count++;
+	// }
 
 	/*
 	 * IMPORTANT NOTE - the main open file descriptor table 
@@ -396,11 +397,23 @@ __check_fd(int fd)
 	return 0;
 }
 
-void
+int
 __copy_fd_table(struct proc* from, struct proc* to)
 {
-	for (unsigned int i=0; i < from->fdtable_num_entries; i++)
+	if (to == NULL || from == NULL)
 	{
-		to->fdtable[i] = from->fdtable[i];
+		return EINVAL;
 	}
+	// First three are created by proc_create and are the same
+	int fd = 0;
+	for (unsigned int i=3; i < from->fdtable_num_entries; i++)
+	{
+		fd = from->fdtable[i];
+		to->fdtable[i] = fd;
+		lock_acquire(kfile_table->files_lk[fd]);
+		kfile_table->files[fd]->ref_count++; // Remeber to add the reference
+		lock_release(kfile_table->files_lk[fd]);
+	}
+
+	return 0;
 }

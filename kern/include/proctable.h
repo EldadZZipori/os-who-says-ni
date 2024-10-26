@@ -57,7 +57,7 @@ pt_adjust_size(void);
  * @return returns the pid of the added process
  */
 int 
-pt_add_proc(struct proc* pr);
+pt_add_proc(struct proc* pr, int pid);
 
 /**
  * @brief when a process exits it should be removed from the table
@@ -84,4 +84,6 @@ pt_find_free_fd(struct proc* pr, int* fd);
  * @return an available pid, if non is available returns MAX_PID_REACHED
  * @warning this should really only be called by other operations in the file
  */
+int
+pt_find_avail_pid(void);
 #endif

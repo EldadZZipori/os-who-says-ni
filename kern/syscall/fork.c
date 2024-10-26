@@ -8,6 +8,7 @@
 #include <current.h>
 #include <filetable.h>
 #include <syscall.h>
+#include <copyinout.h>
 
 
 
@@ -15,7 +16,7 @@
  * Function prototypes
  */
 static int copy_trapframe(struct trapframe* old_tf, struct trapframe* new_tf);
-
+static void child_return(void* data1, unsigned long data2);
 
 
 /** 
@@ -36,6 +37,13 @@ sys_fork(userptr_t tf, int *retval)
 
     // lock the proctable 
     lock_acquire(kproc_table->pid_lk);
+
+    pid = pt_find_avail_pid(); // No point in doing anything if there is no available one
+    if (pid == MAX_PID_REACHED)
+    {
+        lock_release(kproc_table->pid_lk);
+        return ENPROC;
+    }
 
     // TODO Assignment 5: do we need to copyin a trapframe? 
     // copy user-level trapframe to kernel stack var 
@@ -60,44 +68,86 @@ sys_fork(userptr_t tf, int *retval)
         return ENOMEM; // ran out of space when kmalloc-ing proc
     }
 
-    // add to proctable
-    pid = pt_add_proc(new_proc);
-    if (pid == MAX_PID_REACHED) {
-        lock_release(kproc_table->pid_lk);
-        return ENPROC;
-    }
-
     // 1. copy address space
-    as_copy(curproc->p_addrspace, &new_proc->p_addrspace);
+    err = as_copy(curproc->p_addrspace, &new_proc->p_addrspace);
+    if (err) {
+        lock_release(kproc_table->pid_lk);
+        proc_destroy(new_proc);
+        return ENOMEM;
+    }
     // 2. copy file table 
     // TODO Assignment 5: Does curproc need to be copyin'd???
-    __copy_fd_table(curproc, new_proc);
+    err = __copy_fd_table(curproc, new_proc);
+    if (err) {
+        lock_release(kproc_table->pid_lk);
+        proc_destroy(new_proc);
+        return ENOMEM;
+    }
 
     // 3. copy architectural state - in tf
     struct trapframe *child_tf = kmalloc(sizeof(struct trapframe));
     if (child_tf == NULL) {
+        lock_release(kproc_table->pid_lk);
+        proc_destroy(new_proc);
         return ENOMEM;
     }
 
     err = copy_trapframe(&parent_tf, child_tf);
     if (err) {
+        lock_release(kproc_table->pid_lk);
+        proc_destroy(new_proc);
         kfree(child_tf);
         return err;
+    }
+
+    // add to proctable
+    pid = pt_add_proc(new_proc, pid);
+    if (pid == MAX_PID_REACHED) {
+        lock_release(kproc_table->pid_lk);
+        proc_destroy(new_proc);
+        kfree(child_tf);
+        return ENPROC;
     }
 
     // 4. copy kernel thread 
     // entrypoint: enter_forked_process(struct trapframe *tf)
     // arg: tf
-    thread_fork("forked thread", new_proc, enter_forked_process, child_tf, 0);
+    // to user this function we must have a function (void*, unsigned long)
+    // TODO: change thread name to be unique 
+    err = thread_fork("forked thread", 
+                new_proc,
+                child_return,
+                child_tf,
+                0);
+
+    if (err) {
+        pt_remove_proc(new_proc);
+        lock_release(kproc_table->pid_lk);
+        proc_destroy(new_proc);
+        kfree(child_tf);
+        return err;
+    }
 
     // now that thread_fork has been called, only the parent thread executes the following
     // return child pid (only parent runs this)
     *retval = pid;
     return 0;
 }
+/**
+ * @brief a thread_fork() compatible function to run a new thread in the child and return
+ * Should only actually activate things in the child here
+ */
+static
+void
+child_return(void* data1, unsigned long data2)
+{
+    (void) data2;
+    struct trapframe* tf = (struct trapframe*) data1;
 
+    as_activate();  // Activates the new address space for the process
 
-
+    enter_forked_process(tf);
+}
 /**
  * @brief private function for copying trapframe 
  * 

@@ -166,7 +166,7 @@ syscall(struct trapframe *tf)
 								&retval);
 		break;
 		case SYS_fork:
-			err = sys_fork(		(userptr_t)tf->tf_a0, // tf
+			err = sys_fork(		(userptr_t)tf, // tf
 								&retval);
 		break;
 	    default:
@@ -231,4 +231,10 @@ enter_forked_process(struct trapframe *tf)
 	// TODO Assignment 5: Call mips_usermode here for child proc
 	// tf->tf_v0 = 0
 	// call mips_usermode
+
+	tf->tf_v0 = 0;		// Set return value to zero
+	tf->tf_a3 = 0;		// Signal no error
+	tf->tf_epc += 4;	// set the next instruction to execute
+
+	mips_usermode(tf);
 }

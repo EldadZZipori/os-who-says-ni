@@ -52,7 +52,7 @@ pt_adjust_size(void)
 {
     /* This should really only be called if the process table is full */
     KASSERT(kproc_table != NULL);
-    KASSERT(kproc_table->process_counter ==  kproc_table->curr_size);
+    KASSERT(kproc_table->process_counter !=  kproc_table->curr_size);
 
     if (kproc_table->curr_size == __PID_MAX)
     {
@@ -65,7 +65,7 @@ pt_adjust_size(void)
     }
 
     // give all the pointers to the process to the new processes list
-    for(int i=0; i < kproc_table->curr_size; i++)
+    for(unsigned int i=0; i < kproc_table->curr_size; i++)
     {
         new_proc_list[i] = kproc_table->processes[i];
         kproc_table->processes[i] = NULL;
@@ -81,17 +81,19 @@ pt_adjust_size(void)
 }
 
 int 
-pt_add_proc(struct proc* pr)
+pt_add_proc(struct proc* pr, int pid)
 {
-    (void) pr;
-    int pid;
 
     // Implement in assignment 5
-    lock_acquire(kproc_table->pid_lk);
-    pid = pt_find_avail_pid();
+    
     if (pid == MAX_PID_REACHED)
     {
         return MAX_PID_REACHED;
+    }
+
+    if (kproc_table->processes[pid] != NULL)
+    {
+        return EINVAL; // TODO return something more meaningfull
     }
 
     kproc_table->processes[pid] = pr;
@@ -99,8 +101,6 @@ pt_add_proc(struct proc* pr)
 
     // pid should only really be given my the process table
     pr->my_pid = pid;
-
-    lock_release(kproc_table->pid_lk);
 
     return pid;
 
@@ -134,7 +134,6 @@ pt_find_free_fd(struct proc* pr, int* fd)
     return EMFILE;
 }
 
-static
 int
 pt_find_avail_pid(void)
 {
@@ -146,9 +145,7 @@ pt_find_avail_pid(void)
         return MAX_PID_REACHED;
     }
 
-    
-
-    for (int i = 0; i < kproc_table->curr_size; i++)
+    for (unsigned int i = 0; i < kproc_table->curr_size; i++)
     {
         if (kproc_table->processes[i] == NULL)
         {
