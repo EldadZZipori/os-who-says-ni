@@ -27,7 +27,7 @@ static void child_return(void* data1, unsigned long data2);
  * @return 0 on success, error code on failure
  */
 int
-sys_fork(userptr_t tf, int *retval)
+sys_fork(struct trapframe tf, int *retval)
 {
     int err;
     pid_t pid;
@@ -47,12 +47,14 @@ sys_fork(userptr_t tf, int *retval)
 
     // TODO Assignment 5: do we need to copyin a trapframe? 
     // copy user-level trapframe to kernel stack var 
-    err = copyin((const_userptr_t)tf, &parent_tf, sizeof(struct trapframe));
-    if (err) 
-    {
-        lock_release(kproc_table->pid_lk);
-        return err;
-    }
+    // err = copyin((const_userptr_t)tf, &parent_tf, sizeof(struct trapframe));
+    // if (err) 
+    // {
+    //     lock_release(kproc_table->pid_lk);
+    //     return err;
+    // }
+
+    parent_tf = tf;
 
     // check user doesn't already have too many processes
     // if already too many (for this user), return EMPROC, *not* ENPROC

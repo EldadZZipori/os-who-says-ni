@@ -223,7 +223,7 @@ sys_dup2(int oldfd, int newfd, int *retval);
 
 /* Assignment 5 - Processes */
 int
-sys_fork(userptr_t tf, int *retval);
+sys_fork(struct trapframe tf, int *retval);
 
 int 
 sys_getpid(int* reval);
