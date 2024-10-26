@@ -4,25 +4,43 @@
 
 ## fork()
 ### Requirements 
-- create a new proc struct
-    - proc_create()
-    - return PID to the parent
-    - if child, continue to next steps
+- create new `proc` struct (return `pid` to the parent)
 - Copy address space. 
+    - Does this include the stack? or just the heap?
     - Every proc struct has the member addrspace *p_addrspace 
     - Use as_copy() copies an old addrspace to a new one
     - put in new proc struct
 - Copy file table
     - Make a helper function for this []
-    - Simply copy the indecies
+    - Simply copy the indices
     - make sure refcounts are updated accordingly
 - Copy architectural state
     - This will be stored in trapframe after entering the syscall
-    - Does this require to basiclly copy the threads of the original process?
+        - trapframe should be on the stack if we copy the stack contents?
+    - Does this require to basically copy the threads of the original process?
+        - just copy the proc->p_threads?
+            - threadarray contains all the pthreads, how do we differentiate from kernel thread and rest of threads?? Will this automatically be copied?
     - Copy the trapframe 
 - Copy kernel thread
-    - Is this any different then copying the thread array?
-    - Use thread_fork() ?
+    - use `thread_fork`
+        - will create thread, allocate a stack, copy the cpu field, add to the proc, 
+        - this does not copy the stack though ...
+    - needs to jump into a helper function that: 
+        - copy the stack
+        - ?? load in trap frame ?? (passed in as arg from prev step)
+        - modify v0 to be zero (fork() return value)
+        - manually jump back to usermode 
+    - questions:
+        - Is this any different then copying the thread array?
+            - is the kernel thread also stored in curproc->pthreads
+            - is the kernel thread the active thread? 
+        - Use thread_fork() ?
+            - if we do, we can set it to enter into a custom function that modifies register values potentially? then returns to usermode?
+                - entry point takes arguments, so this is possible.
+        - will this be the one currently running on the cpu? curthread?
+            - copy curthread? 
+            - do we start the child 
+        - how do we not duplicate the kernel thread twice, if it is already in pthreads, and we do duplicate it using thread_fork?
 - Return to user mode 
     - Need to return 0 to the new process 
     - Need to return pid to parent process 

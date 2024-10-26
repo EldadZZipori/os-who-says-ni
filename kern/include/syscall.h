@@ -223,6 +223,6 @@ sys_dup2(int oldfd, int newfd, int *retval);
 
 /* Assignment 5 - Processes */
 int
-sys_fork(struct trapframe* tf);
+sys_fork(struct trapframe* tf, int *retval);
 #endif /* _SYSCALL_H_ */
 
