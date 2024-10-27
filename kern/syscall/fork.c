@@ -32,7 +32,6 @@ sys_fork(struct trapframe *tf, int *retval)
     int err;
     pid_t pid;
     char proc_name[20];
-    struct trapframe child_tf; 
     struct proc *new_proc;
 
     // lock the proctable 
@@ -47,7 +46,6 @@ sys_fork(struct trapframe *tf, int *retval)
         return ENPROC;
     }
 
-    child_tf = *tf;
 
     // check user doesn't already have too many processes
     // if already too many (for this user), return EMPROC, *not* ENPROC
@@ -55,6 +53,9 @@ sys_fork(struct trapframe *tf, int *retval)
 
     // create string called "process {pid}" as a stack var
     snprintf(proc_name, 20, "process %d", pid);
+
+    // debug msg
+    printf("Assigng child process name: %s\n", proc_name);
 
     // create proc
     new_proc = proc_create_runprogram(proc_name);
@@ -64,6 +65,7 @@ sys_fork(struct trapframe *tf, int *retval)
     }
 
     // 1. copy address space
+    // TODO Assignment 5: Acquire p locks for both processes?
     err = as_copy(curproc->p_addrspace, &new_proc->p_addrspace);
     if (err) {
         lock_release(kproc_table->pid_lk);
@@ -87,6 +89,9 @@ sys_fork(struct trapframe *tf, int *retval)
         return ENPROC;
     }
 
+    // done with proctable
+    lock_release(kproc_table->pid_lk);
+
     // 4. copy kernel thread 
     // entrypoint: enter_forked_process(struct trapframe *tf)
     // arg: tf
@@ -95,12 +100,11 @@ sys_fork(struct trapframe *tf, int *retval)
     err = thread_fork("forked thread", 
                 new_proc,
                 child_return,
-                &child_tf,
+                tf,
                 0);
 
     if (err) {
         pt_remove_proc(new_proc);
-        lock_release(kproc_table->pid_lk);
         proc_destroy(new_proc);
         return err;
     }
@@ -119,9 +123,12 @@ void
 child_return(void* data1, unsigned long data2)
 {
     (void) data2;
-    struct trapframe* tf = (struct trapframe*) data1;
+    struct trapframe child_tf; 
 
+    child_tf = *((struct trapframe*)data1); // copy parent trapframe to user stack
+
+    proc_setas(curproc->p_addrspace); // Set the new address space for the child process
     as_activate();  // Activates the new address space for the process
 
-    enter_forked_process(tf);
+    enter_forked_process(&child_tf);
 }

@@ -73,15 +73,22 @@ void
 check(void)
 {
 	int i;
+	int mypid_initial;
 
 	mypid = getpid();
+	mypid_initial = mypid;
 
 	/* Make sure each fork has its own address space. */
 	for (i=0; i<800; i++) {
 		volatile int seenpid;
 		seenpid = mypid;
+		if (seenpid != mypid_initial) {
+			errx(1, "pid overwritten: pid mismatch (%d, should be %d) "
+			     "- your vm is broken!",
+			     seenpid, getpid());
+		}
 		if (seenpid != getpid()) {
-			errx(1, "pid mismatch (%d, should be %d) "
+			errx(1, "getpid result changed: pid mismatch (%d, should be %d) "
 			     "- your vm is broken!",
 			     seenpid, getpid());
 		}
