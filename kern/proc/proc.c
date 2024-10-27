@@ -72,9 +72,11 @@ proc_create(const char *name)
 	/* For Assignment 5 - add pid functionality */
 	if (kfile_table != NULL)	// this will only be true for the kernel
 	{
+		lock_acquire(kproc_table->pid_lk);
 		pid = pt_find_avail_pid(); // No point in doing anything if there is no available one
 		if (pid == MAX_PID_REACHED)
 		{
+			lock_release(kproc_table->pid_lk);
 			return NULL;
 		}
 	}
@@ -147,11 +149,13 @@ proc_create(const char *name)
 
 	if (kfile_table != NULL) // Will only be true for the kernel
 	{
+		// TODO: STILL FIX THIS
 		if (pt_add_proc(proc, pid)) {
 		    lock_release(kproc_table->pid_lk);
 		    proc_destroy(proc);
 		    return NULL;
 		}
+		lock_release(kproc_table->pid_lk);
 	}
 
 	return proc;

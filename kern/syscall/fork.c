@@ -35,7 +35,7 @@ sys_fork(struct trapframe *tf, int *retval)
     struct proc *new_proc;
 
     // lock the proctable 
-    lock_acquire(kproc_table->pid_lk);
+    //lock_acquire(kproc_table->pid_lk);
 
     *retval = -1; // only change if there is no error
 
@@ -52,7 +52,7 @@ sys_fork(struct trapframe *tf, int *retval)
     // create proc
     new_proc = proc_create_runprogram("forked process");
     if (new_proc == NULL) { 
-        lock_release(kproc_table->pid_lk);
+        //lock_release(kproc_table->pid_lk);
         return ENOMEM; // ran out of space when kmalloc-ing proc
     }
 
@@ -62,7 +62,7 @@ sys_fork(struct trapframe *tf, int *retval)
     // TODO Assignment 5: Acquire p locks for both processes?
     err = as_copy(curproc->p_addrspace, &new_proc->p_addrspace);
     if (err) {
-        lock_release(kproc_table->pid_lk);
+       //lock_release(kproc_table->pid_lk);
         proc_destroy(new_proc);
         return ENOMEM;
     }
@@ -70,7 +70,7 @@ sys_fork(struct trapframe *tf, int *retval)
     // TODO Assignment 5: Does curproc need to be copyin'd???
     err = __copy_fd_table(curproc, new_proc);
     if (err) {
-        lock_release(kproc_table->pid_lk);
+        //lock_release(kproc_table->pid_lk);
         proc_destroy(new_proc);
         return ENOMEM;
     }
@@ -84,7 +84,7 @@ sys_fork(struct trapframe *tf, int *retval)
     // }
 
     // done with proctable
-    lock_release(kproc_table->pid_lk);
+    //lock_release(kproc_table->pid_lk);
 
     // 4. copy kernel thread 
     // entrypoint: enter_forked_process(struct trapframe *tf)
