@@ -27,16 +27,18 @@ static void child_return(void* data1, unsigned long data2);
  * @return 0 on success, error code on failure
  */
 int
-sys_fork(struct trapframe tf, int *retval)
+sys_fork(struct trapframe *tf, int *retval)
 {
     int err;
     pid_t pid;
     char proc_name[20];
-    struct trapframe parent_tf; 
+    struct trapframe child_tf; 
     struct proc *new_proc;
 
     // lock the proctable 
     lock_acquire(kproc_table->pid_lk);
+
+    *retval = -1; // only change if there is no error
 
     pid = pt_find_avail_pid(); // No point in doing anything if there is no available one
     if (pid == MAX_PID_REACHED)
@@ -45,7 +47,7 @@ sys_fork(struct trapframe tf, int *retval)
         return ENPROC;
     }
 
-    parent_tf = tf;
+    child_tf = *tf;
 
     // check user doesn't already have too many processes
     // if already too many (for this user), return EMPROC, *not* ENPROC
@@ -93,7 +95,7 @@ sys_fork(struct trapframe tf, int *retval)
     err = thread_fork("forked thread", 
                 new_proc,
                 child_return,
-                &parent_tf,
+                &child_tf,
                 0);
 
     if (err) {
