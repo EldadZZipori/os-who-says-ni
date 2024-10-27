@@ -31,7 +31,7 @@ sys_fork(struct trapframe *tf, int *retval)
 {
     int err;
     pid_t pid;
-    char proc_name[20];
+    //char proc_name[20];
     struct proc *new_proc;
 
     // lock the proctable 
@@ -39,30 +39,24 @@ sys_fork(struct trapframe *tf, int *retval)
 
     *retval = -1; // only change if there is no error
 
-    pid = pt_find_avail_pid(); // No point in doing anything if there is no available one
-    if (pid == MAX_PID_REACHED)
-    {
-        lock_release(kproc_table->pid_lk);
-        return ENPROC;
-    }
-
-
     // check user doesn't already have too many processes
     // if already too many (for this user), return EMPROC, *not* ENPROC
     // TODO Assignment 5: Double check - there seems to be no user-process limit
 
     // create string called "process {pid}" as a stack var
-    snprintf(proc_name, 20, "process %d", pid);
+    //snprintf(proc_name, 20, "process %d", pid);
 
     // debug msg
-    printf("Assigng child process name: %s\n", proc_name);
+    //printf("Assigng child process name: %s\n", proc_name);
 
     // create proc
-    new_proc = proc_create_runprogram(proc_name);
+    new_proc = proc_create_runprogram("forked process");
     if (new_proc == NULL) { 
         lock_release(kproc_table->pid_lk);
         return ENOMEM; // ran out of space when kmalloc-ing proc
     }
+
+    pid = new_proc->my_pid;
 
     // 1. copy address space
     // TODO Assignment 5: Acquire p locks for both processes?
@@ -81,13 +75,13 @@ sys_fork(struct trapframe *tf, int *retval)
         return ENOMEM;
     }
 
-    // add to proctable
-    err = pt_add_proc(new_proc, pid);
-    if (err) {
-        lock_release(kproc_table->pid_lk);
-        proc_destroy(new_proc);
-        return ENPROC;
-    }
+    // add to proctable - moved to proc_create
+    // err = pt_add_proc(new_proc, pid);
+    // if (err) {
+    //     lock_release(kproc_table->pid_lk);
+    //     proc_destroy(new_proc);
+    //     return ENPROC;
+    // }
 
     // done with proctable
     lock_release(kproc_table->pid_lk);
