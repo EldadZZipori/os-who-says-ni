@@ -46,9 +46,6 @@ sys_fork(struct trapframe *tf, int *retval)
     // create string called "process {pid}" as a stack var
     //snprintf(proc_name, 20, "process %d", pid);
 
-    // debug msg
-    //printf("Assigng child process name: %s\n", proc_name);
-
     // create proc
     new_proc = proc_create_runprogram("forked process");
     if (new_proc == NULL) { 

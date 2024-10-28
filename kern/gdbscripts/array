@@ -77,3 +77,17 @@ Print an array of struct vnode.
 Usage: vnodearray sfs->sfs_vnodes
 end
 
+
+define proctable 
+    set $n = $arg0->process_counter
+    set $i = 0
+    printf "%u processes\n", $n
+    while ($i < $n)
+	printf "pid %u at addr %u", $arg0->processes[$i]->my_pid, $arg0->processes[$i]
+	set $i++
+    end
+end
+document proctable
+Print a proctable with pids.
+Usage: proctable myproctable
+end
