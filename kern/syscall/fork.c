@@ -30,20 +30,20 @@ int
 sys_fork(struct trapframe *tf, int *retval)
 {
     int err;
-    pid_t pid;
+    //pid_t pid;
     //char proc_name[20];
     struct proc *new_proc;
 
     // lock the proctable 
-    lock_acquire(kproc_table->pid_lk);
+   // lock_acquire(kproc_table->pid_lk);
 
     *retval = -1; // only change if there is no error
-    pid = pt_find_avail_pid(); // No point in doing anything if there is no available one
-		if (pid == MAX_PID_REACHED)
-		{
-			lock_release(kproc_table->pid_lk);
-			return pid;
-		}
+    //pid = pt_find_avail_pid(); // No point in doing anything if there is no available one
+	if (kproc_table->process_counter == __PID_MAX)
+	{
+		//lock_release(kproc_table->pid_lk);
+		return EMPROC;
+	}
 
     // check user doesn't already have too many processes
     // if already too many (for this user), return EMPROC, *not* ENPROC
@@ -55,7 +55,7 @@ sys_fork(struct trapframe *tf, int *retval)
     // create proc
     new_proc = proc_create_runprogram("forked process");
     if (new_proc == NULL) { 
-        lock_release(kproc_table->pid_lk);
+        //lock_release(kproc_table->pid_lk);
         return ENOMEM; // ran out of space when kmalloc-ing proc
     }
 
@@ -65,29 +65,30 @@ sys_fork(struct trapframe *tf, int *retval)
     // TODO Assignment 5: Acquire p locks for both processes?
     err = as_copy(curproc->p_addrspace, &new_proc->p_addrspace);
     if (err) {
-       lock_release(kproc_table->pid_lk);
+        //lock_release(kproc_table->pid_lk);
         proc_destroy(new_proc);
         return ENOMEM;
     }
+
     // 2. copy file table 
     // TODO Assignment 5: Does curproc need to be copyin'd???
     err = __copy_fd_table(curproc, new_proc);
     if (err) {
-        lock_release(kproc_table->pid_lk);
+        //lock_release(kproc_table->pid_lk);
         proc_destroy(new_proc);
         return ENOMEM;
     }
 
     // add to proctable - moved to proc_create
-    err = pt_add_proc(new_proc, pid);
-    if (err) {
-        lock_release(kproc_table->pid_lk);
-        proc_destroy(new_proc);
-        return ENPROC;
-    }
+    // err = pt_add_proc(new_proc, pid);
+    // if (err) {
+    //     //lock_release(kproc_table->pid_lk);
+    //     proc_destroy(new_proc);
+    //     return ENPROC;
+    // }
 
     //done with proctable
-    lock_release(kproc_table->pid_lk);
+    //lock_release(kproc_table->pid_lk);
 
     // 4. copy kernel thread 
     // entrypoint: enter_forked_process(struct trapframe *tf)
@@ -108,7 +109,7 @@ sys_fork(struct trapframe *tf, int *retval)
 
     // now that thread_fork has been called, only the parent thread executes the following
     // return child pid (only parent runs this)
-    *retval = pid;
+    *retval = new_proc->my_pid;
     return 0;
 }
 /**
@@ -120,6 +121,7 @@ void
 child_return(void* data1, unsigned long data2)
 {
     (void) data2;
+    int result;
     struct trapframe child_tf; 
 
     child_tf = *((struct trapframe*)data1); // copy parent trapframe to user stack

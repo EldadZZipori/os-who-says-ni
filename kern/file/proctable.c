@@ -40,6 +40,7 @@ pt_bootstrap(void)
     }
 
     kproc_table->processes[0] = kproc;
+    kproc->my_pid = 0;                              // kernel process should always be 0
     kproc_table->curr_size = BASE_PROC_AMOUNT;
     kproc_table->process_counter = 1;               // The kernel processor must exists 
 }
