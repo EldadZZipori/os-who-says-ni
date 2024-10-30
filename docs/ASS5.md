@@ -71,3 +71,23 @@
         - call mips_usermode, which will load tf into regs and jump to the 'resumed' instr. after fork() call
 - call mips_usermode() to go into usermode - do this in enter_forked_process()
 - NOTE: parent thread will continue execution in the lines after thread_fork() call, child will jump to execution elsewhere, and eventually return back to the pc.
+
+# October 30th
+## Plan - exec
+- execv(const char *program, char **args) 
+- pid remains unchanged
+- *program is the pathname to the program
+- **args contains the argv array for the new program
+    - argv[0] in new processes contains the name that was used to invoke the program
+    - copyin() until you encounter NULL (from exec slides "Passing arguments...")
+    - ARG_MAX contains the maximum allowable argument size for the environment
+- Steps:
+    - Initialize a new address space - as_create()
+    - copyin() args from old address space to kernel space
+        !! Sasha warned about being careful about conserving kernel stack space while doing this - we can't load all of them at once onto the stack. We have to load them one at a time.
+    - Switch to the new address space - proc_setas() then as_activate()
+    - Load  a new executable - load_elf()
+    - Define a new stack region - as_define_stack()
+    - Copyout() arguments to the new address space, presumably from kernel after copyin() above
+    - Cleanup the old address space
+    - Warp to user mode - enter_new_process()
