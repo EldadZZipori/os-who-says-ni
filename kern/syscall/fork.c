@@ -30,27 +30,17 @@ int
 sys_fork(struct trapframe *tf, int *retval)
 {
     int err;
-    //pid_t pid;
-    //char proc_name[20];
     struct proc *new_proc;
 
-    // lock the proctable 
-   // lock_acquire(kproc_table->pid_lk);
-
     *retval = -1; // only change if there is no error
-    //pid = pt_find_avail_pid(); // No point in doing anything if there is no available one
 	if (kproc_table->process_counter == __PID_MAX)
 	{
-		//lock_release(kproc_table->pid_lk);
 		return EMPROC;
 	}
 
     // check user doesn't already have too many processes
     // if already too many (for this user), return EMPROC, *not* ENPROC
     // TODO Assignment 5: Double check - there seems to be no user-process limit
-
-    // create string called "process {pid}" as a stack var
-    //snprintf(proc_name, 20, "process %d", pid);
 
     // create proc
     new_proc = proc_create_runprogram("forked process");
@@ -59,13 +49,11 @@ sys_fork(struct trapframe *tf, int *retval)
         return ENOMEM; // ran out of space when kmalloc-ing proc
     }
 
-    //pid = new_proc->my_pid;
-
     // 1. copy address space
-    // TODO Assignment 5: Acquire p locks for both processes?
+    // TODO Assignment 5: Acquire locks for both processes?
     err = as_copy(curproc->p_addrspace, &new_proc->p_addrspace);
+
     if (err) {
-        //lock_release(kproc_table->pid_lk);
         proc_destroy(new_proc);
         return ENOMEM;
     }
@@ -74,31 +62,21 @@ sys_fork(struct trapframe *tf, int *retval)
     // TODO Assignment 5: Does curproc need to be copyin'd???
     err = __copy_fd_table(curproc, new_proc);
     if (err) {
-        //lock_release(kproc_table->pid_lk);
         proc_destroy(new_proc);
         return ENOMEM;
     }
 
-    // add to proctable - moved to proc_create
-    // err = pt_add_proc(new_proc, pid);
-    // if (err) {
-    //     //lock_release(kproc_table->pid_lk);
-    //     proc_destroy(new_proc);
-    //     return ENPROC;
-    // }
-
-    //done with proctable
-    //lock_release(kproc_table->pid_lk);
-
     // 4. copy kernel thread 
-    // entrypoint: enter_forked_process(struct trapframe *tf)
-    // arg: tf
-    // to user this function we must have a function (void*, unsigned long)
-    // TODO: change thread name to be unique 
+    struct trapframe *tf_copy = kmalloc(sizeof(struct trapframe));
+    if (tf_copy == NULL) {
+        proc_destroy(new_proc);
+        return ENOMEM;
+    }
+    *tf_copy = *tf;
     err = thread_fork("forked thread", 
                 new_proc,
                 child_return,
-                tf,
+                tf_copy, // malloc'd
                 0);
 
     if (err) {
