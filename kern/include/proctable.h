@@ -6,6 +6,10 @@
 /* 
  * For now this is the amount of processes we are allowing in our system. 
  * would be better to dynamiclly change the size of the table.
+ * 
+ * NOTE: (IMPORTANT!!!)
+ *  All functionality of the proctable assumes that the calling function aquires the correct lock BEFORE calling the functions
+ *  of the proctable!!!
  */
 #define BASE_PROC_AMOUNT    32
 #define MAX_PID_REACHED     -1
@@ -53,7 +57,10 @@ pt_adjust_size(void);
  * @brief addes a new process to the table. Should be used in Fork.
  * 
  * @param pr the new process
+ * @param pid the new pid for this process
  * 
+ * @warning pt_find_free_fd() should be called before to allow the parent function to check if its even relavent to call this function.
+ * this function will still return an error if the pid is invalid
  * @return returns the pid of the added process
  */
 int 

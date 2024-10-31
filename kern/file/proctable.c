@@ -93,12 +93,18 @@ pt_add_proc(struct proc* pr, int pid)
 {
 
     // Implement in assignment 5
-    
+    // check pid is valid
     if (pid == MAX_PID_REACHED)
     {
-        return MAX_PID_REACHED;
+        return EINVAL;
+    }
+    
+    if (pid >= __PID_MAX)
+    {
+        return EINVAL;
     }
 
+    // Check pid is actually free
     if (kproc_table->processes[pid] != NULL)
     {
         return EINVAL; // TODO return something more meaningfull

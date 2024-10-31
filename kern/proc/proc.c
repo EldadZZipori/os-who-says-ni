@@ -130,7 +130,7 @@ proc_create(const char *name)
 		proc->fdtable[i] = FDTABLE_EMPTY;
 	}
 
-	if (kfile_table != NULL) // Will only be true for the kernel
+	if (kfile_table != NULL) // Will only be false for the kernel
 	{
 		/* For Assignment 5 - add pid functionality */
 		lock_acquire(kproc_table->pid_lk);
@@ -245,6 +245,9 @@ proc_destroy(struct proc *proc)
 		__close(proc->fdtable[i]);
 	}
 	lock_destroy(proc->fdtable_lk);
+
+	/* Assignment 5 */
+	// TODO - must remove itself from process table!!!
 
 	kfree(proc->p_name);
 	kfree(proc);
