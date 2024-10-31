@@ -34,8 +34,21 @@ All systemcalls are implmented in their own .c file and declered in syscall.h
     - `__getcwd.c`  get current working directory
     - `chdir.c`     change directory
 
-## Resources
+## Assignment 5: Implementing processes
+Status: In progress
 
+### [Logbook](docs/ASS5.md)
+
+##### System calls 
+All systemcalls are implmented in their own .c file and declered in syscall.h
+- `kern/syscall`
+    - `fork.c`      duplicates an existing process
+    - `execv.c`     makes a running process run an executable
+    - `waitpid.c`   makes a parent process wait for a child process to finish executing
+    - `getpid.c`
+    - `_exit.c`     exits a process
+
+## Resources
 [OS161 Source Code Layout - os161.org](http://www.os161.org/resources/layout.html)
 
 [SFS Definition - harvard.edu](https://www.eecs.harvard.edu/~cs161/assignments/a4.html)
