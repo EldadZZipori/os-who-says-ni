@@ -67,7 +67,7 @@ execvp(const char *prog, char *const *args)
 			len = strlen(s);
 		}
 		if (len == 0) {
-			kernel stackcontinue;
+			continue;
 		}
 		if (len >= sizeof(progpath)) {
 			continue;

@@ -81,15 +81,9 @@ end
 define proctable 
     set $n = $arg0->process_counter
     set $i = 0
-    printf "%u processes\n---\n", $n
+    printf "%u processes\n", $n
     while ($i < $n)
-	printf "process pid %u\n", $arg0->processes[$i]->my_pid
-    if ($i > 0) {
-        printf "process as %u\n", $arg0->processes[$i]->p_addrspace
-        printf "pbase1: %u\n", $arg0->processes[$i]->p_addrspace
-        printf "pbase2: %u\n", $arg0->processes[$i]->p_addrspace->as_pbase2
-        printf "stackpbase: %u\n---\n", $arg0->processes[$i]->p_addrspace->as_stackpbase
-    }
+	printf "pid %u at addr %u", $arg0->processes[$i]->my_pid, $arg0->processes[$i]
 	set $i++
     end
 end
