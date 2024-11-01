@@ -246,8 +246,14 @@ proc_destroy(struct proc *proc)
 	}
 	lock_destroy(proc->fdtable_lk);
 
+
 	/* Assignment 5 */
 	// TODO - must remove itself from process table!!!
+	lock_acquire(kproc_table->pid_lk);
+	pt_remove_proc(proc->my_pid);
+	lock_release(kproc_table->pid_lk);
+
+
 
 	kfree(proc->p_name);
 	kfree(proc);

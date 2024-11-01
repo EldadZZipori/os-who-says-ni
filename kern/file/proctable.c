@@ -94,15 +94,10 @@ pt_add_proc(struct proc* pr, int pid)
 
     // Implement in assignment 5
     // check pid is valid
-    if (pid == MAX_PID_REACHED)
-    {
+     if (pid == MAX_PID_REACHED || pid >= __PID_MAX || pid < 0)
+     {
         return EINVAL;
-    }
-    
-    if (pid >= __PID_MAX)
-    {
-        return EINVAL;
-    }
+     }
 
     // Check pid is actually free
     if (kproc_table->processes[pid] != NULL)
@@ -121,10 +116,17 @@ pt_add_proc(struct proc* pr, int pid)
 }
 
 void 
-pt_remove_proc(struct proc* pr)
+pt_remove_proc(int pid)
 {
-    (void) pr;
      // Implement in assignment 5
+     if (pid == MAX_PID_REACHED || pid >= __PID_MAX || pid < 0)
+     {
+        return;
+     }
+
+    kproc_table->processes[pid] = NULL;
+    kproc_table->process_counter--;
+
 
 }
 

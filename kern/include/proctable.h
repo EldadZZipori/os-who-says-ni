@@ -69,10 +69,10 @@ pt_add_proc(struct proc* pr, int pid);
 /**
  * @brief when a process exits it should be removed from the table
  * 
- * @param pr the process to destroy
+ * @param pid pid of process to remove from the table
  */
 void 
-pt_remove_proc(struct proc* pr);
+pt_remove_proc(int pid);
 
 /**
  * @brief helper function to find a free location in a process's file descriptor table
