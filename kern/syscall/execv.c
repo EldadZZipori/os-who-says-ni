@@ -3,6 +3,7 @@
 #include <kern/errno.h>
 #include <kern/fcntl.h>
 #include <vfs.h>
+#include <proc.h>
 #include <syscall.h>
 #include <copyinout.h>
 #include <addrspace.h>
@@ -57,6 +58,8 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
 
     // create new address space and activate
     struct addrspace *as = as_create();
+    proc_setas(as);
+    as_activate();
 
     // open file progname
     struct vnode *v;
