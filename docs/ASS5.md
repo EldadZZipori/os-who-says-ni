@@ -71,3 +71,7 @@
         - call mips_usermode, which will load tf into regs and jump to the 'resumed' instr. after fork() call
 - call mips_usermode() to go into usermode - do this in enter_forked_process()
 - NOTE: parent thread will continue execution in the lines after thread_fork() call, child will jump to execution elsewhere, and eventually return back to the pc.
+
+# Novermber 3rd
+
+## All work and commits were done together on a collab session

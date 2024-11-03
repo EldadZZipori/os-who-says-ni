@@ -45,9 +45,18 @@
  * Constants
  */
 #define FDTABLE_EMPTY -1
+#define MAX_CHILDREN_PER_PERSON 32
 
 struct addrspace;
 struct vnode;
+
+
+typedef enum {
+	CREATED,
+    RUNNING,
+	SLEEPING,
+    ZOMBIE
+} procstate_t;
 
 /*
  * Process structure.
@@ -82,6 +91,17 @@ struct proc {
 	unsigned int fdtable_num_entries;
 
 	int my_pid;
+
+	/* Waitpid and exit added functionality */
+	struct proc* parent;
+	struct cv* waiting_on_me;
+	struct proc* children[MAX_CHILDREN_PER_PERSON];
+
+	int children_size;
+	struct lock* children_lk;
+
+	procstate_t state;
+	int exit_status;
 
 
 };

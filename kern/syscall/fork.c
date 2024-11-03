@@ -5,10 +5,10 @@
 #include <mips/trapframe.h>
 #include <addrspace.h>
 #include <proctable.h>
-#include <current.h>
 #include <filetable.h>
 #include <syscall.h>
 #include <copyinout.h>
+#include <current.h>
 
 
 
@@ -72,6 +72,16 @@ sys_fork(struct trapframe *tf, int *retval)
         proc_destroy(new_proc);
         return ENOMEM;
     }
+
+    /* Set parent child relationship for processes */
+    new_proc->state = RUNNING;
+    new_proc->parent = curproc;
+
+    lock_acquire(curproc->children_lk);
+    curproc->children[curproc->children_size] = new_proc;
+    curproc->children_size++;
+    lock_release(curproc->children_lk);
+
     *tf_copy = *tf;
     err = thread_fork("forked thread", 
                 new_proc,
@@ -106,5 +116,6 @@ child_return(void* data1, unsigned long data2)
     proc_setas(curproc->p_addrspace); // Set the new address space for the child process
     as_activate();  // Activates the new address space for the process
 
+    curproc->state = RUNNING;
     enter_forked_process(&child_tf);
 }

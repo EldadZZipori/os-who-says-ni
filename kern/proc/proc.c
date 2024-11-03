@@ -147,7 +147,17 @@ proc_create(const char *name)
 		    return NULL;
 		}
 		lock_release(kproc_table->pid_lk);
+
+		proc->waiting_on_me = cv_create("Proc conditional variable");
 	}
+	else	// If this is the kernel
+	{
+		proc->parent = NULL;
+	}
+
+	proc->state = CREATED;
+	proc->children_lk = lock_create("Children lock");
+	proc->children_size = 0;
 
 	return proc;
 }
@@ -253,6 +263,8 @@ proc_destroy(struct proc *proc)
 	pt_remove_proc(proc->my_pid);
 	lock_release(kproc_table->pid_lk);
 
+	lock_destroy(proc->children_lk);
+	cv_destroy(proc->waiting_on_me);
 
 
 	kfree(proc->p_name);
@@ -269,6 +281,8 @@ proc_bootstrap(void)
 	if (kproc == NULL) {
 		panic("proc_create for kproc failed\n");
 	}
+
+	kproc->state = RUNNING;
 }
 
 /*

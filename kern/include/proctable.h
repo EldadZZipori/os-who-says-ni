@@ -77,7 +77,6 @@ pt_remove_proc(int pid);
 /**
  * @brief helper function to find a free location in a process's file descriptor table
  * 
- * @param pr the process
  * @param fd a free index, used as a return value
  * 
  * @return compliance with errno, 0 on success
@@ -93,4 +92,12 @@ pt_find_free_fd(struct proc* pr, int* fd);
  */
 int
 pt_find_avail_pid(void);
+
+/**
+ * @brief checks if pid exists
+ * 
+ * @return true or false
+ */
+int
+pt_check_pid(int pid);
 #endif

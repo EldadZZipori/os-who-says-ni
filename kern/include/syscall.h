@@ -231,5 +231,11 @@ sys_getpid(int* reval);
 
 void
 sys__exit(int exitcode);
+
+int 
+sys_execv(userptr_t progname, userptr_t args, int *retval);
+
+int
+sys__waitpid(int pid, int *status,int options, int* retval);
 #endif /* _SYSCALL_H_ */
 

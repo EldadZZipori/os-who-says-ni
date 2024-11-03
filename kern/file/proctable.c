@@ -127,7 +127,6 @@ pt_remove_proc(int pid)
     kproc_table->processes[pid] = NULL;
     kproc_table->process_counter--;
 
-
 }
 
 int 
@@ -178,4 +177,20 @@ pt_find_avail_pid(void)
     }
 
     return pid;
+}
+
+int
+pt_check_pid(int pid)
+{
+    if (pid < 0 || pid >=  __PID_MAX)
+    {
+        return 0;
+    }
+    
+    if (kproc_table->processes[pid] != NULL)
+    {
+        return 1;
+    }
+
+    return 0;
 }
