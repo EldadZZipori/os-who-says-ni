@@ -227,5 +227,9 @@ sys_fork(struct trapframe* tf, int *retval);
 
 int 
 sys_getpid(int* reval);
+
+
+void
+sys__exit(int exitcode);
 #endif /* _SYSCALL_H_ */
 

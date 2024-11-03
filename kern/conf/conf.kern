@@ -467,3 +467,4 @@ file        syscall/write.c
 file        syscall/dup2.c
 file        syscall/fork.c
 file        syscall/getpid.c
+file        syscall/_exit.c
