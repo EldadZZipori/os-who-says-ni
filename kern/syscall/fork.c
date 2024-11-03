@@ -80,7 +80,7 @@ sys_fork(struct trapframe *tf, int *retval)
                 0);
 
     if (err) {
-        pt_remove_proc(new_proc);
+        pt_remove_proc(new_proc->my_pid);
         proc_destroy(new_proc);
         return err;
     }
