@@ -158,6 +158,13 @@ proc_create(const char *name)
 		lock_release(kproc_table->pid_lk);
 
 		proc->waiting_on_me = cv_create("Proc conditional variable");
+
+		proc->parent = curproc;
+
+		lock_acquire(curproc->children_lk);
+		curproc->children[curproc->children_size] = proc;
+		curproc->children_size++;
+		lock_release(curproc->children_lk);
 	}
 	else	// If this is the kernel
 	{

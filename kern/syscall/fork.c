@@ -75,12 +75,7 @@ sys_fork(struct trapframe *tf, int *retval)
 
     /* Set parent child relationship for processes */
     new_proc->state = RUNNING;
-    new_proc->parent = curproc;
-
-    lock_acquire(curproc->children_lk);
-    curproc->children[curproc->children_size] = new_proc;
-    curproc->children_size++;
-    lock_release(curproc->children_lk);
+    //new_proc->parent = curproc;
 
     *tf_copy = *tf;
     err = thread_fork("forked thread", 

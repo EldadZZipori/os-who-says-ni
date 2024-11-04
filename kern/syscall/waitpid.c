@@ -16,8 +16,23 @@ int
 sys_waitpid(int pid, userptr_t status, int options ,int* retval)
 {
     int result;
+
+    *retval = pid;
+
+    result = __waitpid(pid,(int *)status, options);
+
+    return result;
+
+    
+}
+
+int
+__waitpid(int pid, int* status, int options)
+{
+    int result;
     struct proc* child;
     int* status_i = (int*) &status;
+
     lock_acquire(kproc_table->pid_lk);
 
     if (options != 0)
@@ -62,15 +77,12 @@ sys_waitpid(int pid, userptr_t status, int options ,int* retval)
     {
         cv_wait(child->waiting_on_me, child->children_lk);
     }
-    
 
-    *retval = pid;
     if (status != NULL)
     {
         *status_i = child->exit_status;
     } 
     lock_release(child->children_lk);
-    return 0;
 
-    
+    return 0;
 }

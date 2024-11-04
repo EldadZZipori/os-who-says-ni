@@ -142,6 +142,8 @@ common_prog(int nargs, char **args)
 	 * once you write the code for handling that.
 	 */
 
+	__waitpid(proc->my_pid,NULL,0);
+
 	return 0;
 }
 
@@ -715,8 +717,5 @@ menu(char *args)
 		kprintf("OS/161 kernel [? for menu]: ");
 		kgets(buf, sizeof(buf));
 		menu_execute(buf, 0);
-
-		while (1) {} // temporary hack for menu thread until Assignment 5
-		// TODO Assignment 5: Fix this
 	}
 }
