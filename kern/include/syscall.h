@@ -236,6 +236,6 @@ int
 sys_execv(userptr_t progname, userptr_t args, int *retval);
 
 int
-sys__waitpid(int pid, int *status,int options, int* retval);
+sys_waitpid(int pid,userptr_t status,int options, int* retval);
 #endif /* _SYSCALL_H_ */
 

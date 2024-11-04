@@ -13,10 +13,11 @@
 
 
 int
-sys__waitpid(int pid, int *status, int options ,int* retval)
+sys_waitpid(int pid, userptr_t status, int options ,int* retval)
 {
     int result;
     struct proc* child;
+    int* status_i = (int*) &status;
     lock_acquire(kproc_table->pid_lk);
 
     if (options != 0)
@@ -52,19 +53,20 @@ sys__waitpid(int pid, int *status, int options ,int* retval)
     }
 
     // if child already existed we can just return
+    lock_acquire(child->children_lk);
     if (child->state != ZOMBIE)
     {
-        lock_acquire(child->children_lk);
         cv_wait(child->waiting_on_me, child->children_lk);
-        lock_release(child->children_lk);
     }
+    lock_release(child->children_lk);
 
     *retval = pid;
     if (status != NULL)
     {
-        *status = child->exit_status;
+        *status_i = child->exit_status;
     } 
+    lock_release(kproc_table->pid_lk);
     return 0;
 
-    lock_release(kproc_table->pid_lk);
+    
 }
