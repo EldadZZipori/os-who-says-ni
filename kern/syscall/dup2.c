@@ -60,7 +60,7 @@ sys_dup2(int oldfd, int newfd, int* retval)
         // THIS IS MAYBE JANK
         // THIS IS TRASH - ELDAD
         //sys_close(newfd); - this was trash
-        __close(newfd);
+        __close(curproc ,newfd);
     }
 
     // copy oldfd to newfd
