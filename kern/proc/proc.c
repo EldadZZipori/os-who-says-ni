@@ -474,6 +474,8 @@ __copy_fd_table(struct proc* from, struct proc* to)
 		lock_acquire(kfile_table->files_lk[fd]);
 		kfile_table->files[fd]->ref_count++; // Remeber to add the reference
 		lock_release(kfile_table->files_lk[fd]);
+
+		VOP_INCREF(kfile_table->files[fd]->vn); // To the vnode too~!!!!
 	}
 
 	return 0;
