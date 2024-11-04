@@ -18,8 +18,22 @@ sys_waitpid(int pid, userptr_t status, int options ,int* retval)
     int result;
 
     *retval = pid;
+    int* kstatus = kmalloc(sizeof(int));
 
-    result = __waitpid(pid,(int *)status, options);
+
+    result = __waitpid(pid,kstatus, options);
+    if (result)
+    {
+        kfree(kstatus);
+        return result;
+    }
+
+    if (status != NULL)
+    {
+        result = copyout(kstatus, status, sizeof(status));
+    }
+    
+   
 
     return result;
 
@@ -31,21 +45,22 @@ __waitpid(int pid, int* status, int options)
 {
     int result;
     struct proc* child;
-    int* status_i = (int*) &status;
+    //int* status_i = (int*) &status;
 
     lock_acquire(kproc_table->pid_lk);
 
     if (options != 0)
     {
+        lock_release(kproc_table->pid_lk);
         return EINVAL;
     }
 
     result = pt_check_pid(pid);
 
-    if (!result) 
+    if (result) 
     {
         lock_release(kproc_table->pid_lk);
-        return ESRCH;
+        return result;
     }
 
     result = 0;
@@ -78,10 +93,8 @@ __waitpid(int pid, int* status, int options)
         cv_wait(child->waiting_on_me, child->children_lk);
     }
 
-    if (status != NULL)
-    {
-        *status_i = child->exit_status;
-    } 
+    *status = child->exit_status;
+
     lock_release(child->children_lk);
 
     return 0;

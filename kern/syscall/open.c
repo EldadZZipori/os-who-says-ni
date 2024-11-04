@@ -34,7 +34,9 @@ sys_open(userptr_t path, int flags, int* retval)
     int fd;
 
     char kpath[__PATH_MAX];
+    size_t actual;
     struct abstractfile* af = NULL;
+    (void)actual;
 
     lock_acquire(curproc->fdtable_lk);
 
@@ -52,7 +54,8 @@ sys_open(userptr_t path, int flags, int* retval)
     }
 
     /* Copy memory block from user argument to kernel space */
-    result = copyin(path, kpath, sizeof(kpath));
+    result = copyinstr(path, kpath, sizeof(kpath),&actual);
+    //result = copyin(path, kpath, sizeof(kpath));
     if (result)
     {
         lock_release(curproc->fdtable_lk);

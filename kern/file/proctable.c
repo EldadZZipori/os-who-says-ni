@@ -184,13 +184,14 @@ pt_check_pid(int pid)
 {
     if (pid < 0 || pid >=  __PID_MAX)
     {
-        return 0;
+        return ESRCH;
     }
     
     if (kproc_table->processes[pid] != NULL)
     {
-        return 1;
+        return 0;
     }
 
-    return 0;
+    // if the process at that pid is null it does not exist
+    return ESRCH;
 }
