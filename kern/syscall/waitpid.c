@@ -44,28 +44,32 @@ sys_waitpid(int pid, userptr_t status, int options ,int* retval)
                 child = curproc->children[i];
             }
         }
+        else
+        {
+            break;
+        }
     }
+    lock_release(kproc_table->pid_lk);
 
     if(!result)
     {
-        lock_release(kproc_table->pid_lk);
         return ECHILD;
     }
 
-    // if child already existed we can just return
+    // if child already exited we can just return
     lock_acquire(child->children_lk);
     if (child->state != ZOMBIE)
     {
         cv_wait(child->waiting_on_me, child->children_lk);
     }
-    lock_release(child->children_lk);
+    
 
     *retval = pid;
     if (status != NULL)
     {
         *status_i = child->exit_status;
     } 
-    lock_release(kproc_table->pid_lk);
+    lock_release(child->children_lk);
     return 0;
 
     
