@@ -18,9 +18,14 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
 {
     int result;
     vaddr_t stackptr;
+    vaddr_t argvptr;
     vaddr_t entrypoint;
-    (void)progname;
-    (void)retval;
+    char kprogname[PATH_MAX];
+    struct addrspace *as;
+    struct vnode *v;
+
+    // copyin kprogname
+    copyinstr(progname, kprogname, PATH_MAX, NULL);
 
     // copyin the argv array to kernel stack
     char **argv = (char**)args;
@@ -53,17 +58,11 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
             return ENOMEM;
         }
         // copy string into kernel 
-        copyin((const_userptr_t)argv[i], argv_kern[i], argv_sizes[i]);
+        copyinstr((const_userptr_t)argv[i], argv_kern[i], argv_sizes[i], NULL);
     }
 
-    // create new address space and activate
-    struct addrspace *as = as_create();
-    proc_setas(as);
-    as_activate();
-
     // open file progname
-    struct vnode *v;
-    result = vfs_open((char*)progname, O_RDONLY, 0, &v);
+    result = vfs_open(kprogname, O_RDONLY, 0, &v);
     if (result) { 
         // clean up all malloc'd memory
         for (int i = 0; i < argc; i++) {
@@ -72,6 +71,22 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
         kfree(argv_kern);
         return result;
     }
+
+    // create new address space and activate
+    as = as_create();
+    if (as == NULL) 
+    {
+        for (int i = 0; i < argc; i++) {
+            kfree(argv_kern[i]);
+        }
+        kfree(argv_kern);
+        return ENOMEM;
+    }
+    
+    /* Switch to new addrspace and activate it */
+    proc_setas(as);
+    as_activate();
+
 
     // load elf 
     result = load_elf(v, &entrypoint);
@@ -87,8 +102,15 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
     // close file progname
     vfs_close(v);
 
-    // define stack
-    as_define_stack(as, &stackptr);
+    // set up new address space and define stack
+    result = as_define_stack(as, &stackptr);
+    if (result) {
+        for (int i = 0; i < argc; i++) {
+            kfree(argv_kern[i]);
+        }
+        kfree(argv_kern);
+        return result;
+    }
 
     /** 
      * We are going to allocate space for argv on user stack, 
@@ -97,15 +119,19 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
      * then we will copyout the argv array to user stack.
     */
 
+    // allocate space for argc on user stack
+    stackptr -= sizeof(int);
+    copyout(&argc, (userptr_t)stackptr, sizeof(int));
+
     // allocate space for argv on user stack
     stackptr -= (argc + 1) * sizeof(char*); // create empty space "below" (more positive) stackptr
-    vaddr_t argvptr = stackptr;
+    argvptr = stackptr;
 
     // copyout each element of argv_kern into user stack, updating the pointers in the argv array
     for (int i = 0; i < argc; i++) {
-        stackptr -= argv_sizes[i];
-        copyout(argv_kern[i], (userptr_t)stackptr, argv_sizes[i]);
-        argv_kern[i] = (char*)stackptr;
+        stackptr -= argv_sizes[i]; // create space below sp
+        copyoutstr(argv_kern[i], (userptr_t)stackptr, argv_sizes[i], NULL);
+        argv_kern[i] = (char*)stackptr; // store location of i'th argument in argv_kern
     }
 
     // copyout the argv pointer array, which now holdes user-space pointers
@@ -114,5 +140,6 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
     // warp to usermode (enter_new_process)
     enter_new_process(argc, (userptr_t)argvptr, NULL, stackptr, entrypoint);
 
+    *retval = 0;
     return 0; 
 }
