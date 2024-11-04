@@ -106,13 +106,22 @@ proc_create(const char *name)
 	 * before it is created.
 	 */
 	// this is not needed as the only was to create a process is to fork it
-	// if (kfile_table != NULL)
-	// {
-	// 	// more for next assignment
-	// 	kfile_table->files[0]->ref_count++;
-	// 	kfile_table->files[1]->ref_count++;
-	// 	kfile_table->files[2]->ref_count++;
-	// }
+	if (kfile_table != NULL)
+	{
+		// more for next assignment
+		lock_acquire(kfile_table->files_lk[0]);
+		kfile_table->files[0]->ref_count++;
+		lock_release(kfile_table->files_lk[0]);
+
+		lock_acquire(kfile_table->files_lk[1]);
+		kfile_table->files[1]->ref_count++;
+		lock_release(kfile_table->files_lk[1]);
+
+		lock_acquire(kfile_table->files_lk[2]);
+		kfile_table->files[2]->ref_count++;
+		lock_release(kfile_table->files_lk[2]);
+		
+	}
 
 	/*
 	 * IMPORTANT NOTE - the main open file descriptor table 
@@ -244,6 +253,8 @@ proc_destroy(struct proc *proc)
 		as_destroy(as);
 	}
 
+
+
 	threadarray_cleanup(&proc->p_threads);
 	spinlock_cleanup(&proc->p_lock);
 
@@ -252,7 +263,7 @@ proc_destroy(struct proc *proc)
 	// Make sure to close all references to the files once the process is done.
 	for (unsigned int i = 0; i < proc->fdtable_num_entries; i++)
 	{
-		__close(proc->fdtable[i]);
+		__close(proc ,proc->fdtable[i]);
 	}
 	lock_destroy(proc->fdtable_lk);
 
@@ -263,6 +274,7 @@ proc_destroy(struct proc *proc)
 	pt_remove_proc(proc->my_pid);
 	lock_release(kproc_table->pid_lk);
 
+	lock_release(proc->children_lk);
 	lock_destroy(proc->children_lk);
 	cv_destroy(proc->waiting_on_me);
 

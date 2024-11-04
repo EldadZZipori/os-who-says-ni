@@ -172,8 +172,9 @@ ft_remove_file(unsigned int index)
     af_destroy(&kfile_table->files[index]);
     kfile_table->files[index] = NULL;
 
+    lock_acquire(kfile_table->location_lk);
     kfile_table->files_counter--; // This should be the only place that files_counter of the main file table decreases
-
+    lock_release(kfile_table->location_lk);
 
 }
 
@@ -221,7 +222,7 @@ __open(char kpath[__PATH_MAX], int flags, struct abstractfile** af)
 }
 
 int
-__close(int fd)
+__close(struct proc* cur_proc, int fd)
 {
     // check if the file descriptor is valid
     int result;
@@ -231,7 +232,7 @@ __close(int fd)
         return result;
     }
 
-    int index_in_fd = curproc->fdtable[fd];
+    int index_in_fd = cur_proc->fdtable[fd];
 
     if (index_in_fd == FDTABLE_EMPTY)
     {
@@ -242,8 +243,8 @@ __close(int fd)
      * Makes it available to reuse.
      * Note that at this point we should have the lock for the current process's file table
      */ 
-    curproc->fdtable[fd] = FDTABLE_EMPTY; 
-    curproc->fdtable_num_entries--; // This shuld be the only place where the entries count of the individual process decreases
+    cur_proc->fdtable[fd] = FDTABLE_EMPTY; 
+    cur_proc->fdtable_num_entries--; // This shuld be the only place where the entries count of the individual process decreases
 
     // We probably want to lock this index before writing to it
     lock_acquire(kfile_table->files_lk[index_in_fd]);

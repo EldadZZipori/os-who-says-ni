@@ -23,7 +23,7 @@ sys_close(int fd)
     int result;
     lock_acquire(curproc->fdtable_lk);
 
-    result = __close(fd);
+    result = __close(curproc, fd);
     if (result)
     {
         lock_release(curproc->fdtable_lk);

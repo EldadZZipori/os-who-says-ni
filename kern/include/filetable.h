@@ -94,5 +94,5 @@ __open(char* kpath, int flags, struct abstractfile** af);
  * @return returns 0 on success, on error comply with errno
  */
 int
-__close(int fd);
+__close(struct proc* cur_proc, int fd);
 #endif
