@@ -15,7 +15,9 @@
 /**
  * Function prototypes
  */
-//static int copy_trapframe(struct trapframe* old_tf, struct trapframe* new_tf);
+/**
+ * @brief local function to serve as entrty point for the new forked process
+ */
 static void child_return(void* data1, unsigned long data2);
 
 
@@ -32,7 +34,10 @@ sys_fork(struct trapframe *tf, int *retval)
     int err;
     struct proc *new_proc;
 
-    *retval = -1; // only change if there is no error
+    // Return value only changes if no error happened
+    *retval = -1; 
+
+    // Check that the process table for the system is not full
 	if (kproc_table->process_counter == __PID_MAX)
 	{
 		return EMPROC;
@@ -42,24 +47,21 @@ sys_fork(struct trapframe *tf, int *retval)
     // if already too many (for this user), return EMPROC, *not* ENPROC
     // TODO Assignment 5: Double check - there seems to be no user-process limit
 
-    // create proc
+    // Create a new process. NOTE: most is done in proc_create which cannot be accessed
     new_proc = proc_create_runprogram("forked process");
     if (new_proc == NULL) { 
-        //lock_release(kproc_table->pid_lk);
         return ENOMEM; // ran out of space when kmalloc-ing proc
     }
 
     // 1. copy address space
     // TODO Assignment 5: Acquire locks for both processes?
     err = as_copy(curproc->p_addrspace, &new_proc->p_addrspace);
-
     if (err) {
         proc_destroy(new_proc);
         return ENOMEM;
     }
 
     // 2. copy file table 
-    // TODO Assignment 5: Does curproc need to be copyin'd???
     err = __copy_fd_table(curproc, new_proc);
     if (err) {
         proc_destroy(new_proc);
@@ -73,9 +75,7 @@ sys_fork(struct trapframe *tf, int *retval)
         return ENOMEM;
     }
 
-    /* Set parent child relationship for processes */
-    new_proc->state = RUNNING;
-    //new_proc->parent = curproc;
+    new_proc->state = RUNNING; // Indicate new process is running just before forking it
 
     *tf_copy = *tf;
     err = thread_fork("forked thread", 
@@ -95,6 +95,7 @@ sys_fork(struct trapframe *tf, int *retval)
     *retval = new_proc->my_pid;
     return 0;
 }
+
 /**
  * @brief a thread_fork() compatible function to run a new thread in the child and return
  * Should only actually activate things in the child here

@@ -143,21 +143,41 @@ proc_create(const char *name)
 	{
 		/* For Assignment 5 - add pid functionality */
 		lock_acquire(kproc_table->pid_lk);
-		int pid = pt_find_avail_pid(); // No point in doing anything if there is no available one
+
+		/*
+		 * Find an available pid in the process table, this should have probably
+		 * been done before this is called as well, to give a better indication of why the 
+		 * process cannot be created.
+		 * If no pid is available will return null.
+		 */
+		int pid = pt_find_avail_pid(); 
 		if (pid == MAX_PID_REACHED)
 		{
 			lock_release(kproc_table->pid_lk);
+			proc_destroy(proc);
 			return NULL;
 		}
-		// TODO: STILL FIX THIS
-		if (pt_add_proc(proc, pid)) {
-		    lock_release(kproc_table->pid_lk);
-		    proc_destroy(proc);
+		
+		/*
+		 * Adds the newly created process to the process table
+		 * This is done here so *EVERY* process is in the table
+		 * not just forked ones
+		 */
+		if (pt_add_proc(proc, pid)) 
+		{
+			lock_release(kproc_table->pid_lk);
+			proc_destroy(proc);
 		    return NULL;
 		}
 		lock_release(kproc_table->pid_lk);
 
 		proc->waiting_on_me = cv_create("Proc conditional variable");
+		if (proc->waiting_on_me == NULL)
+		{
+			lock_release(kproc_table->pid_lk);
+			proc_destroy(proc);
+			return NULL;
+		}
 
 		proc->parent = curproc;
 
@@ -173,6 +193,12 @@ proc_create(const char *name)
 
 	proc->state = CREATED;
 	proc->children_lk = lock_create("Children lock");
+	if (proc->children_lk == NULL)
+	{
+		lock_release(kproc_table->pid_lk);
+		proc_destroy(proc);
+		return NULL;
+	}
 	proc->children_size = 0;
 
 	return proc;
@@ -281,9 +307,25 @@ proc_destroy(struct proc *proc)
 	pt_remove_proc(proc->my_pid);
 	lock_release(kproc_table->pid_lk);
 
-	lock_release(proc->children_lk);
-	lock_destroy(proc->children_lk);
-	cv_destroy(proc->waiting_on_me);
+	/* 
+	 * Check we are not called because one of these failed
+	 */
+	if (proc->children_lk != NULL)
+	{
+		/*
+		 * Only exit (and proc_create) calls this,
+		 * we are either destroying because these are null or when exiting, 
+		 * meaning we *MUST* hold the children_lk
+		 */
+		lock_release(proc->children_lk);
+		lock_destroy(proc->children_lk);
+	}
+
+	if (proc->waiting_on_me != NULL)
+	{
+		cv_destroy(proc->waiting_on_me);
+	}
+	
 
 
 	kfree(proc->p_name);

@@ -222,25 +222,110 @@ int
 sys_dup2(int oldfd, int newfd, int *retval);
 
 /* Assignment 5 - Processes */
+/**
+ * @brief duplicates the current running process
+ * 
+ * @param tf the trapframe of the parent, contatining the architectural state
+ * 
+ * @param retval in the parent process returns the pid of the child, in the child returns 0
+ * 
+ * @return 0 on success, otherwise one of the following errors - 
+ * on error only the parent returns -
+ * 
+ *	EMPROC	The current user already has too many processes.
+ *	ENPROC	There are already too many processes on the system.
+ *	ENOMEM	Sufficient virtual memory for the new process was not available.
+ */
 int
 sys_fork(struct trapframe* tf, int *retval);
 
+/**
+ * @brief get the pid of the current running process
+ * 
+ * @param retval pid of curernt running process will be stored here
+ * 
+ * @return 0, this function never fails.
+ */
 int 
 sys_getpid(int* reval);
 
-
+/**
+ * @brief system call for existing a process, this indicates expected exit
+ * 
+ * @param exitcode exit code (status) of program, success etc
+ * 
+ * @warning this function does not return. See the diagrams to understand whether 
+ * the process will become zombie or will actually destroy 
+ */
 void
 sys__exit(int exitcode);
 
+/**
+ * @brief exit a function to be used by the kernel, allows exiting processes on faults
+ * 
+ * @param exitcode exit code (status) of program, success etc
+ * 
+ * @warning this function does not return. See the diagrams to understand whether 
+ * the process will become zombie or will actually destroy 
+ */
 void
 __exit(int exitcode);
 
+/**
+ * @brief replaces the currently executing program with a newly loaded program image
+ * 
+ * @param progname path to the program
+ * @param args arguments for the program
+ * @param retval on success no return value is given and the program start executing, on error -1
+ * 
+ * @return 0 on success, otherwise one of the following errors - 
+ * 
+ * ENODEV	The device prefix of program did not exist.
+ * ENOTDIR	A non-final component of program was not a directory.
+ * ENOENT	program did not exist.
+ * EISDIR	program is a directory.
+ * ENOEXEC	program is not in a recognizable executable file format, was for the wrong platform, or contained invalid fields.
+ * ENOMEM	Insufficient virtual memory is available.
+ * E2BIG	The total size of the argument strings exceeeds ARG_MAX.
+ * EIO	A hard I/O error occurred.
+ * EFAULT	One of the arguments is an invalid pointer.
+ */
 int 
 sys_execv(userptr_t progname, userptr_t args, int *retval);
 
+/**
+ * @brief system call allowing a parent process to wait for a child process to exit
+ * 
+ * @param pid pid of the child process
+ * @param status a pointer through which the return status of the child will be passed to its parent
+ * @param options no option is currently supported, must be 0
+ * 
+ * @return 0 on success, otherwise one of the following errors - 
+ * 
+ * EINVAL	The options argument requested invalid or unsupported options.
+ * ECHILD	The pid argument named a process that was not a child of the current process.
+ * ESRCH	The pid argument named a nonexistent process.
+ * EFAULT	The status argument was an invalid pointer.	
+ */
 int
-sys_waitpid(int pid,userptr_t status,int options, int* retval);
+sys_waitpid(int pid, userptr_t status, int options, int* retval);
 
+/**
+ * @brief internal kernal call allowing a parent process to wait for a child process to exit
+ * mostly used to make the kernel wait for a spawned process to finish
+ * 
+ * @param pid pid of the child process
+ * @param status a pointer through which the return status of the child will be passed to its parent
+ * @param options no option is currently supported, must be 0
+ * @param retval return the pid of the process that exited, on error -1
+ * 
+ * @return 0 on success, otherwise one of the following errors - 
+ * 
+ * EINVAL	The options argument requested invalid or unsupported options.
+ * ECHILD	The pid argument named a process that was not a child of the current process.
+ * ESRCH	The pid argument named a nonexistent process.
+ * EFAULT	The status argument was an invalid pointer.	
+ */
 int
 __waitpid(int pid, int* status, int options);
 #endif /* _SYSCALL_H_ */
