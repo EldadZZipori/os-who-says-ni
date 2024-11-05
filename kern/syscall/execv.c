@@ -16,29 +16,34 @@
 #define ARG_LOAD_CHUNK_SIZE 1024 
 
 /**
- * Function Prototypes
+ * Static function prototypes
 */
-static int copyinstrcustom(const_userptr_t usersrc, char *dest, size_t len, size_t *actual);
-static int copyinstrlen(const_userptr_t usersrc, size_t *len);
+static int copyinstrupto(const_userptr_t usersrc, char *dest, size_t len, size_t *actual);
+static int userstrlen(const_userptr_t usersrc, size_t *len);
 
 /**
  * @brief Execute a program
  * 
+ * @param progname path to the program
+ * @param args arguments for the program
+ * @param retval on success, no return value is given and the program starts executing.
  * 
+ * Must be done with minimal memory usage, and must not use more than 1KB of memory at a time, 
+ * because the arguments to the program may be up to 64KB in size. The approach we take is 
+ * to copy the arguments from the old address space to the new address space, on the stack, 
+ * while using the kernel stack as a temporary buffer to copy the arguments in 1KB chunks.
 */
 int sys_execv(userptr_t progname, userptr_t args, int *retval) 
 {
     int result;
     int argc;
-    char kprogname[PATH_MAX];
-    // char argv_kern[ARG_MAX];
-    // size_t offset;
     vaddr_t stackptr;
     vaddr_t argvp;
     vaddr_t entrypoint;
     struct addrspace *as1;
     struct addrspace *as2;
     struct vnode *v;
+    char kprogname[PATH_MAX];
 
     // save as1 
     as1 = curproc->p_addrspace;
@@ -99,7 +104,11 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
         return result;
     }
 
-    // allocate space on as2 stack for the arg pointers (argv will point here, so save its address)
+    /**
+     * Allocate space on the stack for a null-terminated array of pointers to the arguments.
+     * This will be used to pass the arguments to the new program, and will point to the 
+     * locations where all the strings are saved on the new address-space user-level stack.
+    */
     stackptr -= (argc + 1) * sizeof(char*);
     argvp = stackptr;
 
@@ -108,35 +117,35 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
     result = copyout(&nullptr, (userptr_t)(stackptr + argc*sizeof(char*)), sizeof(char*));
 
     /**
-     * Next, for each arg in args, we will copy it onto the kernel stack 1KB at a time, 
-     * and then copy it into the new address space stack.  
+     * Next, for each arg in args, we will copy it onto the kernel stack, then onto the 
+     * new address space stack, all 1KB at a time, then save the pointer on the stack
+     * in the previously allocated portion, pointed to by argvp.
      * 
      * To do this, we need to: 
-     * 1. switch to as1
-     * 2. copyinstr 1KB of the arg onto the kernel stack
-     * 3. switch to as2
-     * 4. advance the stack pointer by 1KB, or the size of the arg that was copied
-     * 5. copyout the arg from the kernel stack to the new address space stackptr
-     * 6. repeat 4-5 until the arg is fully copied
-     * 7. record the pointer to the arg in argv_kern_ptrs using stackptr 
-     * 8. record the size of the arg in argv_kern_sizes by tracking the size of the arg copied
+     * 1. switch to as1 and load in the user-space arg pointer, and get its size
+     * 2. allocate space on the as2 stack for the full size of the arg
+     * 3. switch to as2 and copy 1KB of the arg onto the kernel stack
+     * 4. copy the 1KB of the arg from the kernel stack to the new address space stackptr
+     * 5. repeat 3-4 until the arg is fully copied
+     * 6. record the location of the arg on the stack, in the argv array on the stack
+     * 7. Repeat 1-6 for each arg
     */
     for (int i = 0; i < argc; i++) 
     { 
+        userptr_t argp;
+        size_t size_copied = 0;
+        size_t copied_bytes = 0;
+        size_t arg_size = 0;
+
         // switch to as1 to get arg ptr and size
         proc_setas(as1);
         as_activate();
 
-        // ptr to arg, will be updated as we copy in the arg 1 chunk at a time
-        // userptr_t argp = (userptr_t)argv_kern_ptrs[i];
-        userptr_t argp;
+        // copyin ptr to arg, will be updated as we copy in the arg 1 chunk at a time
         result = copyin(args + i * sizeof(char*), &argp, sizeof(char*));
-        size_t size_copied = 0;
-        size_t copyin_size = 0;
-        size_t arg_size = 0;
 
-        // get argsize
-        result = copyinstrlen(argp, &arg_size);
+        // get arg_size
+        result = userstrlen(argp, &arg_size);
         if (result) {
             return result;
         }
@@ -145,15 +154,15 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
         stackptr -= arg_size;
 
         do {
+            char karg[ARG_LOAD_CHUNK_SIZE];
+            copied_bytes = 0;
+
             // switch to as1
             proc_setas(as1);
             as_activate();
 
-            copyin_size = 0;  
-
-            // copyin the arg, allocating char[] on the stack so it gets deallocated after each chunk
-            char karg[ARG_LOAD_CHUNK_SIZE];
-            result = copyinstrcustom(argp, karg, ARG_LOAD_CHUNK_SIZE, &copyin_size);
+            // copyin up to 1KB of the string argument into karg, on the stack so it gets deallocated after each chunk
+            result = copyinstrupto(argp, karg, ARG_LOAD_CHUNK_SIZE, &copied_bytes);
             if (result) {
                 return result;
             }
@@ -162,59 +171,80 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
             proc_setas(as2);
             as_activate();
 
-            // copyout the arg to the new address space stack
-            // (don't use copyoutstr because it may not have null terminator)
-            result = copyout(karg, (userptr_t)stackptr, copyin_size);
+            /**
+             * Copy the chunk of the arg from the kernel stack to the new address space stack.
+             * Don't use copyoutstr because it may not have a null terminator at the end of the chunk.
+            */
+            result = copyout(karg, (userptr_t)stackptr, copied_bytes);
             if (result) {
                 return result;
             }
 
-            size_copied += copyin_size; // update size of arg copied
-            argp += copyin_size; // point to next chunk in user-space arg
-            stackptr += copyin_size; // advance user-level stack pointer by size of chunk
+            size_copied += copied_bytes;
+            argp += copied_bytes;
+            stackptr += copied_bytes;
 
         } while (size_copied < arg_size);
 
-        // now full arg is copied, record the pointer and size
-        // stackptr should be pointing to the end of the arg, so we need to subtract the size of the arg to get the start
-        stackptr -= arg_size;
-
-        // write ptr to argvp at ith position  
-        // this is instead of copying the whole argv pointer array at the end
+        /**
+         * Now that the full argument is copied, we need to copy the pointer to the new address-space stack,
+         * in the space we allocated for the pointer array at the i'th position, above all the strings.
+         * 
+         * First move stackptr back to the bottom of the arg, then copyout the address to argv[i] on as2 stack. 
+        */
+        stackptr -= arg_size; 
         result = copyout((userptr_t)&stackptr, (userptr_t)argvp + i * sizeof(char*), sizeof(char*));
         if (result) {
             return result;
         }
     }
 
-    // free all memory allocated for old proc
     as_destroy(as1);
-
-    // warp to user mode 
     enter_new_process(argc, (userptr_t)argvp, NULL, stackptr, entrypoint);
 
-    *retval = 0;
-    return 0;
+    panic("execv returned\n");
 }
 
-static int copyinstrcustom(const_userptr_t usersrc, char *dest, size_t len, size_t *actual)
+
+/**
+ * @brief Copy a string from user-space to kernel-space, up to len bytes
+ * 
+ * @param usersrc user-space pointer to the source string
+ * @param dest kernel-space pointer to the destination string
+ * @param len maximum number of bytes to copy
+ * 
+ * Copies up to len bytes of a string from user-space to kernel-space.
+ * Will not copy more than len bytes, and will not copy past a null terminator.
+ * Stores the actual number of bytes copied in actual.
+ * 
+ * This function is used as a replacement to copyinstr, when we want to be able to 
+ * copy a portion of a string up to len bytes, without knowing how big the string is.
+*/
+static int copyinstrupto(const_userptr_t usersrc, char *dest, size_t len, size_t *actual)
 {
-    for (size_t j = 0; j < len; j++) {
-        int result = copyin(usersrc + j, dest + j, 1);
+    for (size_t i = 0; i < len; i++) {
+        int result = copyin(usersrc + i, dest + i, 1);
         if (result) {
             return result;
         }
         (*actual)++;
-        if (dest[j] == '\0') {
+        if (dest[i] == '\0') {
             return 0;
         }
     }
-    
-    // reached end of len, but no null terminator. actual == len. 
     return 0;
 }
 
-static int copyinstrlen(const_userptr_t usersrc, size_t *len)
+/**
+ * @brief Get the length of a string in user-space
+ * 
+ * @param usersrc user-space pointer to the source string
+ * @param len pointer to store the length of the string
+ * 
+ * Gets the length of a string in user-space, up to a null terminator,
+ * without allocating more than a few bytes on the stack.
+*/
+static int userstrlen(const_userptr_t usersrc, size_t *len)
 {
     char c;
     int result;
@@ -225,7 +255,7 @@ static int copyinstrlen(const_userptr_t usersrc, size_t *len)
             return result;
         }
         actual++;
-        (*len)++;
     } while (c != '\0');
+    *len = actual;
     return 0;
 }
