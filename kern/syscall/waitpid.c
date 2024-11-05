@@ -30,7 +30,7 @@ sys_waitpid(int pid, userptr_t status, int options ,int* retval)
 
     if (status != NULL)
     {
-        result = copyout(kstatus, status, sizeof(status));
+        result = copyout(kstatus, status, sizeof(int));
     }
     
     kfree(kstatus);

@@ -39,6 +39,7 @@
 #include <vm.h>
 #include <mainbus.h>
 #include <syscall.h>
+#include <kern/wait.h>
 
 
 /* in exception-*.S */
@@ -115,7 +116,11 @@ kill_curthread(vaddr_t epc, unsigned code, vaddr_t vaddr)
 	kprintf("Fatal user mode trap %u sig %d (%s, epc 0x%x, vaddr 0x%x)\n",
 		code, sig, trapcodenames[code], epc, vaddr);
 
-	sys__exit(sig);
+	/*
+	 * Indicate exit because of fatal problem in usermode
+	 */
+	long full_signal = (sig << 2) | __WSIGNALED;
+	__exit(full_signal);
 	panic("I don't know how to handle this\n");
 }
 

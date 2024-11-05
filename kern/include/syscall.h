@@ -232,6 +232,9 @@ sys_getpid(int* reval);
 void
 sys__exit(int exitcode);
 
+void
+__exit(int exitcode);
+
 int 
 sys_execv(userptr_t progname, userptr_t args, int *retval);
 

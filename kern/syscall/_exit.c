@@ -9,10 +9,22 @@
 #include <filetable.h>
 #include <syscall.h>
 #include <copyinout.h>
+#include <kern/wait.h>
 
 
 void
 sys__exit(int exitcode)
+{
+    /*
+     *  if someone actually called _exit give exit status 
+     */
+    long actual_code = (exitcode << 2) | __WEXITED; 
+    __exit(actual_code);
+
+}
+
+void
+__exit(int exitcode)
 {
     struct proc* calling_proc;
 
@@ -58,5 +70,4 @@ sys__exit(int exitcode)
     proc_remthread(curthread);
     lock_release(calling_proc->children_lk);
     thread_exit();
-
 }

@@ -295,6 +295,8 @@ main(int argc, char **argv)
 				_exit(1);
 			}
 			waitpid(pid, &status, 0);
+			//printf("%d\n", status);
+			//printf("%d\n",_WWHAT(status));
 			if (WIFSIGNALED(status)) {
 				if (WTERMSIG(status) == ops[i].sig) {
 					printf("Signal %d (correct)\n",
