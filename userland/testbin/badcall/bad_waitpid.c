@@ -196,6 +196,8 @@ wait_siblings_child(const char *semname)
 
 	mypid = getpid();
 
+	printf("child %d called wait_siblings_child\n", mypid);
+
 	/*
 	 * Get our own handle for the semaphore, in case naive
 	 * file-level synchronization causes concurrent use to
@@ -253,6 +255,7 @@ wait_siblings_child(const char *semname)
 	}
 	close(fd);
 
+	printf("child %d is waiting on pid %d\n", mypid, otherpid);
 	rv = waitpid(otherpid, &x, 0);
 	report_survival(rv, errno, "sibling wait");
 }
@@ -295,6 +298,7 @@ wait_siblings(void)
 		wait_siblings_child(semname);
 		_exit(0);
 	}
+	printf("child pid %d\n", pids[0]);
 
 	pids[1] = fork();
 	if (pids[1]<0) {
@@ -311,6 +315,7 @@ wait_siblings(void)
 		wait_siblings_child(semname);
 		_exit(0);
 	}
+	printf("second child pid %d\n", pids[1]);
 
 	rv = write(fd, pids, sizeof(pids));
 	if (rv < 0) {
@@ -336,7 +341,9 @@ wait_siblings(void)
 		warn("UH-OH: %s: write", semname);
 	}
 
+	printf("before waitpid\n");
 	rv = waitpid(pids[0], &x, 0);
+	printf("after waitpid\n");
 	if (rv<0) {
 		warn("UH-OH: error waiting for child 0 (pid %d)", pids[0]);
 	}
