@@ -8,6 +8,7 @@
 #include <copyinout.h>
 #include <addrspace.h>
 #include <vnode.h>
+#include <current.h>
 
 /**
  * @brief Execute a program
@@ -18,86 +19,73 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
 {
     int result;
     int argc;
-    size_t offset;
     char kprogname[PATH_MAX];
-    char argv_kern[ARG_MAX];
-    vaddr_t stackptr;
+    // char argv_kern[ARG_MAX];
+    // size_t offset;
+    // vaddr_t stackptr;
     // vaddr_t argvptr;
     vaddr_t entrypoint;
-    struct addrspace *as;
+    struct addrspace *as1;
+    struct addrspace *as2;
     struct vnode *v;
+
+    // save as1 
+    as1 = curproc->p_addrspace;
 
     // copyin kprogname
     copyinstr(progname, kprogname, PATH_MAX, NULL);
 
-    // copyin the argv array to kernel stack
-    char** argv = (char**)args;
-    argc = 0;
-    while (argv[argc] != '\0') {
-        argc++;
+    // create a new address space
+    as2 = as_create();
+    if (as2 == NULL) {
+        return ENOMEM;
     }
 
-    char* argv_kern_ptrs[argc];
-    size_t argv_kern_sizes[argc];
-
-    // copyin args into argv_kern_ptrs 
-    copyin(args, argv_kern_ptrs, argc * sizeof(char*));
-
-    // for each string in argv, copyin the string into argv_kern
-    // and update offset, and store size of string in argv_kern_sizes
-    offset = 0;
-    for (int i = 0; i < argc; i++) { 
-        result = copyinstr((userptr_t)argv_kern_ptrs[i], argv_kern + offset, ARG_MAX - offset, NULL);
-        if (result) {
-            return result;
-        }
-        argv_kern_sizes[i] = strlen(argv_kern + offset) + 1;
-        offset += argv_kern_sizes[i];
-    }
-
-    // open file progname
+    // open executable 
     result = vfs_open(kprogname, O_RDONLY, 0, &v);
-    if (result) 
-    { 
+    if (result) {
         return result;
     }
 
-    // create new address space and activate
-    as = as_create();
-    if (as == NULL) 
-    {
-        return ENOMEM;
-    }
-    
-    /* Switch to new addrspace and activate it */
-    proc_setas(as);
-    as_activate();
-
-
-    // load elf 
+    // load the executable
     result = load_elf(v, &entrypoint);
-    if (result) 
-    {
+    if (result) {
         vfs_close(v);
         return result;
     }
 
-    // close file progname
+    // close the executable, don't need it anymore
     vfs_close(v);
 
-    // set up new address space and define stack
-    result = as_define_stack(as, &stackptr);
-    if (result) 
-    {
-        return result;
+    // count args
+    argc = 0; 
+    while (1) { 
+        char* arg; 
+        result = copyin(args + argc * sizeof(char*), &arg, sizeof(char*));
+        if (result) {
+            return result;
+        }
+        if (arg == NULL) {
+            break;
+        }
+        argc++;
     }
 
-    /** 
-     * We are going to allocate space for argv on user stack, 
-     * then we will copy all the strings onto the user stack, 
-     * and we will save these pointers in the argv_kern array, 
-     * then we will copyout the argv array to user stack.
+    // allocate pointer array and sizes array on kernel heap (should be fine?)
+    char *argv_kern_ptrs = kmalloc(argc * sizeof(char*));
+    size_t *argv_kern_sizes = kmalloc(argc * sizeof(size_t));
+
+    /**
+     * Next, for each arg in args, we will copy it onto the kernel stack 1KB at a time, 
+     * and then copy it into the new address space stack.  
     */
+
+    (void)argv_kern_ptrs;
+    (void)argv_kern_sizes;
+    (void)as1;
+    (void)as2;
+
+
 
     *retval = 0;
     return 0;
