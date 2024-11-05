@@ -344,9 +344,9 @@ wait_siblings(void)
 		warn("UH-OH: %s: write", semname);
 	}
 
-	printf("before waitpid\n");
+	//printf("before waitpid\n");
 	rv = waitpid(pids[0], &x, 0);
-	printf("after waitpid\n");
+	//printf("after waitpid\n");
 	if (rv<0) {
 		warn("UH-OH: error waiting for child 0 (pid %d)", pids[0]);
 	}

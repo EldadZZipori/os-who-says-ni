@@ -118,6 +118,7 @@ kill_curthread(vaddr_t epc, unsigned code, vaddr_t vaddr)
 
 	/*
 	 * Indicate exit because of fatal problem in usermode
+	 * to understand this look at wait.h
 	 */
 	long full_signal = (sig << 2) | __WSIGNALED;
 	__exit(full_signal);

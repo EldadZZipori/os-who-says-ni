@@ -16,7 +16,8 @@ void
 sys__exit(int exitcode)
 {
     /*
-     *  if someone actually called _exit give exit status 
+     * if someone actually called _exit give exit status 
+     * to understand this look at wait.h
      */
     long actual_code = (exitcode << 2) | __WEXITED; 
     __exit(actual_code);

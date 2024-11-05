@@ -57,6 +57,7 @@ sys_fork(struct trapframe *tf, int *retval)
     // TODO Assignment 5: Acquire locks for both processes?
     err = as_copy(curproc->p_addrspace, &new_proc->p_addrspace);
     if (err) {
+        lock_acquire(new_proc->children_lk);
         proc_destroy(new_proc);
         return ENOMEM;
     }
@@ -64,6 +65,7 @@ sys_fork(struct trapframe *tf, int *retval)
     // 2. copy file table 
     err = __copy_fd_table(curproc, new_proc);
     if (err) {
+        lock_acquire(new_proc->children_lk);
         proc_destroy(new_proc);
         return ENOMEM;
     }
@@ -71,6 +73,7 @@ sys_fork(struct trapframe *tf, int *retval)
     // 4. copy kernel thread 
     struct trapframe *tf_copy = kmalloc(sizeof(struct trapframe));
     if (tf_copy == NULL) {
+        lock_acquire(new_proc->children_lk);
         proc_destroy(new_proc);
         return ENOMEM;
     }
@@ -85,7 +88,11 @@ sys_fork(struct trapframe *tf, int *retval)
                 0);
 
     if (err) {
+        lock_acquire(kproc_table->pid_lk);
         pt_remove_proc(new_proc->my_pid);
+        lock_release(kproc_table->pid_lk);
+        
+        lock_acquire(new_proc->children_lk);
         proc_destroy(new_proc);
         return err;
     }
