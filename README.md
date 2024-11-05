@@ -39,11 +39,17 @@ Status: In progress
 
 ### [Logbook](docs/ASS5.md)
 
+### The Death of a Process
+![DOP Diagram](docs/deathofprocess.png)
+![PCD Diagram](docs/parentchilddeath.png)
+
 ##### System calls 
 All systemcalls are implmented in their own .c file and declered in syscall.h
 - `kern/syscall`
     - `fork.c`      duplicates an existing process
     - `execv.c`     makes a running process run an executable
+    ![execv Diagram](docs/execv.png)
+
     - `waitpid.c`   makes a parent process wait for a child process to finish executing
     - `getpid.c`
     - `_exit.c`     exits a process
