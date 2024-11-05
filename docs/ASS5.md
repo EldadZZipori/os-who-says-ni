@@ -75,3 +75,18 @@
 # Novermber 3rd
 
 ## All work and commits were done together on a collab session
+
+# 2024-11-04
+
+## Tests Current status
+- forktest [x]
+- argtest [?]
+- badcall 
+    - waitpid: VOD_READ causes deadlock for some reason []
+    - exec []
+- bigfile [x]
+- crash [x]
+- farm: waiting for exec []
+- faulter [x]
+- multiexec: waiting for exec []
+- bigexec: waiting for exec []
