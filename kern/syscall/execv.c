@@ -13,7 +13,7 @@
 /**
  * Constants
 */
-#define ARG_LOAD_CHUNK_SIZE 128 
+#define ARG_LOAD_CHUNK_SIZE 1024 
 
 /**
  * Function Prototypes
@@ -60,15 +60,6 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
         argc++;
     }
 
-    // allocate pointer array and sizes array on kernel heap (should be fine?)
-    char *argv_kern_ptrs[argc + 1];
-
-    // copyin the arg pointers
-    result = copyin(args, argv_kern_ptrs, (argc + 1) * sizeof(char*));
-    if (result) {
-        return result;
-    }
-
     // create a new address space
     as2 = as_create();
     if (as2 == NULL) {
@@ -112,6 +103,9 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
     stackptr -= (argc + 1) * sizeof(char*);
     argvp = stackptr;
 
+    // copyout the null terminator at end of argv array
+    vaddr_t nullptr = 0;
+    result = copyout(&nullptr, (userptr_t)(stackptr + argc*sizeof(char*)), sizeof(char*));
 
     /**
      * Next, for each arg in args, we will copy it onto the kernel stack 1KB at a time, 
@@ -129,15 +123,17 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
     */
     for (int i = 0; i < argc; i++) 
     { 
+        // switch to as1 to get arg ptr and size
+        proc_setas(as1);
+        as_activate();
+
         // ptr to arg, will be updated as we copy in the arg 1 chunk at a time
-        userptr_t argp = (userptr_t)argv_kern_ptrs[i];
+        // userptr_t argp = (userptr_t)argv_kern_ptrs[i];
+        userptr_t argp;
+        result = copyin(args + i * sizeof(char*), &argp, sizeof(char*));
         size_t size_copied = 0;
         size_t copyin_size = 0;
         size_t arg_size = 0;
-        
-        // switch to as1 to get arg size
-        proc_setas(as1);
-        as_activate();
 
         // get argsize
         result = copyinstrlen(argp, &arg_size);
@@ -183,18 +179,16 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
         // stackptr should be pointing to the end of the arg, so we need to subtract the size of the arg to get the start
         stackptr -= arg_size;
 
-        // point to start of arg and record ptr and size
-        argv_kern_ptrs[i] = (char*)stackptr;
-
-        // write ptr to arg in argv_kern_ptrs
-        result = copyout(&stackptr, (userptr_t)argvp + i * sizeof(char*), sizeof(char*));
+        // write ptr to argvp at ith position  
+        // this is instead of copying the whole argv pointer array at the end
+        result = copyout((userptr_t)&stackptr, (userptr_t)argvp + i * sizeof(char*), sizeof(char*));
+        if (result) {
+            return result;
+        }
     }
 
-    // now copy the argv array, with the updated pointers, to as2 stack 
-    result = copyout(argv_kern_ptrs, (userptr_t)argvp, (argc + 1) * sizeof(char*));
-    if (result) {
-        return result;
-    }
+    // free all memory allocated for old proc
+    as_destroy(as1);
 
     // warp to user mode 
     enter_new_process(argc, (userptr_t)argvp, NULL, stackptr, entrypoint);
