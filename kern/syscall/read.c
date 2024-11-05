@@ -24,6 +24,12 @@ ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
 
     // acquire lock for process' fd table - first layer of file structure
     lock_acquire(curproc->fdtable_lk); // acquire lock for process' fd table.
+
+    if (buf == NULL)
+    {
+        lock_release(curproc->fdtable_lk);
+        return 0;
+    }
     // check if filehandle is valid
     result = __check_fd(filehandle);
     if (result)

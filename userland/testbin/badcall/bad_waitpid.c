@@ -196,7 +196,7 @@ wait_siblings_child(const char *semname)
 
 	mypid = getpid();
 
-	printf("child %d called wait_siblings_child\n", mypid);
+	//printf("child %d called wait_siblings_child\n", mypid);
 
 	/*
 	 * Get our own handle for the semaphore, in case naive
@@ -204,7 +204,7 @@ wait_siblings_child(const char *semname)
 	 * deadlock.
 	 */
 	semfd = open(semname, O_RDONLY);
-	printf("child %d opened file %s with fd %d", mypid, semname, semfd);
+	//printf("child %d opened file %s with fd %d", mypid, semname, semfd);
 	if (semfd < 0) {
 		warn("UH-OH: child process (pid %d) can't open %s",
 		     mypid, semname);
@@ -215,22 +215,22 @@ wait_siblings_child(const char *semname)
 		}
 		close(semfd);
 	}
-	printf("child %d finished with file %s", mypid, semname);
+	//printf("child %d finished with file %s", mypid, semname);
 	fd = open(TESTFILE, O_RDONLY);
-	printf("child %d opened with file %s", mypid, TESTFILE);
+	//printf("child %d opened with file %s", mypid, TESTFILE);
 	if (fd<0) {
 		warn("UH-OH: child process (pid %d) can't open %s",
 		     mypid, TESTFILE);
 		return;
 	}
-	printf("child %d finished with file %s", mypid, TESTFILE);
+	//printf("child %d finished with file %s", mypid, TESTFILE);
 	/*
 	 * In case the semaphore above didn't work, as a backup
 	 * busy-wait until the parent writes the pids into the
 	 * file. If the semaphore did work, this shouldn't loop.
 	 */
 	do {
-		printf("child %d seeking", mypid);
+		//printf("child %d seeking", mypid);
 		rv = lseek(fd, 0, SEEK_SET);
 		if (rv<0) {
 			warn("UH-OH: child process (pid %d) lseek error",
@@ -258,7 +258,7 @@ wait_siblings_child(const char *semname)
 	}
 	close(fd);
 
-	printf("child %d is waiting on pid %d\n", mypid, otherpid);
+	//printf("child %d is waiting on pid %d\n", mypid, otherpid);
 	rv = waitpid(otherpid, &x, 0);
 	report_survival(rv, errno, "sibling wait");
 }
@@ -301,7 +301,7 @@ wait_siblings(void)
 		wait_siblings_child(semname);
 		_exit(0);
 	}
-	printf("child pid %d\n", pids[0]);
+	//printf("child pid %d\n", pids[0]);
 
 	pids[1] = fork();
 	if (pids[1]<0) {
@@ -318,7 +318,7 @@ wait_siblings(void)
 		wait_siblings_child(semname);
 		_exit(0);
 	}
-	printf("second child pid %d\n", pids[1]);
+	//printf("second child pid %d\n", pids[1]);
 
 	rv = write(fd, pids, sizeof(pids));
 	if (rv < 0) {

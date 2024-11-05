@@ -82,7 +82,7 @@
 - forktest [x]
 - argtest [?]
 - badcall 
-    - waitpid: VOD_READ causes deadlock for some reason []
+    - waitpid: VOD_READ causes deadlock for some reason, NULL argument problem [x]
     - exec []
 - bigfile [x]
 - crash [x]
