@@ -204,6 +204,7 @@ wait_siblings_child(const char *semname)
 	 * deadlock.
 	 */
 	semfd = open(semname, O_RDONLY);
+	printf("child %d opened file %s with fd %d", mypid, semname, semfd);
 	if (semfd < 0) {
 		warn("UH-OH: child process (pid %d) can't open %s",
 		     mypid, semname);
@@ -214,20 +215,22 @@ wait_siblings_child(const char *semname)
 		}
 		close(semfd);
 	}
-
+	printf("child %d finished with file %s", mypid, semname);
 	fd = open(TESTFILE, O_RDONLY);
+	printf("child %d opened with file %s", mypid, TESTFILE);
 	if (fd<0) {
 		warn("UH-OH: child process (pid %d) can't open %s",
 		     mypid, TESTFILE);
 		return;
 	}
-
+	printf("child %d finished with file %s", mypid, TESTFILE);
 	/*
 	 * In case the semaphore above didn't work, as a backup
 	 * busy-wait until the parent writes the pids into the
 	 * file. If the semaphore did work, this shouldn't loop.
 	 */
 	do {
+		printf("child %d seeking", mypid);
 		rv = lseek(fd, 0, SEEK_SET);
 		if (rv<0) {
 			warn("UH-OH: child process (pid %d) lseek error",

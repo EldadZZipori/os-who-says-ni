@@ -33,8 +33,7 @@ sys_waitpid(int pid, userptr_t status, int options ,int* retval)
         result = copyout(kstatus, status, sizeof(status));
     }
     
-   
-
+    kfree(kstatus);
     return result;
 
     
@@ -92,9 +91,10 @@ __waitpid(int pid, int* status, int options)
     {
         cv_wait(child->waiting_on_me, child->children_lk);
     }
-
-    *status = child->exit_status;
-
+    if(status != NULL)
+    {
+        *status = child->exit_status;
+    }
     lock_release(child->children_lk);
 
     return 0;
