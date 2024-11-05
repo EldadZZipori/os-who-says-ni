@@ -202,7 +202,7 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
     as_destroy(as1);
     enter_new_process(argc, (userptr_t)argvp, NULL, stackptr, entrypoint);
 
-    panic("execv returned\n");
+    panic("execv is continuing in old process\n");
 }
 
 
