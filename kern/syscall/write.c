@@ -18,7 +18,7 @@ ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
 {
     int ft_idx;
     int result; 
-    void* kbuf = kmalloc(size);
+    //void* kbuf = kmalloc(size);
     struct uio uio;
     struct iovec iov;
     struct stat file_stat;
@@ -26,11 +26,11 @@ ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
 
     // acquire lock for process' fd table - first layer of file structure
     lock_acquire(curproc->fdtable_lk); // acquire lock for process' fd table.
-    if (buf == NULL)
-    {
-        lock_release(curproc->fdtable_lk);
-        return 0;
-    }
+    // if (buf == NULL)
+    // {
+    //     lock_release(curproc->fdtable_lk);
+    //     return 0;
+    // }
 
     result = __check_fd(filehandle);
     if (result)
@@ -42,12 +42,12 @@ ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
     // copy user argument buf (contents to write) to kernel space
     // this should be done anytime a kernel function is called with a 
     // user-space pointer
-    result = copyin(buf, kbuf, size); // copy size bytes from but to kbuf
-    if (result)
-    { 
-        lock_release(curproc->fdtable_lk);
-        return result; // will return EFAULT if copyin fails
-    }
+    // result = copyin(buf, kbuf, size); // copy size bytes from but to kbuf
+    // if (result)
+    // { 
+    //     lock_release(curproc->fdtable_lk);
+    //     return result; // will return EFAULT if copyin fails
+    // }
     
     ft_idx = curproc->fdtable[filehandle]; 
 
@@ -77,7 +77,18 @@ ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
     }
 
     // create a uio struct to write to the file
-    uio_kinit(&iov, &uio, kbuf, size, offset, UIO_WRITE);
+    //uio_kinit(&iov, &uio, buf, size, offset, UIO_WRITE);
+    //uio.uio_segflg = UIO_USERSPACE;
+    struct addrspace *as = proc_getas();
+    iov.iov_kbase = buf;
+    iov.iov_len = size;
+    uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = offset;
+	uio.uio_resid = size;
+	uio.uio_segflg = UIO_USERSPACE;
+	uio.uio_rw = UIO_WRITE;
+	uio.uio_space = as;
 
     // get file info including size for append mode
     result = VOP_STAT(vn, &file_stat);

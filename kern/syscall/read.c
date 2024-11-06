@@ -16,7 +16,7 @@ ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
 { 
     int result;
     int ft_idx;
-    char kbuf[size]; 
+    //char kbuf[size]; 
     
     struct uio uio;
     struct iovec iov;
@@ -25,11 +25,11 @@ ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
     // acquire lock for process' fd table - first layer of file structure
     lock_acquire(curproc->fdtable_lk); // acquire lock for process' fd table.
 
-    if (buf == NULL)
-    {
-        lock_release(curproc->fdtable_lk);
-        return 0;
-    }
+    // if (buf == NULL)
+    // {
+    //     lock_release(curproc->fdtable_lk);
+    //     return 0;
+    // }
     // check if filehandle is valid
     result = __check_fd(filehandle);
     if (result)
@@ -67,7 +67,18 @@ ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
     }
 
     // create a uio struct to read from the file
-    uio_kinit(&iov, &uio, kbuf, size, offset, UIO_READ);
+    //uio_kinit(&iov, &uio, buf, size, offset, UIO_READ);
+    //uio.uio_segflg = UIO_USERSPACE;
+    struct addrspace *as = proc_getas();
+    iov.iov_kbase = buf;
+    iov.iov_len = size;
+    uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = offset;
+	uio.uio_resid = size;
+	uio.uio_segflg = UIO_USERSPACE;
+	uio.uio_rw = UIO_READ;
+	uio.uio_space = as;
 
     // read from the file
     result = VOP_READ(vn, &uio);
@@ -79,13 +90,13 @@ ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
     }
 
     // copy the contents of kbuf into buf
-    result = copyout(kbuf, buf, size);
-    if (result) 
-    {
-        lock_release(kfile_table->files_lk[ft_idx]);
-        lock_release(curproc->fdtable_lk);
-        return EFAULT;
-    }
+    // result = copyout(kbuf, buf, size);
+    // if (result) 
+    // {
+    //     lock_release(kfile_table->files_lk[ft_idx]);
+    //     lock_release(curproc->fdtable_lk);
+    //     return EFAULT;
+    // }
 
     // update the offset in the abstract file
     af->offset = uio.uio_offset;
