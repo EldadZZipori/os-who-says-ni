@@ -8,10 +8,10 @@ Status: Done
 
 ### [Reading Questions](submit/asst4/ass4-answers.md)
 
-### [Logbook](docs/ASS4_TASK.md)
+### [Logbook](docs/asst4_logbook.md)
 
 ### System Diagram
-![File System Diagram](docs/archv1.png)
+![File System Diagram](docs/fs_arch.png)
 ### Files
 - `kern/include/`
     -  `abstractfile.h` abstraction for a file
@@ -37,7 +37,7 @@ All systemcalls are implmented in their own .c file and declered in syscall.h
 ## Assignment 5: Implementing processes
 Status: In progress
 
-### [Logbook](docs/ASS5.md)
+### [Logbook](docs/asst5_logbook.md)
 
 ### The Death of a Process
 ![DOP Diagram](docs/deathofprocess.png)

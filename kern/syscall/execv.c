@@ -44,12 +44,25 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
     struct addrspace *as2;
     struct vnode *v;
     char kprogname[PATH_MAX];
+    size_t act_progname_len;
+
+    *retval = -1;
+
 
     // save as1 
     as1 = curproc->p_addrspace;
 
     // copyin kprogname
-    copyinstr(progname, kprogname, PATH_MAX, NULL);
+    result = copyinstr(progname, kprogname, PATH_MAX, &act_progname_len);
+    if (result)
+    {
+        return result;
+    }
+
+    if (act_progname_len == 1)
+    {
+        return EINVAL;
+    }
 
     // count args
     argc = 0; 
@@ -78,12 +91,14 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
     // open executable 
     result = vfs_open(kprogname, O_RDONLY, 0, &v);
     if (result) {
+        as_destroy(as2);
         return result;
     }
 
     // load the executable
     result = load_elf(v, &entrypoint);
     if (result) {
+        as_destroy(as2);
         vfs_close(v);
         return result;
     }
@@ -91,6 +106,8 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
     // set up stack 
     result = as_define_stack(as2, &stackptr);
     if (result) {
+        as_destroy(as2);
+        vfs_close(v);
         return result;
     }
 
@@ -101,6 +118,7 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
     stackptr -= sizeof(int);
     result = copyout(&argc, (userptr_t)stackptr, sizeof(int));
     if (result) {
+        as_destroy(as2);
         return result;
     }
 
@@ -115,7 +133,11 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
     // copyout the null terminator at end of argv array
     vaddr_t nullptr = 0;
     result = copyout(&nullptr, (userptr_t)(stackptr + argc*sizeof(char*)), sizeof(char*));
-
+    if (result)
+    {
+        as_destroy(as2);
+        return result;
+    }
     /**
      * Next, for each arg in args, we will copy it onto the kernel stack, then onto the 
      * new address space stack, all 1KB at a time, then save the pointer on the stack
@@ -143,10 +165,15 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
 
         // copyin ptr to arg, will be updated as we copy in the arg 1 chunk at a time
         result = copyin(args + i * sizeof(char*), &argp, sizeof(char*));
-
+        if (result)
+        {
+            as_destroy(as2);
+            return result;
+        }
         // get arg_size
         result = userstrlen(argp, &arg_size);
         if (result) {
+            as_destroy(as2);
             return result;
         }
 
@@ -164,6 +191,7 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
             // copyin up to 1KB of the string argument into karg, on the stack so it gets deallocated after each chunk
             result = copyinstrupto(argp, karg, ARG_LOAD_CHUNK_SIZE, &copied_bytes);
             if (result) {
+                as_destroy(as2);
                 return result;
             }
 
@@ -177,6 +205,9 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
             */
             result = copyout(karg, (userptr_t)stackptr, copied_bytes);
             if (result) {
+                proc_setas(as1);
+                as_activate();
+                as_destroy(as2);
                 return result;
             }
 
@@ -195,6 +226,9 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
         stackptr -= arg_size; 
         result = copyout((userptr_t)&stackptr, (userptr_t)argvp + i * sizeof(char*), sizeof(char*));
         if (result) {
+            proc_setas(as1);
+            as_activate();
+            as_destroy(as2);
             return result;
         }
     }

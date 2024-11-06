@@ -278,7 +278,7 @@ __exit(int exitcode);
  * @param args arguments for the program
  * @param retval on success no return value is given and the program start executing, on error -1
  * 
- * @return 0 on success, otherwise one of the following errors - 
+ * @return does not return on success, otherwise one of the following errors - 
  * 
  * ENODEV	The device prefix of program did not exist.
  * ENOTDIR	A non-final component of program was not a directory.
@@ -287,7 +287,7 @@ __exit(int exitcode);
  * ENOEXEC	program is not in a recognizable executable file format, was for the wrong platform, or contained invalid fields.
  * ENOMEM	Insufficient virtual memory is available.
  * E2BIG	The total size of the argument strings exceeeds ARG_MAX.
- * EIO	A hard I/O error occurred.
+ * EIO		A hard I/O error occurred.
  * EFAULT	One of the arguments is an invalid pointer.
  */
 int 
