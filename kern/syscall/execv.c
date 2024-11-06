@@ -22,11 +22,23 @@ static int copyinstrupto(const_userptr_t usersrc, char *dest, size_t len, size_t
 static int userstrlen(const_userptr_t usersrc, size_t *len);
 
 /**
- * @brief Execute a program
+ * @brief replaces the currently executing program with a newly loaded program
  * 
  * @param progname path to the program
  * @param args arguments for the program
  * @param retval on success, no return value is given and the program starts executing.
+ * @return does not return on success, otherwise one of the following errors - 
+ * 
+ * ENODEV	The device prefix of program did not exist.
+ * ENOTDIR	A non-final component of program was not a directory.
+ * ENOENT	program did not exist.
+ * EISDIR	program is a directory.
+ * ENOEXEC	program is not in a recognizable executable file format, was for the wrong platform, or contained invalid fields.
+ * ENOMEM	Insufficient virtual memory is available.
+ * E2BIG	The total size of the argument strings exceeeds ARG_MAX.
+ * EIO		A hard I/O error occurred.
+ * EFAULT	One of the arguments is an invalid pointer.
+ *
  * 
  * Must be done with minimal memory usage, and must not use more than 1KB of memory at a time, 
  * because the arguments to the program may be up to 64KB in size. The approach we take is 
@@ -114,14 +126,6 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
     // close the executable, don't need it anymore
     vfs_close(v);
 
-    // allocate space on as2 stack for argc 
-    stackptr -= sizeof(int);
-    result = copyout(&argc, (userptr_t)stackptr, sizeof(int));
-    if (result) {
-        as_destroy(as2);
-        return result;
-    }
-
     /**
      * Allocate space on the stack for a null-terminated array of pointers to the arguments.
      * This will be used to pass the arguments to the new program, and will point to the 
@@ -138,6 +142,7 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
         as_destroy(as2);
         return result;
     }
+
     /**
      * Next, for each arg in args, we will copy it onto the kernel stack, then onto the 
      * new address space stack, all 1KB at a time, then save the pointer on the stack
@@ -246,6 +251,7 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
  * @param usersrc user-space pointer to the source string
  * @param dest kernel-space pointer to the destination string
  * @param len maximum number of bytes to copy
+ * @param actual pointer to store the actual number of bytes copied before a null terminator
  * 
  * Copies up to len bytes of a string from user-space to kernel-space.
  * Will not copy more than len bytes, and will not copy past a null terminator.

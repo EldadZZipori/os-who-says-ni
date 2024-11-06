@@ -272,12 +272,11 @@ void
 __exit(int exitcode);
 
 /**
- * @brief replaces the currently executing program with a newly loaded program image
+ * @brief replaces the currently executing program with a newly loaded program
  * 
  * @param progname path to the program
  * @param args arguments for the program
- * @param retval on success no return value is given and the program start executing, on error -1
- * 
+ * @param retval on success, no return value is given and the program starts executing.
  * @return does not return on success, otherwise one of the following errors - 
  * 
  * ENODEV	The device prefix of program did not exist.
@@ -289,7 +288,13 @@ __exit(int exitcode);
  * E2BIG	The total size of the argument strings exceeeds ARG_MAX.
  * EIO		A hard I/O error occurred.
  * EFAULT	One of the arguments is an invalid pointer.
- */
+ *
+ * 
+ * Must be done with minimal memory usage, and must not use more than 1KB of memory at a time, 
+ * because the arguments to the program may be up to 64KB in size. The approach we take is 
+ * to copy the arguments from the old address space to the new address space, on the stack, 
+ * while using the kernel stack as a temporary buffer to copy the arguments in 1KB chunks.
+*/
 int 
 sys_execv(userptr_t progname, userptr_t args, int *retval);
 
