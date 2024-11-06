@@ -182,7 +182,7 @@ pt_find_avail_pid(void)
 int
 pt_check_pid(int pid)
 {
-    if (pid < 0 || pid >=  __PID_MAX)
+    if (pid <= 0 || pid >=  __PID_MAX)
     {
         return ESRCH;
     }

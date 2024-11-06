@@ -71,20 +71,19 @@ sys_fork(struct trapframe *tf, int *retval)
     }
 
     // 4. copy kernel thread 
-    struct trapframe *tf_copy = kmalloc(sizeof(struct trapframe));
-    if (tf_copy == NULL) {
-        lock_acquire(new_proc->children_lk);
-        proc_destroy(new_proc);
-        return ENOMEM;
-    }
+    struct trapframe tf_copy = *tf;//kmalloc(sizeof(struct trapframe));
+    // if (tf_copy == NULL) {
+    //     lock_acquire(new_proc->children_lk);
+    //     proc_destroy(new_proc);
+    //     return ENOMEM;
+    //}
 
-    new_proc->state = RUNNING; // Indicate new process is running just before forking it
 
-    *tf_copy = *tf;
+    //*tf_copy = *tf;
     err = thread_fork("forked thread", 
                 new_proc,
                 child_return,
-                tf_copy, // malloc'd
+                &tf_copy, // malloc'd
                 0);
 
     if (err) {
@@ -99,6 +98,9 @@ sys_fork(struct trapframe *tf, int *retval)
 
     // now that thread_fork has been called, only the parent thread executes the following
     // return child pid (only parent runs this)
+
+    while(new_proc->state == CREATED);
+
     *retval = new_proc->my_pid;
     return 0;
 }
