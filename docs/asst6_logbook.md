@@ -13,4 +13,6 @@ Todo:
     - dirty: 1 bit; enables writing to the page referenced by the entry; if this bit is 0, the page is only accessible for reading.
     - nocache: 1 bit; unused in System/161. In a real processor, indicates that the hardware cache will be disabled when accessing this page.
     - pid: 6 bits; a process or address space ID that can be used to allow entries to remain in the TLB after a process switch.
-
+2. Look at the requirnments for sbrk()
+3. Pick our favorite page table replacement algorithem
+4. Look at tests km1-km4
