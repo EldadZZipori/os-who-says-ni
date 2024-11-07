@@ -45,6 +45,7 @@
 #include "opt-sfs.h"
 #include "opt-net.h"
 
+
 /*
  * In-kernel menu and command dispatcher.
  */
@@ -52,6 +53,7 @@
 #define _PATH_SHELL "/bin/sh"
 
 #define MAXMENUARGS  16
+
 
 ////////////////////////////////////////////////////////////
 //
@@ -710,6 +712,27 @@ void
 menu(char *args)
 {
 	char buf[64];
+
+	kprintf("  / \\\n");
+    kprintf("  |3|\n");
+    kprintf("  |3|\n");
+    kprintf("  |1|\n");
+    kprintf("  |:|      __\n");
+    kprintf(",_|:|_,   /  )\n");
+    kprintf("  (:)    / _|_\n");
+    kprintf("   |\\ \\  || __|\n");
+    kprintf("      \\ \\||___|\n");
+    kprintf("        \\ /.:.\\-\\\n");
+    kprintf("         |    /-----\\\n");
+    kprintf("         |   |knights|\n");
+    kprintf("         |___|::of:::|\n");
+    kprintf("         /   |:os161:|\n");
+    kprintf("        |_____\\ ::: /\n");
+    kprintf("         | |  \\ \\:/\n");
+    kprintf("         | |   | |\n");
+    kprintf("         \\ /   | \\___\n");
+    kprintf("         / |   \\_____\\\n");
+    kprintf("         `-'\n");
 
 	menu_execute(args, 1);
 
