@@ -534,6 +534,44 @@ cmd_mainmenu(int n, char **a)
 	return 0;
 }
 
+static
+int
+print_knight(int n, char **a)
+{
+	(void)n;
+	(void)a;
+
+	kprintf("                  ____________\n");
+    kprintf("                /  _   _   _  \\\n");
+    kprintf("  / \\           | |  \\| | (_) | \n");
+    kprintf("  |3|           | | |\\  | | | | \n");
+    kprintf("  |3|           | |_| \\_| |_| |\n");
+    kprintf("  |1|            \\___________/   \n");
+    kprintf("  |:|      __     /\n");
+    kprintf(",_|:|_,   /  )   /      \n");
+    kprintf("  (:)    / _|_  /\n");
+    kprintf("   |\\ \\  || __|  \n");
+    kprintf("      \\ \\||___|\n");
+    kprintf("        \\ /.:.\\-\\\n");
+    kprintf("         |    /-----\\\n");
+    kprintf("         |   |knights|\n");
+    kprintf("         |___|::of:::|\n");
+    kprintf("         /   |:os161:|\n");
+    kprintf("        |_____\\ ::: /\n");
+    kprintf("         | |  \\ \\:/\n");
+    kprintf("         | |   | |\n");
+    kprintf("         \\ /   | \\___\n");
+    kprintf("         / |   \\_____\\\n");
+    kprintf("         `-'\n");
+    kprintf("====================AUTHORS====================\n");
+    kprintf("|     Kyle Mackenzie         Eldad Zipori      |\n");
+    kprintf("| Github: 1mackenziekyle  Github: EldadZZipori |\n");
+    kprintf("===============================================\n");
+
+	return 0;
+
+}
+
 ////////////////////////////////////////
 //
 // Command table.
@@ -602,7 +640,7 @@ static struct {
 	{ "fs4",	writestress2 },
 	{ "fs5",	longstress },
 	{ "fs6",	createstress },
-
+	{ "pn", 	print_knight }, //Just for use not really important
 	{ NULL, NULL }
 };
 
@@ -691,6 +729,7 @@ menu_execute(char *line, int isargs)
 	}
 }
 
+
 /*
  * Command menu main loop.
  *
@@ -713,27 +752,7 @@ menu(char *args)
 {
 	char buf[64];
 
-	kprintf("  / \\\n");
-    kprintf("  |3|\n");
-    kprintf("  |3|\n");
-    kprintf("  |1|\n");
-    kprintf("  |:|      __\n");
-    kprintf(",_|:|_,   /  )\n");
-    kprintf("  (:)    / _|_\n");
-    kprintf("   |\\ \\  || __|\n");
-    kprintf("      \\ \\||___|\n");
-    kprintf("        \\ /.:.\\-\\\n");
-    kprintf("         |    /-----\\\n");
-    kprintf("         |   |knights|\n");
-    kprintf("         |___|::of:::|\n");
-    kprintf("         /   |:os161:|\n");
-    kprintf("        |_____\\ ::: /\n");
-    kprintf("         | |  \\ \\:/\n");
-    kprintf("         | |   | |\n");
-    kprintf("         \\ /   | \\___\n");
-    kprintf("         / |   \\_____\\\n");
-    kprintf("         `-'\n");
-
+	print_knight(0, NULL);
 	menu_execute(args, 1);
 
 	while (1) {
