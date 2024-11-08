@@ -47,8 +47,14 @@ static int userstrlen(const_userptr_t usersrc, size_t *len);
 */
 int sys_execv(userptr_t progname, userptr_t args, int *retval) 
 {
+    if (progname == NULL || args == NULL || retval == NULL)
+    {
+        return EFAULT;
+    }
+
     int result;
     int argc;
+    unsigned long long total_arg_size;
     vaddr_t stackptr;
     vaddr_t argvp;
     vaddr_t entrypoint;
@@ -59,7 +65,6 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
     size_t act_progname_len;
 
     *retval = -1;
-
 
     // save as1 
     as1 = curproc->p_addrspace;
@@ -89,6 +94,8 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
         }
         argc++;
     }
+
+    total_arg_size = (argc + 1) * sizeof(char*);
 
     // create a new address space
     as2 = as_create();
@@ -236,6 +243,13 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
             as_destroy(as2);
             return result;
         }
+
+        total_arg_size += arg_size;
+    }
+
+    if (total_arg_size > ARG_MAX) {
+        as_destroy(as2);
+        return E2BIG;
     }
 
     as_destroy(as1);
