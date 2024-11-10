@@ -48,7 +48,9 @@ All systemcalls are implmented in their own .c file and declered in syscall.h
 - `kern/syscall`
     - `fork.c`      duplicates an existing process
     - `execv.c`     makes a running process run an executable
-    ![execv Diagram](docs/execv.png)
+
+
+![execv Diagram](docs/execv.png)
 
     - `waitpid.c`   makes a parent process wait for a child process to finish executing
     - `getpid.c`
