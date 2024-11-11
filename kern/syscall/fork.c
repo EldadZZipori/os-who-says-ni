@@ -71,15 +71,8 @@ sys_fork(struct trapframe *tf, int *retval)
     }
 
     // 4. copy kernel thread 
-    struct trapframe tf_copy = *tf;//kmalloc(sizeof(struct trapframe));
-    // if (tf_copy == NULL) {
-    //     lock_acquire(new_proc->children_lk);
-    //     proc_destroy(new_proc);
-    //     return ENOMEM;
-    //}
+    struct trapframe tf_copy = *tf;
 
-
-    //*tf_copy = *tf;
     err = thread_fork("forked thread", 
                 new_proc,
                 child_return,
@@ -96,11 +89,20 @@ sys_fork(struct trapframe *tf, int *retval)
         return err;
     }
 
-    // now that thread_fork has been called, only the parent thread executes the following
-    // return child pid (only parent runs this)
-
+    /*
+     * Why this works?
+     * The child cannot destroy itself untill the parent destroies itself.
+     * As long as a process has a parent it will only become a zombie.
+     * This assures that the child grabed the trapframe, which is on the parent's stack
+     * before exiting the parent's function call (which will otherwise override the stack).
+     * WARNING: this might look like it should have a cv, but that will actually cause many race conditions
+     * and be harder to handle. 
+     * NOTE: state is a volitaile variable
+     */
     while(new_proc->state == CREATED);
 
+    // now that thread_fork has been called, only the parent thread executes the following
+    // return child pid (only parent runs this)
     *retval = new_proc->my_pid;
     return 0;
 }

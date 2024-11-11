@@ -101,9 +101,7 @@ struct proc {
 	struct lock* children_lk;
 
 	procstate_t state;
-	int exit_status;
-
-
+	volatile int exit_status;
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */

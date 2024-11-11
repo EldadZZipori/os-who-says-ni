@@ -520,6 +520,7 @@ static const char *mainmenu[] = {
 	"[khgen] Next kernel heap generation ",
 	"[khdump] Dump kernel heap           ",
 	"[q] Quit and shut down              ",
+	"[pn] Another shrubbery!",
 	NULL
 };
 
