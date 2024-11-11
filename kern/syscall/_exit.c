@@ -61,7 +61,7 @@ __exit(int exitcode)
     if (calling_proc->parent == NULL) 
     {
         proc_remthread(curthread);
-        proc_destroy(calling_proc); // Scary stuff will probabilty cause a problem
+        proc_destroy(calling_proc);
         thread_exit();
     }
 
