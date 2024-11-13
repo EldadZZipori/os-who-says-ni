@@ -16,3 +16,16 @@ Todo:
 2. Look at the requirnments for sbrk()
 3. Pick our favorite page table replacement algorithem
 4. Look at tests km1-km4
+
+
+# 2024-11-11
+
+Notes:
+1. Create macros extract data from a page table
+
+Office Hourse Question:
+1. What is the best division to choose for the virtual addresses 
+    - 20 bit virtual page table 
+
+
+

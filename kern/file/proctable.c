@@ -56,7 +56,7 @@ pt_adjust_size(void)
 {
     /* This should really only be called if the process table is full */
     KASSERT(kproc_table != NULL);
-    KASSERT(kproc_table->process_counter !=  kproc_table->curr_size);
+    KASSERT(kproc_table->process_counter ==  kproc_table->curr_size);
 
     if (kproc_table->curr_size == __PID_MAX)
     {
