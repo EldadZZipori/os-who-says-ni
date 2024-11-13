@@ -56,6 +56,14 @@ All systemcalls are implmented in their own .c file and declered in syscall.h
     - `getpid.c`
     - `_exit.c`     exits a process
 
+
+## Assignment 6: Implementing Virtual Memory 
+
+### Page table entry design 
+
+![pagetable entries](docs/ptes.png)
+
+
 ## Resources
 [OS161 Source Code Layout - os161.org](http://www.os161.org/resources/layout.html)
 
