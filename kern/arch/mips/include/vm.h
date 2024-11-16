@@ -123,6 +123,21 @@ struct tlbshootdown {
 	int ts_placeholder;
 };
 
+struct freelist_node {
+	vaddr_t addr;
+	size_t size;
+	struct freelist_node *next;
+};
+
+struct freelist {
+	struct freelist_node *head;
+}
+
+/* Function definitions */
+freelist* freelist_create(vaddr_t start, vaddr_t end); 
+void freelist_destroy(struct freelist *fl);
+vaddr_t freelist_get_first_fit(freelist *fl, size_t size) {
+
 #define TLBSHOOTDOWN_MAX 16
 
 
