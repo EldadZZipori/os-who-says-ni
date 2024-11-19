@@ -3,7 +3,7 @@
 #define _FREELIST_H_
 
 struct freelist_node {
-	vaddr_t addr;
+	void *addr;
 	size_t size;
 	struct freelist_node *next;
     struct freelist_node *prev;
@@ -12,6 +12,8 @@ struct freelist_node {
 };
 
 struct freelist {
+    void *start; 
+    void *end;
 	struct freelist_node *head;
 }
 
@@ -19,6 +21,7 @@ struct freelist {
 struct freelist* freelist_create(vaddr_t start, vaddr_t end); 
 void freelist_destroy(struct freelist *fl);
 vaddr_t freelist_get_first_fit(struct freelist *fl, size_t size);
+void freelist_remove(void *blk, size_t sz);
 
 
 #endif /* _VM_H_ */

@@ -7,9 +7,15 @@
 #include <freelist.h>
 
 
-/* Freelist-related functions */
-
-struct freelist* freelist_create(vaddr_t start, vaddr_t end) {
+/**
+ * @brief create a freelist for an empty virtual or physical memory region
+ * 
+ * @param start void pointer, representing a physical or virtual address,
+ *              of the start of the memory region (inclusive)
+ * @param end void pointer, representing a physical or virtual address, 
+ *              of the end of hte memory region (exclusive)
+*/
+struct freelist* freelist_create(void *start, void *end) {
 
     struct freelist *fl = kmalloc(sizeof(struct freelist));
     if (fl == NULL) 
@@ -23,6 +29,7 @@ struct freelist* freelist_create(vaddr_t start, vaddr_t end) {
         kfree(fl);
         return NULL;
     }
+
     fl->fl_lk = lock_create("freelist lock");
     if (fl->flk == NULL)
     {
@@ -31,8 +38,10 @@ struct freelist* freelist_create(vaddr_t start, vaddr_t end) {
         return NULL;
     }
 
-    fl->addr = start;
-    fl->size = end - start;
+    fl->start start; 
+    fl->end = end;
+    fl->head->addr = start;
+    fl->head->size = end - start;
     fl->head->next = NULL;
     fl->head->prev = NULL;
 
@@ -40,14 +49,14 @@ struct freelist* freelist_create(vaddr_t start, vaddr_t end) {
 }
 
 void freelist_destroy(struct freelist *fl) {
-    struct freelist_node *cur = fl->head;
-    struct freelist_node *next;
+    KASSERT(fl != NULL);
+
+    struct freelist_node *cur = fl->head->next;
 
     while (cur != NULL) 
     {
-        next = cur->next;
-        kfree(cur);
-        cur = next;
+        kfree(cur->prev);
+        cur = cur->next;
     }
     
     lock_destroy(fl->fl_lk);
@@ -60,7 +69,9 @@ void freelist_destroy(struct freelist *fl) {
  * @param fl freelist 
  * @param size size of the block to allocate
 */
-vaddr_t freelist_get_first_fit(freelist *fl, size_t size) {
+vaddr_t freelist_get_first_fit(freelist *fl, size_t sz) {
+    KASSERT(fl != NULL);
+    KASSERT(sz > 0);
     /** 
      * What we need to do: 
      * 1. Find the first block that fits the size
@@ -98,7 +109,7 @@ vaddr_t freelist_get_first_fit(freelist *fl, size_t size) {
     while (cur != NULL) 
     {
         // remove the block from the freelist
-        if (cur->size == size)
+        if (cur->sz == sz)
         { 
             // case 1: head is block to remove 
             if (cur->prev == NULL) 
@@ -112,14 +123,73 @@ vaddr_t freelist_get_first_fit(freelist *fl, size_t size) {
             }
             return cur->addr; 
         }
-        elif (cur->size > size) 
+        elif (cur->sz > sz) 
         {
             // allocate at start of block
-            cur->addr += size;
-            cur->size -= size;
-            return cur->addr - size;
+            cur->addr += sz;
+            cur->sz -= sz;
+            return cur->addr - sz;
         }
     } 
     return NULL;
 }
 
+void freelist_remove(struct freelist *fl, void *blk, size_t sz)
+{
+    KASSERT(fl != NULL);
+    KASSERT(fl->head != NULL);
+    KASSERT(blk < fl->end);
+    KASSERT(blk >= fl->start);
+
+    // find the location of the allocated block to free 
+    struct freelist_node cur = fl->head; 
+    struct freelist_node new; 
+
+    while (cur->next != NULL) // stop at last node for special case that blk exists after last free block
+    { 
+        if (cur->addr > blk) // blk is in previous allocated block
+        // so clear prev block 
+        {
+            new = kmalloc(sizeof(struct freelist_node));
+            new->addr = blk;
+            new->sz = sz;
+            new->next = cur;
+            new->prev = cur->prev;
+            cur->prev->next = new;
+            cur->prev = new;
+        }
+    }
+
+    // special case: blk is after last free block
+    if (cur->addr < blk) 
+    {
+        new = kmalloc(sizeof(struct freelist_node));
+        new->addr = blk;
+        new->sz = sz;
+        new->next = NULL;
+        new->prev = cur;
+        cur->next = new;
+    }
+
+    // merge blocks if possible
+
+    // merge new node with previous node if possible
+    if (new->prev != NULL && new->prev->addr + new->prev->sz == new->addr) 
+    {
+        new->prev->sz += new->sz;
+        new->prev->next = new->next;
+        new->next->prev = new->prev;
+        kfree(new);
+    }
+
+    // merge new node with next node if possible
+    if (new->next != NULL && new->addr + new->sz == new->next->addr) 
+    {
+        new->sz += new->next->sz;
+        new->next = new->next->next;
+        new->next->prev = new;
+        kfree(new->next);
+    }
+
+    return;
+}
