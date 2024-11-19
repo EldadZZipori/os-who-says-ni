@@ -10,7 +10,7 @@ int
 sys_getpid(int* retval)
 {
     lock_acquire(kproc_table->pid_lk);
-    *retval = curproc->my_pid;
+    *retval = curproc->p_pid;
     lock_release(kproc_table->pid_lk);
     return 0;
 }

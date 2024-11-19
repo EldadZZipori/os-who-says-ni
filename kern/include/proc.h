@@ -90,7 +90,7 @@ struct proc {
 	/* Amount of currently opened files for this proccess */	
 	unsigned int fdtable_num_entries;
 
-	int my_pid;
+	int p_pid;
 
 	/* Waitpid and exit added functionality */
 	struct proc* parent;
@@ -102,6 +102,9 @@ struct proc {
 
 	procstate_t state;
 	volatile int exit_status;
+
+	// Pointer to the base of the pagetable
+	// freelist to manage kuseg and kseg2
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */

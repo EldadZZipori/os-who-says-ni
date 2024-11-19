@@ -450,7 +450,7 @@ optfile net	test/nettest.c
 
 ########################################
 #                                      #
-#          File - Assignment 4         #
+#              System Calls            #
 #                                      #
 ########################################
 
@@ -470,3 +470,10 @@ file        syscall/getpid.c
 file        syscall/_exit.c
 file        syscall/waitpid.c
 file        syscall/execv.c
+
+########################################
+#                                      #
+#           Virtual Machine            #
+#                                      #
+########################################
+file        vm/freelist.c

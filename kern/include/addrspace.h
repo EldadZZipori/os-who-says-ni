@@ -59,6 +59,9 @@ struct addrspace {
         paddr_t as_stackpbase;          // the physical base of the stack
 #else
         /* Put stuff here for your VM system */
+        uint8_t asid;
+
+        // ASID is a parameter of the address space, can only be between 0-63
 #endif
 };
 

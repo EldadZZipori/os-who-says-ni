@@ -144,7 +144,7 @@ common_prog(int nargs, char **args)
 	 * once you write the code for handling that.
 	 */
 
-	__waitpid(proc->my_pid,NULL,0);
+	__waitpid(proc->p_pid,NULL,0);
 
 	return 0;
 }

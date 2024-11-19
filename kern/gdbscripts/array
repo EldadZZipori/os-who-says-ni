@@ -83,7 +83,7 @@ define proctable
     set $i = 0
     printf "%u processes\n", $n
     while ($i < $n)
-	printf "pid %u at addr %u", $arg0->processes[$i]->my_pid, $arg0->processes[$i]
+	printf "pid %u at addr %u", $arg0->processes[$i]->p_pid, $arg0->processes[$i]
 	set $i++
     end
 end

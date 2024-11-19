@@ -67,7 +67,7 @@ __waitpid(int pid, int* status, int options)
     {
         if (curproc->children[i] != NULL)
         {
-            if (curproc->children[i]->my_pid == pid)
+            if (curproc->children[i]->p_pid == pid)
             {
                 result = 1; // pid belongs to child 
                 child = curproc->children[i];

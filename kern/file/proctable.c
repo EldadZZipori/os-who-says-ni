@@ -40,7 +40,7 @@ pt_bootstrap(void)
     }
 
     kproc_table->processes[0] = kproc;
-    kproc->my_pid = 0;                              // kernel process should always be 0
+    kproc->p_pid = 0;                              // kernel process should always be 0
     kproc_table->curr_size = BASE_PROC_AMOUNT;
     kproc_table->process_counter = 1;               // The kernel processor must exists 
 }
@@ -109,7 +109,7 @@ pt_add_proc(struct proc* pr, int pid)
     kproc_table->process_counter++;
 
     // pid should only really be given my the process table
-    pr->my_pid = pid;
+    pr->p_pid = pid;
 
     return 0;
 

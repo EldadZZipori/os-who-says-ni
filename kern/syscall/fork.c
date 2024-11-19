@@ -81,7 +81,7 @@ sys_fork(struct trapframe *tf, int *retval)
 
     if (err) {
         lock_acquire(kproc_table->pid_lk);
-        pt_remove_proc(new_proc->my_pid);
+        pt_remove_proc(new_proc->p_pid);
         lock_release(kproc_table->pid_lk);
         
         lock_acquire(new_proc->children_lk);
@@ -103,7 +103,7 @@ sys_fork(struct trapframe *tf, int *retval)
 
     // now that thread_fork has been called, only the parent thread executes the following
     // return child pid (only parent runs this)
-    *retval = new_proc->my_pid;
+    *retval = new_proc->p_pid;
     return 0;
 }
 
