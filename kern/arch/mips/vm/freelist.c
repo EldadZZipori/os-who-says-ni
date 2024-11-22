@@ -41,7 +41,7 @@ struct freelist* freelist_create(void *start, void *end) {
     fl->start start; 
     fl->end = end;
     fl->head->addr = start;
-    fl->head->size = end - start;
+    fl->head->sz = end - start;
     fl->head->next = NULL;
     fl->head->prev = NULL;
 
@@ -142,54 +142,61 @@ void freelist_remove(struct freelist *fl, void *blk, size_t sz)
     KASSERT(blk >= fl->start);
 
     // find the location of the allocated block to free 
-    struct freelist_node cur = fl->head; 
-    struct freelist_node new; 
+    struct freelist_node *cur = fl->head; 
+    struct freelist_node *new; 
 
-    while (cur->next != NULL) // stop at last node for special case that blk exists after last free block
-    { 
-        if (cur->addr > blk) // blk is in previous allocated block
-        // so clear prev block 
-        {
-            new = kmalloc(sizeof(struct freelist_node));
-            new->addr = blk;
-            new->sz = sz;
-            new->next = cur;
-            new->prev = cur->prev;
-            cur->prev->next = new;
-            cur->prev = new;
-        }
+    new->addr = blk; 
+    new->sz = sz; 
+
+    // Case 1: if freelist is empty, add node
+    if (cur == NULL) {
+        fl->head = new;
+        new->next = NULL;
+        new->prev = NULL;
+        return;
     }
 
-    // special case: blk is after last free block
-    if (cur->addr < blk) 
-    {
-        new = kmalloc(sizeof(struct freelist_node));
-        new->addr = blk;
-        new->sz = sz;
+   // Insert before 'cur' if not NULL, otherwise insert at end of list
+    if (cur != NULL) {
+        // Insert the new node before 'cur'
+        new->next = cur;
+        new->prev = cur->prev;
+
+        if (cur->prev != NULL) {
+            cur->prev->next = new; // update ptr before new node 
+        } else {
+            fl->head = new; // insert at head of list  
+        }
+
+        cur->prev = new;
+    } else {
+        // we're at end of list
         new->next = NULL;
         new->prev = cur;
         cur->next = new;
     }
 
-    // merge blocks if possible
+    // now try to merge adjacent free blocks
+    // merge with prev block if possible
+    if (new->prev != NULL && new->prev->addr + new->prev->sz == new->addr) {
+        new->prev->sz += new->sz; // merge sizes
+        new->prev->next = new->next;  // remove 'new' from list
 
-    // merge new node with previous node if possible
-    if (new->prev != NULL && new->prev->addr + new->prev->sz == new->addr) 
-    {
-        new->prev->sz += new->sz;
-        new->prev->next = new->next;
-        new->next->prev = new->prev;
-        kfree(new);
+        if (new->next != NULL) {
+            new->next->prev = new->prev;
+        }
+
+        new = new->prev;
     }
 
-    // merge new node with next node if possible
-    if (new->next != NULL && new->addr + new->sz == new->next->addr) 
-    {
-        new->sz += new->next->sz;
-        new->next = new->next->next;
-        new->next->prev = new;
-        kfree(new->next);
-    }
+    // merge with next block if possible
+    if (new->next != NULL && new->addr + new->sz == new->next->addr) {
+        new->sz += new->next->sz; // merge sizes
+        struct freelist_node *temp = new->next;
+        new->next = new->next->next; // remove intermediate node forward ptr
+        if (new->next != NULL) {
+            new->next->prev = new; // remove intermediate notde backward ptr
+        }
+    } 
 
-    return;
 }
