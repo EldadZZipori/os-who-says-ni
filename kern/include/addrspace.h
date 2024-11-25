@@ -38,6 +38,10 @@
 #include <vm.h>
 #include "opt-dumbvm.h"
 
+#define OFFSET_MASK(x)  ((x) & 0xfff)       // First 12 bits of address
+#define LLPT_MASK(x)    (((x)>>12) & 0x3ff) // Bit 12-21
+#define TLPT_MASK(x)    (((x)>>22) & 0x3ff) // Bit 22-31
+
 struct vnode;
 
 
@@ -60,6 +64,7 @@ struct addrspace {
 #else
         /* Put stuff here for your VM system */
         uint8_t asid;
+        vaddr_t ptbase; // top-level pagetable base
 
         // ASID is a parameter of the address space, can only be between 0-63
 #endif

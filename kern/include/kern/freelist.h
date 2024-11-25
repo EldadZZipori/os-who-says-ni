@@ -6,16 +6,15 @@ struct freelist_node {
 	void *addr;
 	size_t size;
 	struct freelist_node *next;
-    struct freelist_node *prev;
-    
-    struct lock fl_lk;
+    struct freelist_node *prev;    
 };
 
 struct freelist {
     void *start; 
     void *end;
 	struct freelist_node *head;
-}
+    struct lock* fl_lk;
+};
 
 /* Function definitions */
 struct freelist* freelist_create(void* start, void* end); 

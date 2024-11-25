@@ -17,21 +17,23 @@
 void
 vm_bootstrap(void)
 {
-	/* Do nothing. */
+	/*
+	 * 1. Init a freelist to manage the physical space on our system - address 0x2000 0000 - 0x2007 D000 (512KB)
+	 */
 }
 
 static
 paddr_t
 getppages(unsigned long npages)
 {
-    (void)npages
+    (void)npages;
 }
 
 /* Allocate/free some kernel-space virtual pages */
 vaddr_t
 alloc_kpages(unsigned npages)
 {
-    (void)npages
+    (void)npages;
 }
 
 void
@@ -51,9 +53,9 @@ vm_tlbshootdown_all(void)
 void
 vm_tlbshootdown(const struct tlbshootdown *ts)
 {
-    if (ts == NULL || ts->ts_vaddr == 0) {
-        return;
-    }
+    // if (ts == NULL || ts->ts_vaddr == 0) {
+    //     return;
+    // }
 }
 
 int
@@ -68,14 +70,14 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		return EFAULT;
 	}
 
-	as = proc_getas();
-	if (as == NULL) {
-		/*
-		 * No address space set up. This is probably also a
-		 * kernel fault early in boot.
-		 */
-		return EFAULT;
-	}
+	// as = proc_getas();
+	// if (as == NULL) {
+	// 	/*
+	// 	 * No address space set up. This is probably also a
+	// 	 * kernel fault early in boot.
+	// 	 */
+	// 	return EFAULT;
+	// }
 }
 
 struct addrspace *
