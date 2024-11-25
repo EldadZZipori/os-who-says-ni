@@ -18,8 +18,16 @@ void
 vm_bootstrap(void)
 {
 	/*
-	 * 1. Init a freelist to manage the physical space on our system - address 0x2000 0000 - 0x2007 D000 (512KB)
+	 * 1. Fetch bottom of ram
+	 * 2. Fetch size of ram
+	 * 3. Init a freelist to manage the physical space on our system
 	 */
+
+	paddr_t ram_base = ram_getfirstfree();
+	paddr_t ram_head = ram_getsize();
+
+
+
 }
 
 static
