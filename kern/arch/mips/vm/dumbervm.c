@@ -8,11 +8,13 @@
 #include <mips/tlb.h>
 #include <addrspace.h>
 #include <vm.h>
-
-
+#include <freelist.h>
+#include <synch.h>
 
 
 /* General VM stuff */
+
+struct vm dumbervm;
 
 void
 vm_bootstrap(void)
@@ -23,18 +25,25 @@ vm_bootstrap(void)
 	 * 3. Init a freelist to manage the physical space on our system
 	 */
 
-	paddr_t ram_base = ram_getfirstfree();
-	paddr_t ram_head = ram_getsize();
+	paddr_t ram_start = ram_getfirstfree();
+	paddr_t ram_end = ram_getsize();
 
-
-
+	dumbervm.ppage_freelist = freelist_create((void*)ram_start, (void*)ram_end);
+	if (dumbervm.ppage_freelist == NULL) {
+		panic("Can't allocate ppage freelist\n");
+	}
+	
 }
 
 static
 paddr_t
 getppages(unsigned long npages)
 {
-    (void)npages;
+	// get first free physical page 
+	paddr_t first_physical_page =  freelist_get_first_fit(dumbervm.ppage_freelist, npages*PAGE_SIZE);
+
+	return first_physical_page;
+
 }
 
 /* Allocate/free some kernel-space virtual pages */
@@ -42,6 +51,7 @@ vaddr_t
 alloc_kpages(unsigned npages)
 {
     (void)npages;
+
 }
 
 void
@@ -96,13 +106,30 @@ as_create(void)
 		return NULL;
 	}
 
-	as->as_vbase1 = 0;
-	as->as_pbase1 = 0;
-	as->as_npages1 = 0;
-	as->as_vbase2 = 0;
-	as->as_pbase2 = 0;
-	as->as_npages2 = 0;
-	as->as_stackpbase = 0;
+	as->heap_lk = lock_create("heap lock");
+	if (as->heap_lk == NULL)
+	{
+		kfree(as);
+		return NULL;
+	}
+
+	as->kseg2_fl_lk = lock_create("kseg2 lock");
+	if (as->kseg2_fl_lk == NULL)
+	{
+		kfree(as);
+		lock_destroy(as->heap_lk);
+		return NULL;
+	}
+
+	as->kseg2_freelist = freelist_create((void*) MIPS_KSEG2, (void*) MIPS_KSEG2_END);
+	as->user_heap_start = 0;
+	as->user_heap_end = 0;
+	as->asid = -1; // Not in use in TLB yet
+
+	as->ptbase = getppages(1);	// Allocate physical page for the top level page table.
+	
+	as->n_kuseg2_pages_allocated = 1;
+	as->n_kuseg_pages_allocated = 0;
 
 	return as;
 }

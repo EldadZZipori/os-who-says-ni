@@ -39,6 +39,14 @@
 
 #include <machine/vm.h>
 
+struct vm
+{
+    struct freelist *ppage_freelist;
+    struct freelist *swap_freelist; // Holds offset 0- size of swap space
+    struct freelist *kseg0_freelist; // FML WHYYYYYY!!!!!
+};
+
+
 /* Fault-type arguments to vm_fault() */
 #define VM_FAULT_READ        0    /* A read was attempted */
 #define VM_FAULT_WRITE       1    /* A write was attempted */

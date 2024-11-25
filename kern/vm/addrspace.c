@@ -83,6 +83,7 @@ as_destroy(struct addrspace *as)
 	 * Clean up as needed.
 	 */
 
+
 	kfree(as);
 }
 

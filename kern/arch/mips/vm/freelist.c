@@ -68,43 +68,33 @@ void freelist_destroy(struct freelist *fl) {
  * 
  * @param fl freelist 
  * @param size size of the block to allocate
-*/
-vaddr_t freelist_get_first_fit(struct freelist *fl, size_t sz) {
+ * Case 1: Find block equal to size 
+ * e.g.: get_first_fit(100) 
+ * 
+ * Before: 
+ * fl -> 40 -> 60 -> 100 -> 200 -> NULL
+ * 
+ * After: 
+ *             100B allocated 
+ *                 v 
+ * fl -> 40 -> 60 -> 200 -> NULL
+ * 
+ * 
+ * 
+ * Case 2: Find block larger than size
+ * e.g. get_first_fit(70) 
+ * 
+ * Before: 
+ * fl -> 40 -> 60 -> 100 -> 200 -> NULL
+ * 
+ * After: 
+ *              70B allocated
+ *                  v                   
+ * fl -> 40 -> 60 -> 30 -> 200 -> NULL
+ */
+void* freelist_get_first_fit(struct freelist *fl, size_t sz) {
     KASSERT(fl != NULL);
     KASSERT(sz > 0);
-    /** 
-     * What we need to do: 
-     * 1. Find the first block that fits the size
-     * 2. If block size is equal to size, remove the block from the freelist
-     *    and update nodes 
-     * 3. If block size is greater than size, adjust pointers and sizes
-     * 
-     * 
-     * 
-     * Case 1: Find block equal to size 
-     * e.g.: get_first_fit(100) 
-     * 
-     * Before: 
-     * fl -> 40 -> 60 -> 100 -> 200 -> NULL
-     * 
-     * After: 
-     *             100B allocated 
-     *                 v 
-     * fl -> 40 -> 60 -> 200 -> NULL
-     * 
-     * 
-     * 
-     * Case 2: Find block larger than size
-     * e.g. get_first_fit(70) 
-     * 
-     * Before: 
-     * fl -> 40 -> 60 -> 100 -> 200 -> NULL
-     * 
-     * After: 
-     *              70B allocated
-     *                  v                   
-     * fl -> 40 -> 60 -> 30 -> 200 -> NULL
-    */
     struct freelist_node *cur = fl->head;
     while (cur != NULL) 
     {

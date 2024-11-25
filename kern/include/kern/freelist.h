@@ -19,7 +19,7 @@ struct freelist {
 /* Function definitions */
 struct freelist* freelist_create(void* start, void* end); 
 void freelist_destroy(struct freelist *fl);
-vaddr_t freelist_get_first_fit(struct freelist *fl, size_t size);
+void* freelist_get_first_fit(struct freelist *fl, size_t size);
 void freelist_remove(void *blk, size_t sz);
 
 

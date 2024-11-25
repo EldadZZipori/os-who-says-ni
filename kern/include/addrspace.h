@@ -38,12 +38,15 @@
 #include <vm.h>
 #include "opt-dumbvm.h"
 
+#define MIPS_KSEG2_END       0xffffffff
+#define MIPS_KUSEG_END       0x7fffffff
+
+
 #define OFFSET_MASK(x)  ((x) & 0xfff)       // First 12 bits of address
 #define LLPT_MASK(x)    (((x)>>12) & 0x3ff) // Bit 12-21
 #define TLPT_MASK(x)    (((x)>>22) & 0x3ff) // Bit 22-31
 
 struct vnode;
-
 
 /*
  * Address space - data structure associated with the virtual memory
@@ -65,6 +68,18 @@ struct addrspace {
         /* Put stuff here for your VM system */
         uint8_t asid;
         vaddr_t ptbase; // top-level pagetable base
+
+        /* KUSEG */ 
+        vaddr_t user_heap_start;
+        vaddr_t user_heap_end;
+        int n_kuseg_pages_allocated;
+        struct lock *heap_lk;
+
+        /* KSEG2 */
+        struct freelist *kseg2_freelist;
+        struct lock *kseg2_fl_lk;
+        int n_kuseg2_pages_allocated;
+
 
         // ASID is a parameter of the address space, can only be between 0-63
 #endif
