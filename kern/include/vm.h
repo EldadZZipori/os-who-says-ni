@@ -43,6 +43,8 @@ struct vm
 {
     struct freelist *ppage_freelist;
     struct freelist *swap_freelist; // Holds offset 0- size of swap space
+
+    bool vm_ready;
 };
 
 

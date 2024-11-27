@@ -15,6 +15,8 @@
 /* General VM stuff */
 
 struct vm dumbervm;
+static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
+
 
 void
 vm_bootstrap(void)
@@ -28,6 +30,7 @@ vm_bootstrap(void)
 	paddr_t ram_start = ram_getfirstfree();
 	paddr_t ram_end = ram_getsize();
 
+	// change this to not use kmalloc, and instaed just ram_stealmem or get_ppage or something 
 	dumbervm.ppage_freelist = freelist_create((void*)ram_start, (void*)ram_end+1);
 	if (dumbervm.ppage_freelist == NULL) {
 		panic("Can't allocate ppage freelist\n");
@@ -40,12 +43,23 @@ paddr_t
 getppages(unsigned long npages)
 {
 	KASSERT(npages > 0);
+	paddr_t pa;
+	if (dumbervm.vm_ready)
+	{
+		// get first free physical page 
+		pa = (paddr_t)freelist_get_first_fit(dumbervm.ppage_freelist, npages*PAGE_SIZE);
 
-	// get first free physical page 
-	paddr_t pa =  (paddr_t)freelist_get_first_fit(dumbervm.ppage_freelist, npages*PAGE_SIZE);
+		KASSERT(pa >= (paddr_t)dumbervm.ppage_freelist->start);
+		KASSERT(pa < (paddr_t)dumbervm.ppage_freelist->end);
+	}
+	else
+	{
+		spinlock_acquire(&stealmem_lock);
 
-	KASSERT(pa >= (paddr_t)dumbervm.ppage_freelist->start);
-	KASSERT(pa < (paddr_t)dumbervm.ppage_freelist->end);
+		pa = ram_stealmem(npages);
+
+		spinlock_release(&stealmem_lock);
+	}
 
 	return pa;
 
