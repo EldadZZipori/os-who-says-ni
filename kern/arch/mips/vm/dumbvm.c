@@ -92,7 +92,7 @@ alloc_kpages(unsigned npages)
 	if (pa==0) {
 		return 0;
 	}
-	return PADDR_TO_KVADDR(pa);
+	return PADDR_TO_KSEG0_VADDR(pa);
 }
 
 void
@@ -312,7 +312,7 @@ static
 void
 as_zero_region(paddr_t paddr, unsigned npages)
 {
-	bzero((void *)PADDR_TO_KVADDR(paddr), npages * PAGE_SIZE);
+	bzero((void *)PADDR_TO_KSEG0_VADDR(paddr), npages * PAGE_SIZE);
 }
 
 int
@@ -385,16 +385,16 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	KASSERT(new->as_pbase2 != 0);
 	KASSERT(new->as_stackpbase != 0);
 
-	memmove((void *)PADDR_TO_KVADDR(new->as_pbase1),
-		(const void *)PADDR_TO_KVADDR(old->as_pbase1),
+	memmove((void *)PADDR_TO_KSEG0_VADDR(new->as_pbase1),
+		(const void *)PADDR_TO_KSEG0_VADDR(old->as_pbase1),
 		old->as_npages1*PAGE_SIZE);
 
-	memmove((void *)PADDR_TO_KVADDR(new->as_pbase2),
-		(const void *)PADDR_TO_KVADDR(old->as_pbase2),
+	memmove((void *)PADDR_TO_KSEG0_VADDR(new->as_pbase2),
+		(const void *)PADDR_TO_KSEG0_VADDR(old->as_pbase2),
 		old->as_npages2*PAGE_SIZE);
 
-	memmove((void *)PADDR_TO_KVADDR(new->as_stackpbase),
-		(const void *)PADDR_TO_KVADDR(old->as_stackpbase),
+	memmove((void *)PADDR_TO_KSEG0_VADDR(new->as_stackpbase),
+		(const void *)PADDR_TO_KSEG0_VADDR(old->as_stackpbase),
 		DUMBVM_STACKPAGES*PAGE_SIZE);
 
 	*ret = new;

@@ -28,7 +28,7 @@ vm_bootstrap(void)
 	paddr_t ram_start = ram_getfirstfree();
 	paddr_t ram_end = ram_getsize();
 
-	dumbervm.ppage_freelist = freelist_create((void*)ram_start, (void*)ram_end);
+	dumbervm.ppage_freelist = freelist_create((void*)ram_start, (void*)ram_end+1);
 	if (dumbervm.ppage_freelist == NULL) {
 		panic("Can't allocate ppage freelist\n");
 	}
@@ -39,10 +39,15 @@ static
 paddr_t
 getppages(unsigned long npages)
 {
-	// get first free physical page 
-	paddr_t first_physical_page =  freelist_get_first_fit(dumbervm.ppage_freelist, npages*PAGE_SIZE);
+	KASSERT(npages > 0);
 
-	return first_physical_page;
+	// get first free physical page 
+	paddr_t pa =  freelist_get_first_fit(dumbervm.ppage_freelist, npages*PAGE_SIZE);
+
+	KASSERT(pa >= dumbervm.ppage_freelist->start);
+	KASSERT(pa < dumbervm.ppage_freelist->end);
+
+	return pa;
 
 }
 
@@ -50,14 +55,35 @@ getppages(unsigned long npages)
 vaddr_t
 alloc_kpages(unsigned npages)
 {
-    (void)npages;
+	KASSERT(npages > 0);
+
+	paddr_t pa = getppages(npages);
+
+	if (pa == 0) {
+		return 0;
+	}
+
+	// vaddr_t va = freelist_get_first_fit(dumbervm.kseg0_freelist, npages*PAGE_SIZE);
+
+	// do we need a freelist for kseg0? if kseg0 fits into 512KB RAM then we 
+	// can just offset the physical address to get the virtual address
+
+	vaddr_t va = PADDR_TO_KSEG0_VADDR(pa);
+
+	KASSERT(va >= MIPS_KSEG0);
+	KASSERT(va < MIPS_KSEG0_RAM_END);
+
+
 
 }
 
 void
 free_kpages(vaddr_t addr)
 {
-	/* nothing - leak the memory. */
+	KASSERT(addr >= MIPS_KSEG0);
+	KASSERT(addr < MIPS_KSEG0_RAM_END);
+
+
 
 	(void)addr;
 }
@@ -210,7 +236,7 @@ static
 void
 as_zero_region(paddr_t paddr, unsigned npages)
 {
-	bzero((void *)PADDR_TO_KVADDR(paddr), npages * PAGE_SIZE);
+	bzero((void *)PADDR_TO_KSEG0_VADDR(paddr), npages * PAGE_SIZE);
 }
 
 int
@@ -283,16 +309,16 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	KASSERT(new->as_pbase2 != 0);
 	KASSERT(new->as_stackpbase != 0);
 
-	memmove((void *)PADDR_TO_KVADDR(new->as_pbase1),
-		(const void *)PADDR_TO_KVADDR(old->as_pbase1),
+	memmove((void *)PADDR_TO_KSEG0_VADDR(new->as_pbase1),
+		(const void *)PADDR_TO_KSEG0_VADDR(old->as_pbase1),
 		old->as_npages1*PAGE_SIZE);
 
-	memmove((void *)PADDR_TO_KVADDR(new->as_pbase2),
-		(const void *)PADDR_TO_KVADDR(old->as_pbase2),
+	memmove((void *)PADDR_TO_KSEG0_VADDR(new->as_pbase2),
+		(const void *)PADDR_TO_KSEG0_VADDR(old->as_pbase2),
 		old->as_npages2*PAGE_SIZE);
 
-	memmove((void *)PADDR_TO_KVADDR(new->as_stackpbase),
-		(const void *)PADDR_TO_KVADDR(old->as_stackpbase),
+	memmove((void *)PADDR_TO_KSEG0_VADDR(new->as_stackpbase),
+		(const void *)PADDR_TO_KSEG0_VADDR(old->as_stackpbase),
 		DUMBVM_STACKPAGES*PAGE_SIZE);
 
 	*ret = new;
