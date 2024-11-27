@@ -83,9 +83,10 @@ free_kpages(vaddr_t addr)
 	KASSERT(addr >= MIPS_KSEG0);
 	KASSERT(addr < MIPS_KSEG0_RAM_END);
 
+	paddr_t paddr = addr - MIPS_KSEG0;
 
-
-	(void)addr;
+	// For now, just remove a single page.
+	freelist_remove(paddr, PAGE_SIZE);
 }
 
 void
@@ -213,17 +214,17 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 	(void)writeable;
 	(void)executable;
 
-	if (as->as_vbase1 == 0) {
-		as->as_vbase1 = vaddr;
-		as->as_npages1 = npages;
-		return 0;
-	}
+	// if (as->as_vbase1 == 0) {
+	// 	as->as_vbase1 = vaddr;
+	// 	as->as_npages1 = npages;
+	// 	return 0;
+	// }
 
-	if (as->as_vbase2 == 0) {
-		as->as_vbase2 = vaddr;
-		as->as_npages2 = npages;
-		return 0;
-	}
+	// if (as->as_vbase2 == 0) {
+	// 	as->as_vbase2 = vaddr;
+	// 	as->as_npages2 = npages;
+	// 	return 0;
+	// }
 
 	/*
 	 * Support for more than two regions is not available.
@@ -242,30 +243,30 @@ as_zero_region(paddr_t paddr, unsigned npages)
 int
 as_prepare_load(struct addrspace *as)
 {
-	KASSERT(as->as_pbase1 == 0);
-	KASSERT(as->as_pbase2 == 0);
-	KASSERT(as->as_stackpbase == 0);
+	//KASSERT(as->as_pbase1 == 0);
+	//KASSERT(as->as_pbase2 == 0);
+	//KASSERT(as->as_stackpbase == 0);
 
-	as->as_pbase1 = getppages(as->as_npages1);
-	if (as->as_pbase1 == 0) {
-		return ENOMEM;
-	}
+	// as->as_pbase1 = getppages(as->as_npages1);
+	// if (as->as_pbase1 == 0) {
+	// 	return ENOMEM;
+	// }
 
-	as->as_pbase2 = getppages(as->as_npages2);
-	if (as->as_pbase2 == 0) {
-		return ENOMEM;
-	}
+	// as->as_pbase2 = getppages(as->as_npages2);
+	// if (as->as_pbase2 == 0) {
+	// 	return ENOMEM;
+	// }
 
-	as->as_stackpbase = getppages(DUMBVM_STACKPAGES);
-	if (as->as_stackpbase == 0) {
-		return ENOMEM;
-	}
+	// as->as_stackpbase = getppages(DUMBVM_STACKPAGES);
+	// if (as->as_stackpbase == 0) {
+	// 	return ENOMEM;
+	// }
 
-	as_zero_region(as->as_pbase1, as->as_npages1);
-	as_zero_region(as->as_pbase2, as->as_npages2);
-	as_zero_region(as->as_stackpbase, DUMBVM_STACKPAGES);
+	// as_zero_region(as->as_pbase1, as->as_npages1);
+	// as_zero_region(as->as_pbase2, as->as_npages2);
+	// as_zero_region(as->as_stackpbase, DUMBVM_STACKPAGES);
 
-	return 0;
+	// return 0;
 }
 
 int
@@ -287,40 +288,40 @@ as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 int
 as_copy(struct addrspace *old, struct addrspace **ret)
 {
-	struct addrspace *new;
+	// struct addrspace *new;
 
-	new = as_create();
-	if (new==NULL) {
-		return ENOMEM;
-	}
+	// new = as_create();
+	// if (new==NULL) {
+	// 	return ENOMEM;
+	// }
 
-	new->as_vbase1 = old->as_vbase1;
-	new->as_npages1 = old->as_npages1;
-	new->as_vbase2 = old->as_vbase2;
-	new->as_npages2 = old->as_npages2;
+	// new->as_vbase1 = old->as_vbase1;
+	// new->as_npages1 = old->as_npages1;
+	// new->as_vbase2 = old->as_vbase2;
+	// new->as_npages2 = old->as_npages2;
 
-	/* (Mis)use as_prepare_load to allocate some physical memory. */
-	if (as_prepare_load(new)) {
-		as_destroy(new);
-		return ENOMEM;
-	}
+	// /* (Mis)use as_prepare_load to allocate some physical memory. */
+	// if (as_prepare_load(new)) {
+	// 	as_destroy(new);
+	// 	return ENOMEM;
+	// }
 
-	KASSERT(new->as_pbase1 != 0);
-	KASSERT(new->as_pbase2 != 0);
-	KASSERT(new->as_stackpbase != 0);
+	// KASSERT(new->as_pbase1 != 0);
+	// KASSERT(new->as_pbase2 != 0);
+	// KASSERT(new->as_stackpbase != 0);
 
-	memmove((void *)PADDR_TO_KSEG0_VADDR(new->as_pbase1),
-		(const void *)PADDR_TO_KSEG0_VADDR(old->as_pbase1),
-		old->as_npages1*PAGE_SIZE);
+	// memmove((void *)PADDR_TO_KSEG0_VADDR(new->as_pbase1),
+	// 	(const void *)PADDR_TO_KSEG0_VADDR(old->as_pbase1),
+	// 	old->as_npages1*PAGE_SIZE);
 
-	memmove((void *)PADDR_TO_KSEG0_VADDR(new->as_pbase2),
-		(const void *)PADDR_TO_KSEG0_VADDR(old->as_pbase2),
-		old->as_npages2*PAGE_SIZE);
+	// memmove((void *)PADDR_TO_KSEG0_VADDR(new->as_pbase2),
+	// 	(const void *)PADDR_TO_KSEG0_VADDR(old->as_pbase2),
+	// 	old->as_npages2*PAGE_SIZE);
 
-	memmove((void *)PADDR_TO_KSEG0_VADDR(new->as_stackpbase),
-		(const void *)PADDR_TO_KSEG0_VADDR(old->as_stackpbase),
-		DUMBVM_STACKPAGES*PAGE_SIZE);
+	// memmove((void *)PADDR_TO_KSEG0_VADDR(new->as_stackpbase),
+	// 	(const void *)PADDR_TO_KSEG0_VADDR(old->as_stackpbase),
+	// 	DUMBVM_STACKPAGES*PAGE_SIZE);
 
-	*ret = new;
-	return 0;
+	// *ret = new;
+	// return 0;
 }
