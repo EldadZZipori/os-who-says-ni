@@ -4,7 +4,7 @@
 
 struct freelist_node {
 	void *addr;
-	size_t size;
+	size_t sz;
 	struct freelist_node *next;
     struct freelist_node *prev;    
 };
@@ -19,8 +19,8 @@ struct freelist {
 /* Function definitions */
 struct freelist* freelist_create(void* start, void* end); 
 void freelist_destroy(struct freelist *fl);
-void* freelist_get_first_fit(struct freelist *fl, size_t size);
-void freelist_remove(void *blk, size_t sz);
+void* freelist_get_first_fit(struct freelist *fl, size_t sz);
+void freelist_remove(struct freelist *fl, void *blk, size_t sz);
 
 
 #endif /* _VM_H_ */

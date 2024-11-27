@@ -4,7 +4,7 @@
 #include <proc.h>
 #include <current.h>
 #include <synch.h>
-#include <freelist.h>
+#include <kern/freelist.h>
 
 
 /**
@@ -41,7 +41,7 @@ struct freelist* freelist_create(void *start, void *end) {
     fl->start = start; 
     fl->end = end;
     fl->head->addr = start;
-    fl->head->size = end - start;
+    fl->head->sz = end - start;
     fl->head->next = NULL;
     fl->head->prev = NULL;
 
@@ -67,7 +67,7 @@ void freelist_destroy(struct freelist *fl) {
  * @brief gets a free block and updates the freelist accordingly 
  * 
  * @param fl freelist 
- * @param size size of the block to allocate
+ * @param sz size of the block to allocate
  * Case 1: Find block equal to size 
  * e.g.: get_first_fit(100) 
  * 
@@ -99,7 +99,7 @@ void* freelist_get_first_fit(struct freelist *fl, size_t sz) {
     while (cur != NULL) 
     {
         // remove the block from the freelist
-        if (cur->size == sz)
+        if (cur->sz == sz)
         { 
             // case 1: head is block to remove 
             if (cur->prev == NULL) 
@@ -113,7 +113,7 @@ void* freelist_get_first_fit(struct freelist *fl, size_t sz) {
             }
             return cur->addr; 
         }
-        elif (cur->size > sz) 
+        else if (cur->sz > sz) 
         {
             // allocate at start of block
             cur->addr += sz;
@@ -133,10 +133,10 @@ void freelist_remove(struct freelist *fl, void *blk, size_t sz)
 
     // find the location of the allocated block to free 
     struct freelist_node *cur = fl->head; 
-    struct freelist_node *new; 
+    struct freelist_node *new = kmalloc(sizeof(struct freelist_node)); 
 
     new->addr = blk; 
-    new->size = sz; 
+    new->sz = sz; 
 
     // Case 1: if freelist is empty, add node
     if (cur == NULL) {
@@ -168,8 +168,8 @@ void freelist_remove(struct freelist *fl, void *blk, size_t sz)
 
     // now try to merge adjacent free blocks
     // merge with prev block if possible
-    if (new->prev != NULL && new->prev->addr + new->prev->size == new->addr) {
-        new->prev->size += new->size; // merge sizes
+    if (new->prev != NULL && new->prev->addr + new->prev->sz == new->addr) {
+        new->prev->sz += new->sz; // merge sizes
         new->prev->next = new->next;  // remove 'new' from list
 
         if (new->next != NULL) {
@@ -180,13 +180,14 @@ void freelist_remove(struct freelist *fl, void *blk, size_t sz)
     }
 
     // merge with next block if possible
-    if (new->next != NULL && new->addr + new->size == new->next->addr) {
-        new->size += new->next->size; // merge sizes
-        struct freelist_node *temp = new->next;
+    if (new->next != NULL && new->addr + new->sz == new->next->addr) {
+        new->sz += new->next->sz; // merge sizes
         new->next = new->next->next; // remove intermediate node forward ptr
         if (new->next != NULL) {
-            new->next->prev = new; // remove intermediate notde backward ptr
+            new->next->prev = new; // remove intermediate node backward ptr
         }
     } 
+
+    kfree(new);
 
 }

@@ -339,8 +339,7 @@ file      proc/proc.c
 
 file      vm/kmalloc.c
 
-optofffile dumbvm   vm/addrspace.c
-
+#optofffile dumbvm   vm/addrspace.c
 #
 # Network
 # (nothing here yet)
@@ -477,3 +476,4 @@ file        syscall/execv.c
 #                                      #
 ########################################
 file        vm/freelist.c
+file  arch/mips/vm/dumbervm.c

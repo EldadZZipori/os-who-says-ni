@@ -8,7 +8,7 @@
 #include <mips/tlb.h>
 #include <addrspace.h>
 #include <vm.h>
-#include <freelist.h>
+#include <kern/freelist.h>
 #include <synch.h>
 
 
@@ -42,10 +42,10 @@ getppages(unsigned long npages)
 	KASSERT(npages > 0);
 
 	// get first free physical page 
-	paddr_t pa =  freelist_get_first_fit(dumbervm.ppage_freelist, npages*PAGE_SIZE);
+	paddr_t pa =  (paddr_t)freelist_get_first_fit(dumbervm.ppage_freelist, npages*PAGE_SIZE);
 
-	KASSERT(pa >= dumbervm.ppage_freelist->start);
-	KASSERT(pa < dumbervm.ppage_freelist->end);
+	KASSERT(pa >= (paddr_t)dumbervm.ppage_freelist->start);
+	KASSERT(pa < (paddr_t)dumbervm.ppage_freelist->end);
 
 	return pa;
 
@@ -63,17 +63,13 @@ alloc_kpages(unsigned npages)
 		return 0;
 	}
 
-	// vaddr_t va = freelist_get_first_fit(dumbervm.kseg0_freelist, npages*PAGE_SIZE);
-
-	// do we need a freelist for kseg0? if kseg0 fits into 512KB RAM then we 
-	// can just offset the physical address to get the virtual address
-
+	/* No freelist required */
 	vaddr_t va = PADDR_TO_KSEG0_VADDR(pa);
 
 	KASSERT(va >= MIPS_KSEG0);
 	KASSERT(va < MIPS_KSEG0_RAM_END);
 
-
+	return va;
 
 }
 
@@ -86,7 +82,7 @@ free_kpages(vaddr_t addr)
 	paddr_t paddr = addr - MIPS_KSEG0;
 
 	// For now, just remove a single page.
-	freelist_remove(paddr, PAGE_SIZE);
+	freelist_remove(dumbervm.ppage_freelist, (void*)paddr, PAGE_SIZE);
 }
 
 void
@@ -98,6 +94,7 @@ vm_tlbshootdown_all(void)
 void
 vm_tlbshootdown(const struct tlbshootdown *ts)
 {
+	(void)ts;
     // if (ts == NULL || ts->ts_vaddr == 0) {
     //     return;
     // }
@@ -106,6 +103,9 @@ vm_tlbshootdown(const struct tlbshootdown *ts)
 int
 vm_fault(int faulttype, vaddr_t faultaddress)
 {
+	(void) faulttype;
+	(void) faultaddress;
+
 	if (curproc == NULL) {
 		/*
 		 * No process. This is probably a kernel fault early
@@ -123,6 +123,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	// 	 */
 	// 	return EFAULT;
 	// }
+	return 0;
 }
 
 struct addrspace *
@@ -198,21 +199,27 @@ int
 as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 		 int readable, int writeable, int executable)
 {
-	size_t npages;
+	(void) as;
+	(void) vaddr;
+	(void)sz;
+	(void) readable;
+	(void) writeable;
+	(void) executable;
+	// size_t npages;
 
-	/* Align the region. First, the base... */
-	sz += vaddr & ~(vaddr_t)PAGE_FRAME;
-	vaddr &= PAGE_FRAME;
+	// /* Align the region. First, the base... */
+	// sz += vaddr & ~(vaddr_t)PAGE_FRAME;
+	// vaddr &= PAGE_FRAME;
 
-	/* ...and now the length. */
-	sz = (sz + PAGE_SIZE - 1) & PAGE_FRAME;
+	// /* ...and now the length. */
+	// sz = (sz + PAGE_SIZE - 1) & PAGE_FRAME;
 
-	npages = sz / PAGE_SIZE;
+	// npages = sz / PAGE_SIZE;
 
-	/* We don't use these - all pages are read-write */
-	(void)readable;
-	(void)writeable;
-	(void)executable;
+	// /* We don't use these - all pages are read-write */
+	// (void)readable;
+	// (void)writeable;
+	// (void)executable;
 
 	// if (as->as_vbase1 == 0) {
 	// 	as->as_vbase1 = vaddr;
@@ -233,16 +240,17 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 	return ENOSYS;
 }
 
-static
-void
-as_zero_region(paddr_t paddr, unsigned npages)
-{
-	bzero((void *)PADDR_TO_KSEG0_VADDR(paddr), npages * PAGE_SIZE);
-}
+// static
+// void
+// as_zero_region(paddr_t paddr, unsigned npages)
+// {
+// 	bzero((void *)PADDR_TO_KSEG0_VADDR(paddr), npages * PAGE_SIZE);
+// }
 
 int
 as_prepare_load(struct addrspace *as)
 {
+	(void)as;
 	//KASSERT(as->as_pbase1 == 0);
 	//KASSERT(as->as_pbase2 == 0);
 	//KASSERT(as->as_stackpbase == 0);
@@ -267,6 +275,8 @@ as_prepare_load(struct addrspace *as)
 	// as_zero_region(as->as_stackpbase, DUMBVM_STACKPAGES);
 
 	// return 0;
+
+	return 0;
 }
 
 int
@@ -279,15 +289,19 @@ as_complete_load(struct addrspace *as)
 int
 as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 {
-	KASSERT(as->as_stackpbase != 0);
+	(void) as;
+	(void) stackptr;
+	//KASSERT(as->as_stackpbase != 0);
 
-	*stackptr = USERSTACK;
+	//*stackptr = USERSTACK;
 	return 0;
 }
 
 int
 as_copy(struct addrspace *old, struct addrspace **ret)
 {
+	(void) old;
+	(void) ret;
 	// struct addrspace *new;
 
 	// new = as_create();
@@ -324,4 +338,6 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 
 	// *ret = new;
 	// return 0;
+	
+	return 0;
 }
