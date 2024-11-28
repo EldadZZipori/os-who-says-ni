@@ -333,5 +333,8 @@ sys_waitpid(int pid, userptr_t status, int options, int* retval);
  */
 int
 __waitpid(int pid, int* status, int options);
+
+int
+sbrk (int amount, void* retval);
 #endif /* _SYSCALL_H_ */
 

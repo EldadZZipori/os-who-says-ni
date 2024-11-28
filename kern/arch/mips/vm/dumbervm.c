@@ -74,6 +74,8 @@ getppages(unsigned long npages)
 	{
 		// get first free physical page 
 		pa = (paddr_t)freelist_get_first_fit(dumbervm.ppage_freelist, npages*PAGE_SIZE);
+		
+		// NOTE: should be possible to return error here if out of memory
 
 		KASSERT(pa >= (paddr_t)dumbervm.ppage_freelist->start);
 		KASSERT(pa < (paddr_t)dumbervm.ppage_freelist->end);
@@ -193,10 +195,8 @@ as_create(void)
 	as->user_heap_start = 0;
 	as->user_heap_end = 0;
 	as->asid = -1; // Not in use in TLB yet
-
 	as->ptbase = getppages(1);	// Allocate physical page for the top level page table.
-	
-	as->n_kuseg2_pages_allocated = 1;
+	as->n_kuseg2_pages_allocated = 0;
 	as->n_kuseg_pages_allocated = 0;
 
 	return as;
@@ -342,6 +342,27 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 {
 	(void) old;
 	(void) ret;
+
+	/* 
+	 * as_create already creates the first page for for the top level table itself.
+	 */
+	struct addrspace *new = as_create();
+	if (new == NULL)
+	{
+		return ENOMEM; // This might not be the most idicative 
+	}
+
+	new->user_heap_start = old->user_heap_start;
+	new->user_heap_end = old->user_heap_end;
+
+	new->n_kuseg_pages_allocated = getppages(old->n_kuseg_pages_allocated);
+	new->n_kuseg2_pages_allocated = getppages(old->n_kuseg2_pages_allocated);
+
+
+	// NOTE: Need to create function to copy freelist 
+
+	// NOTE: memove data to new region
+
 	// struct addrspace *new;
 
 	// new = as_create();

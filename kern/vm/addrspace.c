@@ -52,6 +52,7 @@ as_create(void)
 	/*
 	 * Initialize as needed.
 	 */
+	
 
 	return as;
 }
