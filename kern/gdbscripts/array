@@ -94,9 +94,14 @@ end
 
 define printfreelist
     set $node = $arg0->head
-    printf "freelist contents:\n"
-    while ($node->next != NULL)
+    printf "freelist contents:\nHEAD -> "
+    while ($node != 0)
     printf "[ %u: %u bytes ] -> ", $node->addr - $arg0->start, $node->sz
+    set $node = $node->next
     end
-    printf "\n"
+    printf "NULL\n"
+end
+
+define pfl 
+    printfreelist dumbervm.ppage_freelist
 end

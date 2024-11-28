@@ -47,11 +47,15 @@ vm_bootstrap(void)
 	dumbervm.ppage_freelist = &temp_ppage_fl;
 	dumbervm.vm_ready = true;
 
+
 	// allocate first object in tracked RAM space: the RAM freelist lol
 	struct freelist *ppage_freelist = freelist_create((void*)ram_start, (void*)ram_end+1);
 	if (ppage_freelist == NULL) {
 		panic("Can't allocate ppage freelist\n");
 	}
+
+	// make sure we didnt allocate any extra nodes
+	KASSERT(temp_ppage_fl_head.next == NULL);
 
 	// copy temp freelist to actual freelist
 	freelist_copy(&temp_ppage_fl, ppage_freelist);
