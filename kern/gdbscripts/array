@@ -91,3 +91,12 @@ document proctable
 Print a proctable with pids.
 Usage: proctable myproctable
 end
+
+define printfreelist
+    set $node = $arg0->head
+    printf "freelist contents:\n"
+    while ($node->next != NULL)
+    printf "[ %u: %u bytes ] -> ", $node->addr - $arg0->start, $node->sz
+    end
+    printf "\n"
+end

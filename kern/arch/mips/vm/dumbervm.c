@@ -25,17 +25,39 @@ vm_bootstrap(void)
 	 * 1. Fetch bottom of ram
 	 * 2. Fetch size of ram
 	 * 3. Init a freelist to manage the physical space on our system
+	 * 4. Add the freelist to the ram
 	 */
 
-	paddr_t ram_start = ram_getfirstfree();
 	paddr_t ram_end = ram_getsize();
+	paddr_t ram_start = ram_getfirstfree();
 
-	// change this to not use kmalloc, and instaed just ram_stealmem or get_ppage or something 
-	dumbervm.ppage_freelist = freelist_create((void*)ram_start, (void*)ram_end+1);
-	if (dumbervm.ppage_freelist == NULL) {
+	// allocate freelist on stack
+	struct freelist temp_ppage_fl; 
+	struct freelist_node temp_ppage_fl_head; 
+
+	temp_ppage_fl.start = (void*)ram_start;
+	temp_ppage_fl.end = (void*)ram_end+1;
+	temp_ppage_fl.head = &temp_ppage_fl_head;
+
+	temp_ppage_fl.head->addr = (void*)ram_start;
+	temp_ppage_fl.head->sz = ram_end - ram_start;
+	temp_ppage_fl.head->next = NULL;
+	temp_ppage_fl.head->prev = NULL;
+
+	dumbervm.ppage_freelist = &temp_ppage_fl;
+	dumbervm.vm_ready = true;
+
+	// allocate first object in tracked RAM space: the RAM freelist lol
+	struct freelist *ppage_freelist = freelist_create((void*)ram_start, (void*)ram_end+1);
+	if (ppage_freelist == NULL) {
 		panic("Can't allocate ppage freelist\n");
 	}
-	
+
+	// copy temp freelist to actual freelist
+	freelist_copy(&temp_ppage_fl, ppage_freelist);
+
+	// set the freelist to the actual freelist
+	dumbervm.ppage_freelist = ppage_freelist;
 }
 
 static

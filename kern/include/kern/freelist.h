@@ -21,6 +21,7 @@ struct freelist* freelist_create(void* start, void* end);
 void freelist_destroy(struct freelist *fl);
 void* freelist_get_first_fit(struct freelist *fl, size_t sz);
 void freelist_remove(struct freelist *fl, void *blk, size_t sz);
+struct freelist* freelist_copy(struct freelist *src, struct freelist *dst);
 
 
 #endif /* _VM_H_ */

@@ -191,3 +191,31 @@ void freelist_remove(struct freelist *fl, void *blk, size_t sz)
     kfree(new);
 
 }
+
+/** 
+ * @brief copy a freelist from src to dst
+ * 
+ * @param src source freelist
+ * @param dst destination freelist
+ * 
+ * Freelists must have same number of nodes. 
+ * 
+ * This may be used to copy a stack freelist to a heap freelist.
+*/
+struct freelist *freelist_copy(struct freelist *src, struct freelist *dst) {
+    if (src == NULL || dst == NULL) {
+        return NULL;
+    }
+
+    struct freelist_node *src_cur = src->head;
+    struct freelist_node *dst_cur = dst->head;
+
+    while (src_cur != NULL) {
+        dst_cur->addr = src_cur->addr;
+        dst_cur->sz = src_cur->sz;
+        src_cur = src_cur->next;
+        dst_cur = dst_cur->next;
+    }
+
+    return dst;
+}
