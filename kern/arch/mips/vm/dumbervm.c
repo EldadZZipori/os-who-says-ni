@@ -356,12 +356,31 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	new->user_heap_end = old->user_heap_end;
 
 	new->n_kuseg_pages_allocated = getppages(old->n_kuseg_pages_allocated);
+	if (new->n_kuseg_pages_allocated != old->n_kuseg_pages_allocated)
+	{
+		return ENOMEM;
+	}
 	new->n_kuseg2_pages_allocated = getppages(old->n_kuseg2_pages_allocated);
+	if (new->n_kuseg2_pages_allocated != old->n_kuseg2_pages_allocated)
+	{
+		return ENOMEM;
+	}
 
 
 	// NOTE: Need to create function to copy freelist 
 
 	// NOTE: memove data to new region
+
+	memmove((void *)PADDR_TO_KSEG0_VADDR(new->ptbase),
+		(const void *)PADDR_TO_KSEG0_VADDR(old->ptbase),
+		old->n_kuseg2_pages_allocated*PAGE_SIZE);
+
+	memmove((void *)PADDR_TO_KSEG0_VADDR(new->user_heap_start),
+		(const void *)PADDR_TO_KSEG0_VADDR(old->user_heap_start),
+		old->n_kuseg_pages_allocated*PAGE_SIZE);
+		
+	*ret = new;
+	return 0;
 
 	// struct addrspace *new;
 
