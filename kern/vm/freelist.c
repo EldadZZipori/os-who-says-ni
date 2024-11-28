@@ -211,6 +211,16 @@ struct freelist *freelist_copy(struct freelist *src, struct freelist *dst) {
     struct freelist_node *dst_cur = dst->head;
 
     while (src_cur != NULL) {
+        if (dst_cur == NULL) { 
+            // dst freelist has fewer nodes than src freelist
+            dst_cur = kmalloc(sizeof(struct freelist_node));
+            if (dst_cur == NULL) {
+                return NULL;
+            }
+            // fix up pointers
+            dst_cur->prev->next = dst_cur;
+            dst_cur->next = NULL; // no next node
+        }
         dst_cur->addr = src_cur->addr;
         dst_cur->sz = src_cur->sz;
         src_cur = src_cur->next;
