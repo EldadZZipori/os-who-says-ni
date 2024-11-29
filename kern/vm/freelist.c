@@ -42,6 +42,7 @@ struct freelist* freelist_create(void *start, void *end) {
     fl->end = end;
     fl->head->addr = start;
     fl->head->sz = end - start;
+    fl->head->allocated = false;
     fl->head->next = NULL;
     fl->head->prev = NULL;
 
@@ -99,31 +100,32 @@ void* freelist_get_first_fit(struct freelist *fl, size_t sz) {
     while (cur != NULL) 
     {
         // remove the block from the freelist
-        if (cur->sz == sz)
+        if (cur->sz == sz) // perfect fit, just set to allocated and dont change ptrs
         { 
-            // case 1: head is block to remove 
-            if (cur->prev == NULL) 
-            {
-                fl->head = fl->head->next;
-            } 
-            else 
-            // case 2: not removing head
-            {
-                cur->prev->next = cur->next;
-            }
+            cur->allocated = true;
             return cur->addr; 
         }
         else if (cur->sz > sz) 
         {
-            // allocate at start of block
-            cur->addr += sz;
-            cur->sz -= sz;
-            return cur->addr - sz;
+            // split block into 
+            // [ allocd, sz = sz] [ not_allocd, sz = prevsz - sz]
+            struct freelist_node *new = kmalloc(sizeof(struct freelist_node));
+            new->addr = cur->addr + sz; // start after allocd block
+            new->sz = cur->sz - sz; // current sz - alloc sz
+            new->allocated = false; 
+            new->prev = cur;
+            new->next = cur->next;
+            // fix up allocd block 
+            cur->sz = sz; 
+            cur->allocated = true; 
+            cur->next = new; 
+            return cur->addr;
         }
     } 
     return NULL;
 }
 
+/* Free a block */
 void freelist_remove(struct freelist *fl, void *blk, size_t sz)
 {
     KASSERT(fl != NULL);
@@ -131,7 +133,6 @@ void freelist_remove(struct freelist *fl, void *blk, size_t sz)
     KASSERT(blk < fl->end);
     KASSERT(blk >= fl->start);
 
-    // find the location of the allocated block to free 
     struct freelist_node *cur = fl->head; 
     struct freelist_node *new = kmalloc(sizeof(struct freelist_node)); 
 
@@ -146,86 +147,64 @@ void freelist_remove(struct freelist *fl, void *blk, size_t sz)
         return;
     }
 
-   // Insert before 'cur' if not NULL, otherwise insert at end of list
-    if (cur != NULL) {
-        // Insert the new node before 'cur'
-        new->next = cur;
-        new->prev = cur->prev;
-
-        if (cur->prev != NULL) {
-            cur->prev->next = new; // update ptr before new node 
-        } else {
-            fl->head = new; // insert at head of list  
+    // find the allocated block we want to free
+    while (cur != NULL) 
+    { 
+        if (cur->addr != blk) // not this one
+        {
+            cur = cur->next;
         }
-
-        cur->prev = new;
-    } else {
-        // we're at end of list
-        new->next = NULL;
-        new->prev = cur;
-        cur->next = new;
     }
 
-    // now try to merge adjacent free blocks
-    // merge with prev block if possible
-    if (new->prev != NULL && new->prev->addr + new->prev->sz == new->addr) {
-        new->prev->sz += new->sz; // merge sizes
-        new->prev->next = new->next;  // remove 'new' from list
+    // either cur = allocd block we want to free
+    // or cur is at end of list and now NULL
+    if (cur != NULL)
+    { 
+        // make sure we allocated this
+        KASSERT(cur->allocated);
 
-        if (new->next != NULL) {
-            new->next->prev = new->prev;
+        // free and fix up pointers
+        // case 1: prev and next blocks are allocated or NULL
+        // no merge
+        if ((cur->prev == NULL || cur->prev->allocated) && (cur->next == NULL || cur->next->allocated))
+        {
+            cur->allocated = false; // freed up now
         }
 
-        new = new->prev;
-    }
-
-    // merge with next block if possible
-    if (new->next != NULL && new->addr + new->sz == new->next->addr) {
-        new->sz += new->next->sz; // merge sizes
-        new->next = new->next->next; // remove intermediate node forward ptr
-        if (new->next != NULL) {
-            new->next->prev = new; // remove intermediate node backward ptr
+        // case 2: prev not allocated, next allocated or NULL
+        // delete cur and merge sizes into prev 
+        else if ((cur->prev != NULL && !cur->prev->allocated))
+        {
+            cur->prev->sz += cur->sz; // merge sizes
+            cur->prev->next = cur->next; // fix forward ptr
+            cur->next->prev = cur->prev; // fix backward ptr
+            kfree(cur);
         }
-    } 
 
-    kfree(new);
-
-}
-
-/** 
- * @brief copy a freelist from src to dst
- * 
- * @param src source freelist
- * @param dst destination freelist
- * 
- * Freelists must have same number of nodes. 
- * 
- * This may be used to copy a stack freelist to a heap freelist.
-*/
-struct freelist *freelist_copy(struct freelist *src, struct freelist *dst) {
-    if (src == NULL || dst == NULL) {
-        return NULL;
-    }
-
-    struct freelist_node *src_cur = src->head;
-    struct freelist_node *dst_cur = dst->head;
-
-    while (src_cur != NULL) {
-        if (dst_cur == NULL) { 
-            // dst freelist has fewer nodes than src freelist
-            dst_cur = kmalloc(sizeof(struct freelist_node));
-            if (dst_cur == NULL) {
-                return NULL;
-            }
-            // fix up pointers
-            dst_cur->prev->next = dst_cur;
-            dst_cur->next = NULL; // no next node
+        // case 3: prev allocated or NULL, next not allocated
+        // delete next and merge sizes into cur
+        else if (cur->next != NULL && !cur->next->allocated) 
+        { 
+            cur->sz += cur->next->sz; // merge sizes
+            cur->next = cur->next->next; // fix forward ptr
+            cur->next->prev = cur; // fix backward ptr
+            cur->allocated = false; // set to be a large free blk 
+            kfree(cur->next);
         }
-        dst_cur->addr = src_cur->addr;
-        dst_cur->sz = src_cur->sz;
-        src_cur = src_cur->next;
-        dst_cur = dst_cur->next;
-    }
 
-    return dst;
+        // case 4: prev and next both unallocated 
+        // delete cur and next and merge sizes into prev
+        else if (cur->prev != NULL && !cur->prev->allocated && cur->next != NULL && !cur->next->allocated)
+        {
+            cur->prev->sz += (cur->sz + cur->next->sz); // merge sizes
+            cur->prev->next = cur->next->next; // fix forward ptr
+            cur->next->prev = cur->prev; // fix backward ptr 
+            kfree(cur->next);
+            kfree(cur);
+        }
+    }
+    else
+    {
+        panic("freelist_remove: tried to free a pointer we never allocated\n");
+    }
 }

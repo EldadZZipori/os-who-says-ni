@@ -47,6 +47,7 @@ struct vm
     bool vm_ready;
 };
 
+struct vm dumbervm;
 
 /* Fault-type arguments to vm_fault() */
 #define VM_FAULT_READ        0    /* A read was attempted */
@@ -63,6 +64,10 @@ int vm_fault(int faulttype, vaddr_t faultaddress);
 /* Allocate/free kernel heap pages (called by kmalloc/kfree) */
 vaddr_t alloc_kpages(unsigned npages);
 void free_kpages(vaddr_t addr);
+
+/* Allocate/free user heap pages (called by sbrk and as_define_region) */
+vaddr_t alloc_upages(unsigned npages, int non_cached,int valid, int dirty, int global);
+void free_upages(vaddr_t addr);
 
 /* TLB shootdown handling called from interprocessor_interrupt */
 void vm_tlbshootdown_all(void);

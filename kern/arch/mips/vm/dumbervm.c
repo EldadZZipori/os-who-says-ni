@@ -14,7 +14,6 @@
 
 /* General VM stuff */
 
-struct vm dumbervm;
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
 
 
@@ -183,20 +182,21 @@ as_create(void)
 		return NULL;
 	}
 
-	as->kseg2_fl_lk = lock_create("kseg2 lock");
-	if (as->kseg2_fl_lk == NULL)
-	{
-		kfree(as);
-		lock_destroy(as->heap_lk);
-		return NULL;
-	}
+	// as->kseg2_fl_lk = lock_create("kseg2 lock");
+	// if (as->kseg2_fl_lk == NULL)
+	// {
+	// 	kfree(as);
+	// 	lock_destroy(as->heap_lk);
+	// 	return NULL;
+	// }
 
-	as->kseg2_freelist = freelist_create((void*) MIPS_KSEG2, (void*) MIPS_KSEG2_END);
+	// as->kseg2_freelist = freelist_create((void*) MIPS_KSEG2, (void*) MIPS_KSEG2_END);
 	as->user_heap_start = 0;
 	as->user_heap_end = 0;
 	as->asid = -1; // Not in use in TLB yet
-	as->ptbase = getppages(1);	// Allocate physical page for the top level page table.
-	as->n_kuseg2_pages_allocated = 0;
+	as->ptbase = alloc_kpages(1);	// Allocate physical page for the top level page table.
+	// TODO: fill ptbase with zeros
+	// as->n_kuseg2_pages_allocated = 0;
 	as->n_kuseg_pages_allocated = 0;
 
 	return as;
@@ -360,24 +360,14 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	{
 		return ENOMEM;
 	}
-	new->n_kuseg2_pages_allocated = getppages(old->n_kuseg2_pages_allocated);
-	if (new->n_kuseg2_pages_allocated != old->n_kuseg2_pages_allocated)
-	{
-		return ENOMEM;
-	}
-
-
-	// NOTE: Need to create function to copy freelist 
+	// new->n_kuseg2_pages_allocated = getppages(old->n_kuseg2_pages_allocated);
+	// if (new->n_kuseg2_pages_allocated != old->n_kuseg2_pages_allocated)
+	// {
+	// 	return ENOMEM;
+	// }
 
 	// NOTE: memove data to new region
 
-	memmove((void *)PADDR_TO_KSEG0_VADDR(new->ptbase),
-		(const void *)PADDR_TO_KSEG0_VADDR(old->ptbase),
-		old->n_kuseg2_pages_allocated*PAGE_SIZE);
-
-	memmove((void *)PADDR_TO_KSEG0_VADDR(new->user_heap_start),
-		(const void *)PADDR_TO_KSEG0_VADDR(old->user_heap_start),
-		old->n_kuseg_pages_allocated*PAGE_SIZE);
 		
 	*ret = new;
 	return 0;

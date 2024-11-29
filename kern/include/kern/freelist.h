@@ -5,6 +5,7 @@
 struct freelist_node {
 	void *addr;
 	size_t sz;
+    bool allocated;
 	struct freelist_node *next;
     struct freelist_node *prev;    
 };
