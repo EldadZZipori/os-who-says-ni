@@ -28,4 +28,6 @@ Office Hourse Question:
     - 20 bit virtual page table 
 
 
+# 2024-11-29
 
+- [OS161 TLB Miss and Page Fault](http://jhshi.me/2012/04/27/os161-tlb-miss-and-page-fault/index.html)

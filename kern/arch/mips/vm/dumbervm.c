@@ -146,6 +146,8 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 {
 	(void) faulttype;
 	(void) faultaddress;
+	uint32_t ehi, elo;
+	int spl;
 
 	if (curproc == NULL) {
 		/*
@@ -183,9 +185,25 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	// now we know that there is an actual translation in the page tables
 	// IMPORTANT: for now we are randomly using the tlb, speed does not matter.
 	uint32_t entrylo = *(ll_pagetable_va + vpn2); // entries in the low level page table are aligned with the tlb
-	uint32_t entryhi = VADDR_AND_ASIC_TO_TLB_HI(faultaddress, as->asid);
-	tlb_random(entryhi,entrylo);
-	return 0;
+	uint32_t entryhigh = faultaddress;
+	
+	// uint32_t entryhi = VADDR_AND_ASIC_TO_TLB_HI(faultaddress, as->asid); ASID not used in os161
+	spl = splhigh();
+
+	for (int i=0; i<NUM_TLB; i++) {
+		tlb_read(&ehi, &elo, i);
+		if (elo & TLBLO_VALID) { // if the valid bit is set in the entry, dont evict it
+			continue;
+		}
+		//DEBUG(DB_VM, "dumbvm: 0x%x -> 0x%x\n", faultaddress, paddr);
+		tlb_write(ehi, elo, i);
+		splx(spl);
+		return 0;
+	}
+
+	kprintf("dumbvmer: Ran out of TLB entries - cannot handle page fault\n");
+	splx(spl);
+	return EFAULT;
 }
 
 struct addrspace *
@@ -214,7 +232,6 @@ as_create(void)
 	// as->kseg2_freelist = freelist_create((void*) MIPS_KSEG2, (void*) MIPS_KSEG2_END);
 	as->user_heap_start = 0;
 	as->user_heap_end = 0;
-	as->asid = -1; // Not in use in TLB yet
 	as->ptbase = alloc_kpages(1);	// Allocate physical page for the top level page table.
 	// TODO: fill ptbase with zeros
 	as_zero_region(as->ptbase, 1); // Fill the top level page table with zeros

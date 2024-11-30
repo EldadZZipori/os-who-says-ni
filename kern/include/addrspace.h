@@ -68,7 +68,7 @@ struct addrspace {
         paddr_t as_stackpbase;          // the physical base of the stack
 #else
         /* Put stuff here for your VM system */
-        uint8_t asid;
+        // uint8_t asid; not necessary 
         vaddr_t* ptbase; // top-level pagetable base
 
         /* KUSEG */ 

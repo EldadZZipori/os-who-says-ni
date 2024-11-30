@@ -40,7 +40,7 @@
 #include <mainbus.h>
 #include <syscall.h>
 #include <kern/wait.h>
-
+#include <kern/errno.h>
 
 /* in exception-*.S */
 extern __DEAD void asm_usermode(struct trapframe *tf);
@@ -241,6 +241,8 @@ mips_trap(struct trapframe *tf)
 	switch (code) {
 	case EX_MOD:
 		if (vm_fault(VM_FAULT_READONLY, tf->tf_vaddr)==0) {
+			//NOTE: check this later
+
 			goto done;
 		}
 		break;
