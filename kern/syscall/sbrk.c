@@ -59,6 +59,7 @@ sbrk (int amount, int* retval)
         if (*(as->ptbase + vpn1) == 0)  // This means the low level page table for this top level page entery was not created yet
         {
             ll_pagetable_va = alloc_kpages(1); // allocate a single page for a low lever page table
+            as_zero_region(ll_pagetable_va, 1); // zero all entries in the new low level page table.
 
             *(as->ptbase + vpn1) = (ll_pagetable_va) + 0b1; // Update the count of this low level page table to be 1
         } 

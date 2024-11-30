@@ -46,6 +46,7 @@
 #define LLPT_MASK(x)    (((x)>>12) & 0x3ff) // Bit 12-21
 #define TLPT_MASK(x)    (((x)>>22) & 0x3ff) // Bit 22-31
 #define TLPT_ENTRY_TO_VADDR(x) ((x) & 0xfffff000)
+#define VADDR_AND_ASIC_TO_TLB_HI(x,y) (((x)& 0xfffff000) & ((y) << 6) )
 
 struct vnode;
 

@@ -156,14 +156,35 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		return EFAULT;
 	}
 
-	// as = proc_getas();
-	// if (as == NULL) {
-	// 	/*
-	// 	 * No address space set up. This is probably also a
-	// 	 * kernel fault early in boot.
-	// 	 */
-	// 	return EFAULT;
-	// }
+	struct addrspace* as = proc_getas();
+	if (as == NULL) {
+		/*
+		 * No address space set up. This is probably also a
+		 * kernel fault early in boot.
+		 */
+		return EFAULT;
+	}
+
+	int vpn1 = TLPT_MASK(faultaddress);
+
+	if(*(as->ptbase + vpn1) ==  0)	// top level page table was never created, no mapping
+	{
+		return EFAULT;
+	}
+
+	int vpn2 = LLPT_MASK(faultaddress);
+	vaddr_t* ll_pagetable_va =  TLPT_ENTRY_TO_VADDR(*(as->ptbase + vpn1)); // the low level page table starts at the address stored in the top level page table entry
+
+	if (*(ll_pagetable_va + vpn2) == 0) // there is no entry in the low level page table entry
+	{
+		return EFAULT;
+	}
+
+	// now we know that there is an actual translation in the page tables
+	// IMPORTANT: for now we are randomly using the tlb, speed does not matter.
+	uint32_t entrylo = *(ll_pagetable_va + vpn2); // entries in the low level page table are aligned with the tlb
+	uint32_t entryhi = VADDR_AND_ASIC_TO_TLB_HI(faultaddress, as->asid);
+	tlb_random(entryhi,entrylo);
 	return 0;
 }
 
@@ -196,6 +217,7 @@ as_create(void)
 	as->asid = -1; // Not in use in TLB yet
 	as->ptbase = alloc_kpages(1);	// Allocate physical page for the top level page table.
 	// TODO: fill ptbase with zeros
+	as_zero_region(as->ptbase, 1); // Fill the top level page table with zeros
 	// as->n_kuseg2_pages_allocated = 0;
 	as->n_kuseg_pages_allocated = 0;
 
@@ -280,12 +302,12 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 	return ENOSYS;
 }
 
-// static
-// void
-// as_zero_region(paddr_t paddr, unsigned npages)
-// {
-// 	bzero((void *)PADDR_TO_KSEG0_VADDR(paddr), npages * PAGE_SIZE);
-// }
+static
+void
+as_zero_region(vaddr_t va, unsigned npages)
+{
+	bzero((void *)va , npages * PAGE_SIZE);
+}
 
 int
 as_prepare_load(struct addrspace *as)
