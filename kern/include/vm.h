@@ -38,11 +38,14 @@
 
 
 #include <machine/vm.h>
+#include <kern/types.h>
 
 struct vm
 {
     struct freelist *ppage_freelist;
     struct freelist *swap_freelist; // Holds offset 0- size of swap space
+
+    struct vnode *swap_space;
 
     bool vm_ready;
 };

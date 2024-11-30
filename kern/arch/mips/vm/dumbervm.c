@@ -10,6 +10,10 @@
 #include <vm.h>
 #include <kern/freelist.h>
 #include <synch.h>
+#include <vfs.h>
+#include <kern/fcntl.h>
+#include <kern/stat.h>
+#include <vnode.h>
 
 
 /* General VM stuff */
@@ -61,6 +65,35 @@ vm_bootstrap(void)
 
 	// set the freelist to the actual freelist
 	dumbervm.ppage_freelist = ppage_freelist;
+
+	struct vnode* swap_space;
+	int result = vfs_open("lhd0raw:",O_RDWR, 0, swap_space);
+
+	if (result)
+	{
+		kprintf("dumbervm: no swap space found, continuing without swap space");
+		return;
+	}
+
+	struct stat swap_space_stat;
+	result = VOP_STAT(swap_space, &swap_space_stat);
+	 
+	if(result)
+	{
+		vfs_close(swap_space);
+		kprintf("dumbervm: cannot query swap space, continuing without swap space");
+		return;
+	}
+
+	struct freelist* swap_freelist = freelist_create((void *)0, (void*)swap_space_stat.st_size);
+	if (swap_freelist == NULL)
+	{
+		vfs_close(swap_space);
+		kprintf("dumbervm: cannot get swap space size, continuing without swap space");
+		return;
+	}
+
+	
 }
 
 static
