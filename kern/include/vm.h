@@ -71,7 +71,7 @@ void free_kpages(vaddr_t addr);
 /* Allocate/free user heap pages (called by sbrk and as_define_region) */
 
 // Ingore no-cache and global bits for OS161
-vaddr_t alloc_upages(unsigned npages,int valid, int dirty);
+vaddr_t alloc_upages(unsigned npages);
 void free_upages(vaddr_t addr);
 
 /* TLB shootdown handling called from interprocessor_interrupt */
