@@ -222,6 +222,43 @@ void freelist_remove(struct freelist *fl, void *blk, size_t sz)
     }
 }
 
+struct freelist *freelist_copy(struct freelist *src, struct freelist *dst)
+{
+    KASSERT(src != NULL);
+    KASSERT(dst != NULL);
+
+    if (src->head == NULL) return NULL; // nothing to copy
+
+    if (dst->head == NULL) {
+        dst->head = kmalloc(sizeof(struct freelist_node));
+        if (dst->head == NULL) return NULL;
+    }
+
+    struct freelist_node *cur_src = src->head;
+    struct freelist_node *cur_dst = dst->head;
+
+
+    while (cur_src->next != NULL) 
+    {
+        if (cur_dst->next == NULL) 
+        {
+            cur_dst->next = kmalloc(sizeof(struct freelist_node));
+            if (cur_dst->next == NULL) return NULL;
+
+            cur_dst->next->prev = cur_dst; // set prev ptr
+        }
+        // copy fields 
+        cur_dst->addr = cur_src->addr;
+        cur_dst->sz = cur_src->sz;
+        cur_dst->allocated = cur_src->allocated;
+
+        cur_src = cur_src->next;
+        cur_dst = cur_dst->next;
+    }
+
+    return dst;
+}
+
 void freelist_node_set_otherpages(struct freelist_node *n, int otherpages)
 {
     if (n == NULL) return; 
