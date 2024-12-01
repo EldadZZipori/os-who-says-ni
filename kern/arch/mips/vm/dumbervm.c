@@ -205,6 +205,19 @@ as_create_stack(struct addrspace* as)
 	return 0;
 }
 
+int 
+alloc_heap_upages(struct addrspace* as, int npages)
+{
+	vaddr_t* va = as->user_heap_end;
+	int result = alloc_upages(as, va, npages, 1, 1, 0);
+	if (result)
+	{
+		return result;
+	}
+
+	as->user_heap_end = (vaddr_t) va;
+}
+
 /* Allocate/free some kernel-space virtual pages */
 vaddr_t
 alloc_kpages(unsigned npages)
