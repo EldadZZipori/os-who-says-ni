@@ -42,15 +42,15 @@
 #define MIPS_KUSEG_END       0x7fffffff
 
 
-#define OFFSET_MASK(x)  ((x) & 0xfff)       // First 12 bits of address
-#define LLPT_MASK(x)    (((x)>>12) & 0x3ff) // Bit 12-21
-#define TLPT_MASK(x)    (((x)>>22) & 0x3ff) // Bit 22-31
-#define TLPT_ENTRY_TO_VADDR(x) ((x) & 0xfffff000)
-#define LLPT_ENTRY_TO_PPN(x) ((x) & 0xfffff000)
-#define LLPT_ENTRY_TO_TLBE(x) ((x) & 0xffffff00)
-#define LLPT_ENTRY_FLAG_MASK(x) ((x) & 0x00000f00)
-#define TLPT_ENTERY_TO_COUNT(x) ((x) & 0x00000fff)
-#define LLPT_ENTERY_PREMISSION_MASK(x) ((x) & 0x7)
+#define VADDR_GET_OFFSET(x)  ((x) & 0xfff)       // First 12 bits of address
+#define VADDR_GET_VPN1(x)    (((x)>>22) & 0x3ff) // Bit 22-31
+#define VADDR_GET_VPN2(x)    (((x)>>12) & 0x3ff) // Bit 12-21
+#define TLPTE_MASK_VADDR(x) ((x) & 0xfffff000)
+#define LLPTE_MASK_PPN(x) ((x) & 0xfffff000)
+#define LLPTE_MASK_TLBE(x) ((x) & 0xffffff00)
+#define LLPTE_MASK_NVDG_FLAGS(x) ((x) & 0x00000f00)
+#define TLPTE_MASK_PAGE_COUNT(x) ((x) & 0x00000fff)
+#define LLPTE_MASK_RWE_FLAGS(x) ((x) & 0x7)
 
 struct vnode;
 

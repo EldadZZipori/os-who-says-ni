@@ -155,8 +155,8 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 	uint32_t i;
 	for (i = 0; i < npages; i++)
 	{
-		int vpn1 = TLPT_MASK(*va);
-    	int vpn2 = LLPT_MASK(*va);
+		int vpn1 = VADDR_GET_VPN1(*va);
+    	int vpn2 = VADDR_GET_VPN2(*va);
 
 		vaddr_t kseg0_va = alloc_kpages(1);
 		paddr_t pa = KSEG0_VADDR_TO_PADDR(kseg0_va);          // Physical address of the new block we created.   
@@ -171,7 +171,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 		} 
 		else
 		{
-			ll_pagetable_va = (vaddr_t *)TLPT_ENTRY_TO_VADDR((vaddr_t)as->ptbase[vpn1]);
+			ll_pagetable_va = (vaddr_t *)TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]);
 			as->ptbase[vpn1] += 0b1;
 		}
 
@@ -293,15 +293,15 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		return EFAULT;
 	}
 
-	int vpn1 = TLPT_MASK(faultaddress);
+	int vpn1 = VADDR_GET_VPN1(faultaddress);
 
 	if(as->ptbase[vpn1] ==  0)	// top level page table was never created, no mapping
 	{
 		return EFAULT;
 	}
 
-	int vpn2 = LLPT_MASK(faultaddress);
-	vaddr_t* ll_pagetable_va = (vaddr_t *) TLPT_ENTRY_TO_VADDR((vaddr_t)as->ptbase[vpn1]); // the low level page table starts at the address stored in the top level page table entry
+	int vpn2 = VADDR_GET_VPN2(faultaddress);
+	vaddr_t* ll_pagetable_va = (vaddr_t *) TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]); // the low level page table starts at the address stored in the top level page table entry
 
 	if (ll_pagetable_va[vpn2] == 0) // there is no entry in the low level page table entry
 	{
@@ -309,7 +309,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	}
 
 	// now we know that there is an actual translation in the page tables
-	uint32_t entrylo = (LLPT_ENTRY_TO_TLBE(ll_pagetable_va[vpn2])); // entries in the low level page table are aligned with the tlb
+	uint32_t entrylo = (LLPTE_MASK_TLBE(ll_pagetable_va[vpn2])); // entries in the low level page table are aligned with the tlb
 	uint32_t entryhigh = faultaddress;
 	
 	spl = splhigh();
@@ -484,17 +484,18 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 		if (old->ptbase[i] != 0) 
 		{
 			vaddr_t *old_as_llpt = (vaddr_t *)old->ptbase[i];
-			vaddr_t *new_as_llpt = (vaddr_t *)new->ptbase[i];
-			new->ptbase[i] = new->ptbase[i] & TLPT_ENTERY_TO_COUNT(old->ptbase[i]); // Add the llpte count into the tlpte 
+			// vaddr_t *new_as_llpt = (vaddr_t *)new->ptbase[i]; // we need to allocate this
+			vaddr_t *new_as_llpt = (vaddr_t *)alloc_upages(1); // will be page-aligned
+			new->ptbase[i] = new_as_llpt | TLPTE_MASK_PAGE_COUNT(old->ptbase[i]); // Add the llpte count into the tlpte 
 		
 			for (int j = 0; j < 1024; j++)
 			{
 				if (old_as_llpt[j] != 0)
 				{
-					paddr_t new_ppn = LLPT_ENTRY_TO_PPN(new_as_llpt[j]);
-					paddr_t old_ppn = LLPT_ENTRY_TO_PPN(old_as_llpt[j]);
+					paddr_t new_ppn = LLPTE_MASK_PPN(new_as_llpt[j]);
+					paddr_t old_ppn = LLPTE_MASK_PPN(old_as_llpt[j]);
 					memcpy((void * )PADDR_TO_KSEG0_VADDR(new_ppn), (void *)PADDR_TO_KSEG0_VADDR(old_ppn), PAGE_SIZE);
-					new_as_llpt[j] = new_as_llpt[j] & LLPT_ENTRY_FLAG_MASK(old_as_llpt[j]) & LLPT_ENTERY_PREMISSION_MASK(old_as_llpt[j]);
+					new_as_llpt[j] = new_as_llpt[j] & LLPTE_MASK_NVDG_FLAGS(old_as_llpt[j]) & LLPTE_MASK_RWE_FLAGS(old_as_llpt[j]);
 				}	
 			}
 		}
@@ -510,10 +511,37 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 
 
 
-// static
-// void 
-// free_upages(vaddr_t addr)
-// {
+static
+void 
+free_upages(vaddr_t addr)
+{
+	int nppages;
+
+	// not sure what we need to assert here about the vaddr
+	KASSERT(true); // leave empty for now 
+
+	// get the paddr through the page table 
+	paddr_t paddr = translate_vaddr(addr);
+
+	// get the page count from the freelist 
+	struct freelist_node *node_firstppage = freelist_get_node(dumbervm.ppage_freelist, paddr);
+	nppages = freelist_node_get_otherpages(node_firstppage) + 1;
+
+	/**
+	 * Free each page by getting each paddr from vaddr to vaddr + nppages * PAGE_SIZE
+	 * and then freelist remove each page
+	 */
+
+	for (int i = 0; i < nppages; i++)
+	{
+		paddr_t paddr = translate_vaddr(addr + (i * PAGE_SIZE));
+		freelist_remove(dumbervm.ppage_freelist, (void*)paddr, PAGE_SIZE);
+	}
+
+	// TODO: do we need to write zeros? 
+}
+
+
 // 	// For Kyle cause I don't know how the size thing work in free_list
 // 	//freelist_remove(ppage_freelist, addr, PAGE_SIZE);
 
@@ -530,3 +558,32 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 		
 // 	*/
 // }
+static 
+paddr_t
+translate_vaddr(vaddr_t vaddr)
+{
+	int vpn1 = VADDR_GET_VPN1(vaddr);
+	int vpn2 = VADDR_GET_VPN2(vaddr);
+
+	struct addrspace *as = proc_getas();
+	if (as == NULL) {
+		return 0;
+	}
+
+	KASSERT(as->ptbase != NULL); // top-level page table must be created
+
+	if(as->ptbase[vpn1] ==  0)	// lower-level page table was never created, no mapping
+	{
+		return 0;
+	}
+
+	vaddr_t* ll_pagetable_va = (vaddr_t *) TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]);
+
+	if (ll_pagetable_va[vpn2] == 0) // there is no entry in the low level page table entry
+	{
+		return 0;
+	}
+
+	// return [      PPAGE      | OFFSET ]
+	return (paddr_t) (LLPTE_MASK_PPN(ll_pagetable_va[vpn2]) | VADDR_GET_OFFSET(vaddr));
+}

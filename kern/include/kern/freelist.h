@@ -25,7 +25,9 @@ void freelist_destroy(struct freelist *fl);
 void* freelist_get_first_fit(struct freelist *fl, size_t sz);
 void freelist_remove(struct freelist *fl, void *blk, size_t sz);
 struct freelist* freelist_copy(struct freelist *src, struct freelist *dst);
+struct freelist_node freelist_get_node(struct freelist *fl, vaddr_t addr);
 void freelist_node_set_otherpages(struct freelist_node *n, int otherpages);
+int freelist_node_get_otherpages(struct freelist_node *n);
 
 
 #endif /* _VM_H_ */

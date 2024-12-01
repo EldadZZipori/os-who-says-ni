@@ -228,3 +228,27 @@ void freelist_node_set_otherpages(struct freelist_node *n, int otherpages)
     n->otherpages = otherpages;
     return;
 }
+
+struct freelist_node* freelist_get_node(vadr_t addr) 
+{
+    // find the node with the address
+    struct freelist_node *cur = fl->head;
+    while (cur != NULL) 
+    {
+        if (cur->addr == addr) 
+        {
+            return cur;
+        }
+        cur = cur->next;
+    }
+
+    return NULL; // not in freelist
+
+}
+
+int freelist_get_otherpages(vaddr_t addr) 
+{
+    struct freelist_node *n = freelist_get_node(addr);
+    if (n == NULL) return -1; 
+    return n->otherpages;
+}
