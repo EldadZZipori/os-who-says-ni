@@ -6,6 +6,7 @@ struct freelist_node {
 	void *addr;
 	size_t sz;
     bool allocated;
+    int otherpages;
 	struct freelist_node *next;
     struct freelist_node *prev;    
 };
@@ -19,10 +20,12 @@ struct freelist {
 
 /* Function definitions */
 struct freelist* freelist_create(void* start, void* end); 
+struct freelist_node *freelist_node_create(struct freelist_node *prev, struct freelist_node *next);
 void freelist_destroy(struct freelist *fl);
 void* freelist_get_first_fit(struct freelist *fl, size_t sz);
 void freelist_remove(struct freelist *fl, void *blk, size_t sz);
 struct freelist* freelist_copy(struct freelist *src, struct freelist *dst);
+void freelist_node_set_otherpages(struct freelist_node *n, int otherpages);
 
 
 #endif /* _VM_H_ */

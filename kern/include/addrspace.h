@@ -74,8 +74,12 @@ struct addrspace {
         /* KUSEG */ 
         vaddr_t user_heap_start;
         vaddr_t user_heap_end;
+        vaddr_t user_first_free_vaddr;
         int n_kuseg_pages_allocated;
         struct lock *heap_lk;
+
+        /* User stack */
+        vaddr_t user_stackbase;
 
         /*  */
         /* KSEG2 */

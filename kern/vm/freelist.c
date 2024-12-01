@@ -49,6 +49,17 @@ struct freelist* freelist_create(void *start, void *end) {
     return fl;
 }
 
+struct freelist_node *freelist_node_create(struct freelist_node *prev, struct freelist_node *next)
+{
+    struct freelist_node *new = kmalloc(sizeof(struct freelist_node));
+    
+    if (new == NULL) return NULL;
+     
+    new->next = next; 
+    new->prev = prev; 
+    new->otherpages = -1;
+}
+
 void freelist_destroy(struct freelist *fl) {
     KASSERT(fl != NULL);
 
@@ -207,4 +218,11 @@ void freelist_remove(struct freelist *fl, void *blk, size_t sz)
     {
         panic("freelist_remove: tried to free a pointer we never allocated\n");
     }
+}
+
+void freelist_node_set_otherpages(struct freelist_node *n, int otherpages)
+{
+    if (n == NULL) return; 
+    n->otherpages = otherpages;
+    return;
 }
