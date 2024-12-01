@@ -74,7 +74,7 @@ struct addrspace {
         /* Put stuff here for your VM system */
         // uint8_t asid; not necessary 
         // vaddr_t* ptbase; // top-level pagetable base
-        int32_t* ptbase;
+        vaddr_t* ptbase;
 
         /* KUSEG */ 
         vaddr_t user_heap_start;

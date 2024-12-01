@@ -70,7 +70,8 @@ vm_bootstrap(void)
 	dumbervm.ppage_freelist = ppage_freelist;
 
 	struct vnode* swap_space;
-	int result = vfs_open("lhd0raw:",O_RDWR, 0, swap_space);
+	char swap_space_name[9] = "lhd0raw:";
+	int result = vfs_open(swap_space_name,O_RDWR, 0, &swap_space);
 
 	if (result)
 	{
@@ -88,7 +89,7 @@ vm_bootstrap(void)
 		return;
 	}
 
-	struct freelist* swap_freelist = freelist_create((void *)0, (void*)swap_space_stat.st_size);
+	struct freelist* swap_freelist = freelist_create((void *)0, (void*)(uintptr_t)swap_space_stat.st_size);
 	if (swap_freelist == NULL)
 	{
 		vfs_close(swap_space);
@@ -97,6 +98,13 @@ vm_bootstrap(void)
 	}
 
 	
+}
+
+static
+void
+as_zero_region(vaddr_t va, unsigned npages)
+{
+	bzero((void *)va , npages * PAGE_SIZE);
 }
 
 static
@@ -109,7 +117,9 @@ getppages(unsigned long npages)
 	{
 		// get first free physical page 
 		pa = (paddr_t)freelist_get_first_fit(dumbervm.ppage_freelist, npages*PAGE_SIZE);
-		freelist_node_set_otherpages(dumbervm.ppage_freelist, npages - 1);
+		// TODO: add the actuall node here
+		freelist_node_set_otherpages(NULL, 0);
+		//freelist_node_set_otherpages(dumbervm.ppage_freelist, npages - 1);
 		
 		// NOTE: should be possible to return error here if out of memory
 
@@ -127,6 +137,72 @@ getppages(unsigned long npages)
 
 	return pa;
 
+}
+
+
+static
+int 
+alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, int writeable, int executable)
+{
+
+	// Allocate memory here
+	/*
+	* our as_create allocates one page for the top level page table itself.
+	*/
+
+	// NOTE: Since we are allocating one block at a time we are not going to have a problem with low level page table getting full 
+	// while we are allocating
+	uint32_t i;
+	for (i = 0; i < npages; i++)
+	{
+		int vpn1 = TLPT_MASK(*va);
+    	int vpn2 = LLPT_MASK(*va);
+
+		vaddr_t kseg0_va = alloc_kpages(1);
+		paddr_t pa = KSEG0_VADDR_TO_PADDR(kseg0_va);          // Physical address of the new block we created.   
+
+		vaddr_t* ll_pagetable_va;
+		if (as->ptbase[vpn1] == 0)  // This means the low level page table for this top level page entery was not created yet
+		{
+			ll_pagetable_va = (vaddr_t *)alloc_kpages(1); // allocate a single page for a low lever page table
+			as_zero_region((vaddr_t)ll_pagetable_va, 1); // zero all entries in the new low level page table.
+
+			as->ptbase[vpn1] = (vaddr_t)((ll_pagetable_va) + 0b1); // Update the count of this low level page table to be 1
+		} 
+		else
+		{
+			ll_pagetable_va = (vaddr_t *)TLPT_ENTRY_TO_VADDR((vaddr_t)as->ptbase[vpn1]);
+			as->ptbase[vpn1] += 0b1;
+		}
+
+		ll_pagetable_va[vpn2] = pa & ((readable << 2) & (writeable << 1) & (executable)); // this will be page aligned
+
+		*va += (vaddr_t)0x1000;
+		as->n_kuseg_pages_allocated++;
+	}
+
+
+	return 0;
+}
+
+static
+int 
+as_create_stack(struct addrspace* as)
+{
+	vaddr_t stack_va = USERSPACETOP - (DUMBVMER_STACKPAGES * PAGE_SIZE);
+	int result = alloc_upages(as, &stack_va, DUMBVMER_STACKPAGES, 1,1,0); 
+	if (result)
+	{
+		return result;
+	}
+	vaddr_t stacktop = stack_va;
+	if (stacktop == USERSPACETOP) {
+		return ENOMEM;
+	}
+	as->user_stackbase = USERSPACETOP - (DUMBVMER_STACKPAGES * PAGE_SIZE);
+	as_zero_region(as->user_stackbase, DUMBVMER_STACKPAGES);
+
+	return 0;
 }
 
 /* Allocate/free some kernel-space virtual pages */
@@ -184,7 +260,6 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 {
 	(void) faulttype;
 	(void) faultaddress;
-	uint32_t ehi, elo;
 	int spl;
 
 	if (curproc == NULL) {
@@ -213,7 +288,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	}
 
 	int vpn2 = LLPT_MASK(faultaddress);
-	vaddr_t* ll_pagetable_va =  TLPT_ENTRY_TO_VADDR(as->ptbase[vpn1]); // the low level page table starts at the address stored in the top level page table entry
+	vaddr_t* ll_pagetable_va = (vaddr_t *) TLPT_ENTRY_TO_VADDR((vaddr_t)as->ptbase[vpn1]); // the low level page table starts at the address stored in the top level page table entry
 
 	if (ll_pagetable_va[vpn2] == 0) // there is no entry in the low level page table entry
 	{
@@ -224,7 +299,11 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	uint32_t entrylo = (LLPT_ENTRY_TO_TLBE(ll_pagetable_va[vpn2])); // entries in the low level page table are aligned with the tlb
 	uint32_t entryhigh = faultaddress;
 	
+	spl = splhigh();
 	tlb_random(entryhigh, entrylo); // Just randomly evict for now
+	splx(spl);
+
+	return 0;
 }
 
 struct addrspace *
@@ -244,8 +323,8 @@ as_create(void)
 	
 	as->user_heap_start = 0;
 	as->user_heap_end = 0;
-	as->ptbase = (uint32_t *)alloc_kpages(1);	// Allocate physical page for the top level page table.
-	as_zero_region(as->ptbase, 1); // Fill the top level page table with zeros
+	as->ptbase = (vaddr_t *)alloc_kpages(1);	// Allocate physical page for the top level page table.
+	as_zero_region((vaddr_t)as->ptbase, 1); // Fill the top level page table with zeros
 	as->n_kuseg_pages_allocated = 0;
 
 
@@ -294,6 +373,7 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 		 int readable, int writeable, int executable)
 {
 	int npages;
+	vaddr_t va = vaddr; // just copy this locally for our own use in the function
 	/* Align the region. First, the base... */
 	sz += vaddr & ~(vaddr_t)PAGE_FRAME;
 	vaddr &= PAGE_FRAME;
@@ -304,17 +384,16 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 	npages = sz / PAGE_SIZE;
 
 	// TODO: deallocate all memory from vaddr to vaddr + npages
-	as->user_first_free_vaddr = alloc_upageas(as, vaddr, npages, readable, writeable, executable);
+	int result;
+	result = alloc_upages(as, &va, npages, readable, writeable, executable);
+	if (result)
+	{
+		return result;
+	}
+	as->user_first_free_vaddr = va;
 	return 0;
 
 
-}
-
-static
-void
-as_zero_region(vaddr_t va, unsigned npages)
-{
-	bzero((void *)va , npages * PAGE_SIZE);
 }
 
 int
@@ -391,8 +470,8 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	{
 		if (old->ptbase[i] != 0) 
 		{
-			vaddr_t *old_as_llpt = old->ptbase[i];
-			vaddr_t *new_as_llpt = new->ptbase[i];
+			vaddr_t *old_as_llpt = (vaddr_t *)old->ptbase[i];
+			vaddr_t *new_as_llpt = (vaddr_t *)new->ptbase[i];
 			new->ptbase[i] = new->ptbase[i] & TLPT_ENTERY_TO_COUNT(old->ptbase[i]); // Add the llpte count into the tlpte 
 		
 			for (int j = 0; j < 1024; j++)
@@ -416,83 +495,25 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	return 0;
 }
 
-static
-int 
-as_create_stack(struct addrspace* as)
-{
-	vaddr_t stack_va = USERSPACETOP - (DUMBVMER_STACKPAGES * PAGE_SIZE);
-	int result = alloc_upages(as, &stack_va, DUMBVMER_STACKPAGES, 1,1,0); 
-	vaddr_t stacktop = stack_va;
-	if (stacktop == USERSPACETOP) {
-		return ENOMEM;
-	}
-	as->user_stackbase = USERSPACETOP - (DUMBVMER_STACKPAGES * PAGE_SIZE);
-	as_zero_region(as->user_stackbase, DUMBVMER_STACKPAGES);
-
-	return 0;
-}
-
-static
-int 
-alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, int writeable, int executable)
-{
-
-	// Allocate memory here
-	/*
-	* our as_create allocates one page for the top level page table itself.
-	*/
-
-	// NOTE: Since we are allocating one block at a time we are not going to have a problem with low level page table getting full 
-	// while we are allocating
-	for (int i = 0; i < npages; i++)
-	{
-		int vpn1 = TLPT_MASK(*va);
-    	int vpn2 = LLPT_MASK(*va);
-
-		vaddr_t kseg0_va = alloc_kpages(1);
-		paddr_t pa = KSEG0_VADDR_TO_PADDR(kseg0_va);          // Physical address of the new block we created.   
-
-		vaddr_t* ll_pagetable_va;
-		if (as->ptbase[vpn1] == 0)  // This means the low level page table for this top level page entery was not created yet
-		{
-			ll_pagetable_va = alloc_kpages(1); // allocate a single page for a low lever page table
-			as_zero_region(ll_pagetable_va, 1); // zero all entries in the new low level page table.
-
-			as->ptbase[vpn1] = (ll_pagetable_va) + 0b1; // Update the count of this low level page table to be 1
-		} 
-		else
-		{
-			ll_pagetable_va = TLPT_ENTRY_TO_VADDR(as->ptbase[vpn1]);
-			as->ptbase[vpn1] += 0b1;
-		}
-
-		ll_pagetable_va[vpn2] = pa & ((readable << 2) & (writeable << 1) & (executable)); // this will be page aligned
-
-		*va += (vaddr_t)0x1000;
-		as->n_kuseg_pages_allocated++;
-	}
 
 
-	return 0;
-}
+// static
+// void 
+// free_upages(vaddr_t addr)
+// {
+// 	// For Kyle cause I don't know how the size thing work in free_list
+// 	//freelist_remove(ppage_freelist, addr, PAGE_SIZE);
 
-static
-void 
-free_upages(vaddr_t addr)
-{
-	// For Kyle cause I don't know how the size thing work in free_list
-	//freelist_remove(ppage_freelist, addr, PAGE_SIZE);
+// 	/*
+// 		pointer = malloc 
+// 		free(pointer+1)
+// 		free(pointer)
 
-	/*
-		pointer = malloc 
-		free(pointer+1)
-		free(pointer)
-
-		alloc_upages(npages=3) {
-			when alloc first save freelist_node.npages = 3
-		}	
+// 		alloc_upages(npages=3) {
+// 			when alloc first save freelist_node.npages = 3
+// 		}	
 
 		
 		
-	*/
-}
+// 	*/
+// }

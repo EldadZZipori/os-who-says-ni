@@ -58,6 +58,8 @@ struct freelist_node *freelist_node_create(struct freelist_node *prev, struct fr
     new->next = next; 
     new->prev = prev; 
     new->otherpages = -1;
+
+    return new;
 }
 
 void freelist_destroy(struct freelist *fl) {
