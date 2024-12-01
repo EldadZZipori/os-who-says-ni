@@ -16,6 +16,9 @@
 #include <vnode.h>
 
 
+#define DUMBVMER_STACKPAGES    18
+
+
 /* General VM stuff */
 
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
@@ -210,7 +213,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	}
 
 	int vpn2 = LLPT_MASK(faultaddress);
-	vaddr_t* ll_pagetable_va =  TLPT_ENTRY_TO_VADDR(*(as->ptbase + vpn1)); // the low level page table starts at the address stored in the top level page table entry
+	vaddr_t* ll_pagetable_va =  TLPT_ENTRY_TO_VADDR(as->ptbase[vpn1]); // the low level page table starts at the address stored in the top level page table entry
 
 	if (*(ll_pagetable_va + vpn2) == 0) // there is no entry in the low level page table entry
 	{
@@ -257,11 +260,13 @@ as_create(void)
 	
 	as->user_heap_start = 0;
 	as->user_heap_end = 0;
-	as->ptbase = alloc_kpages(1);	// Allocate physical page for the top level page table.
+	as->ptbase = (uint32_t *)alloc_kpages(1);	// Allocate physical page for the top level page table.
 	as_zero_region(as->ptbase, 1); // Fill the top level page table with zeros
 	as->n_kuseg_pages_allocated = 0;
 
-	as->user_stackbase = MIPS_KSEG0;
+	//as->user_stackbase = USERSTACK - DUMBVMER_STACKPAGES * PAGE_SIZE;
+	//TODO: allocate space for the stack
+;
 
 	as->user_first_free_vaddr = 0;
 
@@ -327,22 +332,24 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 	(void)writeable;
 	(void)executable;
 
-	if (as->as_vbase1 == 0) {
-		as->as_vbase1 = vaddr;
-		as->as_npages1 = npages;
-		return 0;
-	}
+	// if (as->as_vbase1 == 0) {
+	// 	as->as_vbase1 = vaddr;
+	// 	as->as_npages1 = npages;
+	// 	return 0;
+	// }
 
-	if (as->as_vbase2 == 0) {
-		as->as_vbase2 = vaddr;
-		as->as_npages2 = npages;
-		return 0;
-	}
+	// if (as->as_vbase2 == 0) {
+	// 	as->as_vbase2 = vaddr;
+	// 	as->as_npages2 = npages;
+	// 	return 0;
+	// }
+
+	
 
 	/*
 	 * Support for more than two regions is not available.
 	 */
-	kprintf("dumbvm: Warning: too many regions\n");
+	//kprintf("dumbvmer: Warning: too many regions\n");
 	return ENOSYS;
 }
 
@@ -420,36 +427,38 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	new->user_heap_start = old->user_heap_start;
 	new->user_heap_end = old->user_heap_end;
 
-
-	//memmove(new->ptbase, old->ptbase, PAGE_SIZE); // Copy over the high level page table
-	int i = 0;
-	for (i; i < PAGE_SIZE/sizeof(old->ptbase); i++)
+	// try with arrays: 
+	for (int i = 0; i < 1024; i++)
 	{
-		if(*(old->ptbase + (i)) != 0)
+		if (old->ptbase[i] != 0) 
 		{
-			vaddr_t new_ll_page_table_va = alloc_kpages(1);
-			as_zero_region(new_ll_page_table_va, 1);
-			*(new->ptbase + (i)) = new_ll_page_table_va; // put the virtual address of the low level page table into 
-
-			vaddr_t* old_ll_page_table =  *(old->ptbase + (i));
-			vaddr_t* new_ll_page_table = new_ll_page_table_va;
-			int j = 0;
-
-			for (j; j < 1024; j++)
+			// non-zero value in tlpt. copy llpt then go through it
+			vaddr_t *old_as_llpt = old->ptbase[i];
+			vaddr_t *new_as_llpt = (vaddr_t *)alloc_kpages(1); // make it a pointer so we can treat as array
+			memcpy(new_as_llpt, old_as_llpt, PAGE_SIZE);
+			new->ptbase[i] = (vaddr_t)new_as_llpt & TLPT_ENTERY_TO_COUNT((vaddr_t)old->ptbase[i]); // put in top-level pagetable
+			
+			
+			for (int j = 0; j < 1024; j++)
 			{
-				if (*(old_ll_page_table + (j)) != 0)
+				if (old_as_llpt[j] != 0)
 				{
-					vaddr_t copied_data_va = alloc_kpages(1);	// Allocate a page so we can move the data itself from old to new
-					memmove(copied_data_va, PADDR_TO_KSEG0_VADDR(*(old_ll_page_table + (j))) , PAGE_SIZE); // move the data itself from the old page to the new page
-					*(new_ll_page_table + (j)) = KSEG0_VADDR_TO_PADDR(copied_data_va); // put the physical address of the new data in the new ll page table entry
-					// ll_pte = pt2[vpn2];
-					j++;
+					// allocate page, copy data into it, and update llpte
+					vaddr_t old_as_datapage = old_as_llpt[j] & 0xfffff000; // only PPN
+					vaddr_t new_as_datapage = alloc_kpages(1);
+					memcpy(new_as_datapage, old_as_datapage, PAGE_SIZE);	
+					new_as_llpt[j] = new_as_datapage | (old_as_llpt[j] & 0x00000f00); // NVDG flags
 				}	
 			}
 		}
 	}
 
+
 	new->n_kuseg_pages_allocated = old->n_kuseg_pages_allocated;
+	memmove((new->user_stackbase),
+			(old->user_stackbase),
+			DUMBVMER_STACKPAGES*PAGE_SIZE);
+	
 		
 	*ret = new;
 	return 0;
@@ -484,9 +493,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	// 	(const void *)PADDR_TO_KSEG0_VADDR(old->as_pbase2),
 	// 	old->as_npages2*PAGE_SIZE);
 
-	// memmove((void *)PADDR_TO_KSEG0_VADDR(new->as_stackpbase),
-	// 	(const void *)PADDR_TO_KSEG0_VADDR(old->as_stackpbase),
-	// 	DUMBVM_STACKPAGES*PAGE_SIZE);
+
 
 	// *ret = new;
 	// return 0;

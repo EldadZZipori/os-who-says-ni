@@ -46,7 +46,7 @@
 #define LLPT_MASK(x)    (((x)>>12) & 0x3ff) // Bit 12-21
 #define TLPT_MASK(x)    (((x)>>22) & 0x3ff) // Bit 22-31
 #define TLPT_ENTRY_TO_VADDR(x) ((x) & 0xfffff000)
-#define VADDR_AND_ASIC_TO_TLB_HI(x,y) (((x)& 0xfffff000) & ((y) << 6) )
+#define TLPT_ENTERY_TO_COUNT(x) ((x) & 0x00000fff)
 
 struct vnode;
 
@@ -69,11 +69,13 @@ struct addrspace {
 #else
         /* Put stuff here for your VM system */
         // uint8_t asid; not necessary 
-        vaddr_t* ptbase; // top-level pagetable base
+        // vaddr_t* ptbase; // top-level pagetable base
+        int32_t* ptbase;
 
         /* KUSEG */ 
         vaddr_t user_heap_start;
         vaddr_t user_heap_end;
+
         vaddr_t user_first_free_vaddr;
         int n_kuseg_pages_allocated;
         struct lock *heap_lk;
@@ -81,14 +83,6 @@ struct addrspace {
         /* User stack */
         vaddr_t user_stackbase;
 
-        /*  */
-        /* KSEG2 */
-        //struct freelist *kseg2_freelist;
-        //struct lock *kseg2_fl_lk;
-        //int n_kuseg2_pages_allocated;
-
-
-        // ASID is a parameter of the address space, can only be between 0-63
 #endif
 };
 
