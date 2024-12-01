@@ -46,7 +46,11 @@
 #define LLPT_MASK(x)    (((x)>>12) & 0x3ff) // Bit 12-21
 #define TLPT_MASK(x)    (((x)>>22) & 0x3ff) // Bit 22-31
 #define TLPT_ENTRY_TO_VADDR(x) ((x) & 0xfffff000)
+#define LLPT_ENTRY_TO_PPN(x) ((x) & 0xfffff000)
+#define LLPT_ENTRY_TO_TLBE(x) ((x) & 0xffffff00)
+#define LLPT_ENTRY_FLAG_MASK(x) ((x) & 0x00000f00)
 #define TLPT_ENTERY_TO_COUNT(x) ((x) & 0x00000fff)
+#define LLPT_ENTERY_PREMISSION_MASK(x) ((x) & 0x7)
 
 struct vnode;
 
@@ -81,7 +85,7 @@ struct addrspace {
         struct lock *heap_lk;
 
         /* User stack */
-        vaddr_t user_stackbase;
+        vaddr_t user_stackbase; // User stack is part of KUSEG so it is translated in the tlb
 
 #endif
 };
