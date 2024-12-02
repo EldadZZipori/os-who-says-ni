@@ -4,54 +4,54 @@
 #include <proc.h>
 #include <current.h>
 #include <synch.h>
-#include <kern/freelist.h>
+#include <kern/memlist.h>
 
 
 /**
- * @brief create a freelist for an empty virtual or physical memory region
+ * @brief create a memlist for an empty virtual or physical memory region
  * 
  * @param start void pointer, representing a physical or virtual address,
  *              of the start of the memory region (inclusive)
  * @param end void pointer, representing a physical or virtual address, 
  *              of the end of hte memory region (exclusive)
 */
-struct freelist* freelist_create(paddr_t start, paddr_t end) {
+struct memlist* memlist_create(paddr_t start, paddr_t end) {
 
-    struct freelist *fl = kmalloc(sizeof(struct freelist));
-    if (fl == NULL) 
+    struct memlist *ml = kmalloc(sizeof(struct memlist));
+    if (ml == NULL) 
     {
         return NULL;
     }
 
-    fl->head = kmalloc(sizeof(struct freelist_node));
-    if (fl->head == NULL) 
+    ml->head = kmalloc(sizeof(struct memlist_node));
+    if (ml->head == NULL) 
     {
-        kfree(fl);
+        kfree(ml);
         return NULL;
     }
 
-    fl->fl_lk = lock_create("freelist lock");
-    if (fl->fl_lk == NULL)
+    ml->ml_lk = lock_create("memlist lock");
+    if (ml->ml_lk == NULL)
     {
-        kfree(fl->head);
-        kfree(fl);
+        kfree(ml->head);
+        kfree(ml);
         return NULL;
     }
 
-    fl->start = start; 
-    fl->end = end;
-    fl->head->paddr = start;
-    fl->head->sz = end - start;
-    fl->head->allocated = false;
-    fl->head->next = NULL;
-    fl->head->prev = NULL;
+    ml->start = start; 
+    ml->end = end;
+    ml->head->paddr = start;
+    ml->head->sz = end - start;
+    ml->head->allocated = false;
+    ml->head->next = NULL;
+    ml->head->prev = NULL;
 
-    return fl;
+    return ml;
 }
 
-struct freelist_node *freelist_node_create(struct freelist_node *prev, struct freelist_node *next)
+struct memlist_node *memlist_node_create(struct memlist_node *prev, struct memlist_node *next)
 {
-    struct freelist_node *new = kmalloc(sizeof(struct freelist_node));
+    struct memlist_node *new = kmalloc(sizeof(struct memlist_node));
     
     if (new == NULL) return NULL;
      
@@ -62,10 +62,10 @@ struct freelist_node *freelist_node_create(struct freelist_node *prev, struct fr
     return new;
 }
 
-void freelist_destroy(struct freelist *fl) {
-    KASSERT(fl != NULL);
+void memlist_destroy(struct memlist *ml) {
+    KASSERT(ml != NULL);
 
-    struct freelist_node *cur = fl->head->next;
+    struct memlist_node *cur = ml->head->next;
 
     while (cur != NULL) 
     {
@@ -73,25 +73,25 @@ void freelist_destroy(struct freelist *fl) {
         cur = cur->next;
     }
     
-    lock_destroy(fl->fl_lk);
-    kfree(fl);
+    lock_destroy(ml->ml_lk);
+    kfree(ml);
 }
 
 /** 
- * @brief gets a free block and updates the freelist accordingly 
+ * @brief gets a free block and updates the memlist accordingly 
  * 
- * @param fl freelist 
+ * @param ml memlist 
  * @param sz size of the block to allocate
  * Case 1: Find block equal to size 
  * e.g.: get_first_fit(100) 
  * 
  * Before: 
- * fl -> 40 -> 60 -> 100 -> 200 -> NULL
+ * ml -> 40 -> 60 -> 100 -> 200 -> NULL
  * 
  * After: 
  *             100B allocated 
  *                 v 
- * fl -> 40 -> 60 -> 200 -> NULL
+ * ml -> 40 -> 60 -> 200 -> NULL
  * 
  * 
  * 
@@ -99,30 +99,30 @@ void freelist_destroy(struct freelist *fl) {
  * e.g. get_first_fit(70) 
  * 
  * Before: 
- * fl -> 40 -> 60 -> 100 -> 200 -> NULL
+ * ml -> 40 -> 60 -> 100 -> 200 -> NULL
  * 
  * After: 
  *              70B allocated
  *                  v                   
- * fl -> 40 -> 60 -> 30 -> 200 -> NULL
+ * ml -> 40 -> 60 -> 30 -> 200 -> NULL
  */
-paddr_t freelist_get_first_fit(struct freelist *fl, size_t sz) {
-    KASSERT(fl != NULL);
+paddr_t memlist_get_first_fit(struct memlist *ml, size_t sz) {
+    KASSERT(ml != NULL);
     KASSERT(sz > 0);
-    struct freelist_node *cur = fl->head;
+    struct memlist_node *cur = ml->head;
     while (cur != NULL) 
     {
-        // remove the block from the freelist
-        if (cur->sz == sz) // perfect fit, just set to allocated and dont change ptrs
+        // remove the block from the memlist
+        if (cur->sz == sz && cur->allocated == false) // perfect fit, just set to allocated and dont change ptrs
         { 
             cur->allocated = true;
             return cur->paddr; 
         }
-        else if (cur->sz > sz) 
+        else if (cur->sz > sz && cur->allocated == false) 
         {
             // split block into 
             // [ allocd, sz = sz] [ not_allocd, sz = prevsz - sz]
-            struct freelist_node *new = kmalloc(sizeof(struct freelist_node));
+            struct memlist_node *new = kmalloc(sizeof(struct memlist_node));
             new->paddr = cur->paddr + sz; // start after allocd block
             new->sz = cur->sz - sz; // current sz - alloc sz
             new->allocated = false; 
@@ -134,31 +134,20 @@ paddr_t freelist_get_first_fit(struct freelist *fl, size_t sz) {
             cur->next = new; 
             return cur->paddr;
         }
+        cur = cur->next;
     } 
     return (paddr_t)NULL;
 }
 
 /* Free a block */
-void freelist_remove(struct freelist *fl, paddr_t blk, size_t sz)
+void memlist_remove(struct memlist *ml, paddr_t blk)
 {
-    KASSERT(fl != NULL);
-    KASSERT(fl->head != NULL);
-    KASSERT(blk < fl->end);
-    KASSERT(blk >= fl->start);
+    KASSERT(ml != NULL);
+    KASSERT(ml->head != NULL);
+    KASSERT(blk < ml->end);
+    KASSERT(blk >= ml->start);
 
-    struct freelist_node *cur = fl->head; 
-    struct freelist_node *new = kmalloc(sizeof(struct freelist_node)); 
-
-    new->paddr = blk; 
-    new->sz = sz; 
-
-    // Case 1: if freelist is empty, add node
-    if (cur == NULL) {
-        fl->head = new;
-        new->next = NULL;
-        new->prev = NULL;
-        return;
-    }
+    struct memlist_node *cur = ml->head; 
 
     // find the allocated block we want to free
     while (cur != NULL) 
@@ -194,7 +183,7 @@ void freelist_remove(struct freelist *fl, paddr_t blk, size_t sz)
         {
             cur->prev->sz += cur->sz; // merge sizes
             cur->prev->next = cur->next; // fix forward ptr
-            cur->next->prev = cur->prev; // fix backward ptr
+            if (cur->next != NULL) cur->next->prev = cur->prev; // fix backward ptr
             kfree(cur);
         }
 
@@ -222,11 +211,11 @@ void freelist_remove(struct freelist *fl, paddr_t blk, size_t sz)
     }
     else
     {
-        panic("freelist_remove: tried to free a pointer we never allocated\n");
+        panic("memlist_remove: tried to free a pointer we never allocated\n");
     }
 }
 
-struct freelist *freelist_copy(struct freelist *src, struct freelist *dst)
+struct memlist *memlist_copy(struct memlist *src, struct memlist *dst)
 {
     KASSERT(src != NULL);
     KASSERT(dst != NULL);
@@ -234,19 +223,19 @@ struct freelist *freelist_copy(struct freelist *src, struct freelist *dst)
     if (src->head == NULL) return NULL; // nothing to copy
 
     if (dst->head == NULL) {
-        dst->head = kmalloc(sizeof(struct freelist_node));
+        dst->head = kmalloc(sizeof(struct memlist_node));
         if (dst->head == NULL) return NULL;
     }
 
-    struct freelist_node *cur_src = src->head;
-    struct freelist_node *cur_dst = dst->head;
+    struct memlist_node *cur_src = src->head;
+    struct memlist_node *cur_dst = dst->head;
 
 
     while (cur_src->next != NULL) 
     {
         if (cur_dst->next == NULL) 
         {
-            cur_dst->next = kmalloc(sizeof(struct freelist_node));
+            cur_dst->next = kmalloc(sizeof(struct memlist_node));
             if (cur_dst->next == NULL) return NULL;
 
             cur_dst->next->prev = cur_dst; // set prev ptr
@@ -263,10 +252,10 @@ struct freelist *freelist_copy(struct freelist *src, struct freelist *dst)
     return dst;
 }
 
-struct freelist_node* freelist_get_node(struct freelist *fl, paddr_t paddr) 
+struct memlist_node* memlist_get_node(struct memlist *ml, paddr_t paddr) 
 {
     // find the node with the address
-    struct freelist_node *cur = fl->head;
+    struct memlist_node *cur = ml->head;
     while (cur != NULL) 
     {
         if (cur->paddr == paddr) 
@@ -276,18 +265,18 @@ struct freelist_node* freelist_get_node(struct freelist *fl, paddr_t paddr)
         cur = cur->next;
     }
 
-    return NULL; // not in freelist
+    return NULL; // not in memlist
 
 }
 
-void freelist_node_set_otherpages(struct freelist_node *n, int otherpages)
+void memlist_node_set_otherpages(struct memlist_node *n, int otherpages)
 {
     if (n == NULL) return; 
     n->otherpages = otherpages;
     return;
 }
 
-int freelist_node_get_otherpages(struct freelist_node *n) 
+int memlist_node_get_otherpages(struct memlist_node *n) 
 {
     if (n == NULL) return -1; 
     return n->otherpages;

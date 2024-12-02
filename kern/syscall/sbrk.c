@@ -5,7 +5,7 @@
 #include <kern/errno.h>
 #include <synch.h>
 #include <types.h>
-#include <freelist.h>
+#include <memlist.h>
 
 int
 sbrk (int amount, int* retval)

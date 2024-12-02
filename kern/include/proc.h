@@ -102,9 +102,6 @@ struct proc {
 
 	procstate_t state;
 	volatile int exit_status;
-
-	// Pointer to the base of the pagetable
-	// freelist to manage kuseg and kseg2
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */

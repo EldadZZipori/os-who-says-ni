@@ -8,7 +8,7 @@
 #include <mips/tlb.h>
 #include <addrspace.h>
 #include <vm.h>
-#include <kern/freelist.h>
+#include <kern/memlist.h>
 #include <synch.h>
 #include <vfs.h>
 #include <kern/fcntl.h>
@@ -30,16 +30,16 @@ vm_bootstrap(void)
 	/*
 	 * 1. Fetch bottom of ram
 	 * 2. Fetch size of ram
-	 * 3. Init a freelist to manage the physical space on our system
-	 * 4. Add the freelist to the ram
+	 * 3. Init a memlist to manage the physical space on our system
+	 * 4. Add the memlist to the ram
 	 */
 
 	paddr_t ram_end = ram_getsize();
 	paddr_t ram_start = ram_getfirstfree();
 
-	// allocate freelist on stack
-	struct freelist temp_ppage_fl; 
-	struct freelist_node temp_ppage_fl_head; 
+	// allocate memlist on stack
+	struct memlist temp_ppage_fl; 
+	struct memlist_node temp_ppage_fl_head; 
 
 	temp_ppage_fl.start = ram_start;
 	temp_ppage_fl.end = ram_end+1;
@@ -50,24 +50,24 @@ vm_bootstrap(void)
 	temp_ppage_fl.head->next = NULL;
 	temp_ppage_fl.head->prev = NULL;
 
-	dumbervm.ppage_freelist = &temp_ppage_fl;
+	dumbervm.ppage_memlist = &temp_ppage_fl;
 	dumbervm.vm_ready = true;
 
 
-	// allocate first object in tracked RAM space: the RAM freelist lol
-	struct freelist *ppage_freelist = freelist_create(ram_start, ram_end+1);
-	if (ppage_freelist == NULL) {
-		panic("Can't allocate ppage freelist\n");
+	// allocate first object in tracked RAM space: the RAM memlist lol
+	struct memlist *ppage_memlist = memlist_create(ram_start, ram_end+1);
+	if (ppage_memlist == NULL) {
+		panic("Can't allocate ppage memlist\n");
 	}
 
 	// make sure we didnt allocate any extra nodes
 	KASSERT(temp_ppage_fl_head.next == NULL);
 
-	// copy temp freelist to actual freelist
-	freelist_copy(&temp_ppage_fl, ppage_freelist);
+	// copy temp memlist to actual memlist
+	memlist_copy(&temp_ppage_fl, ppage_memlist);
 
-	// set the freelist to the actual freelist
-	dumbervm.ppage_freelist = ppage_freelist;
+	// set the memlist to the actual memlist
+	dumbervm.ppage_memlist = ppage_memlist;
 
 	struct vnode* swap_space;
 	char swap_space_name[9] = "lhd0raw:";
@@ -89,8 +89,8 @@ vm_bootstrap(void)
 		return;
 	}
 
-	struct freelist* swap_freelist = freelist_create((paddr_t)0, (paddr_t)(uintptr_t)swap_space_stat.st_size);
-	if (swap_freelist == NULL)
+	struct memlist* swap_memlist = memlist_create((paddr_t)0, (paddr_t)(uintptr_t)swap_space_stat.st_size);
+	if (swap_memlist == NULL)
 	{
 		vfs_close(swap_space);
 		kprintf("dumbervm: cannot get swap space size, continuing without swap space");
@@ -116,16 +116,16 @@ getppages(unsigned long npages)
 	if (dumbervm.vm_ready)
 	{
 		// get first free physical page 
-		pa = (paddr_t)freelist_get_first_fit(dumbervm.ppage_freelist, npages*PAGE_SIZE);
+		pa = (paddr_t)memlist_get_first_fit(dumbervm.ppage_memlist, npages*PAGE_SIZE);
 
 		// TODO: add the actuall node here
-		struct freelist_node *n = freelist_get_node(dumbervm.ppage_freelist, pa);
-		freelist_node_set_otherpages(n, 0);
+		struct memlist_node *n = memlist_get_node(dumbervm.ppage_memlist, pa);
+		memlist_node_set_otherpages(n, 0);
 		
 		// NOTE: should be possible to return error here if out of memory
 
-		KASSERT(pa >= (paddr_t)dumbervm.ppage_freelist->start);
-		KASSERT(pa < (paddr_t)dumbervm.ppage_freelist->end);
+		KASSERT(pa >= (paddr_t)dumbervm.ppage_memlist->start);
+		KASSERT(pa < (paddr_t)dumbervm.ppage_memlist->end);
 	}
 	else
 	{
@@ -161,10 +161,10 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 
 		vaddr_t kseg0_va = alloc_kpages(1);
 
-		// set the 'otherpages' field in the freelist node of the first page in the block
+		// set the 'otherpages' field in the memlist node of the first page in the block
 		if (i == 0) {
-			struct freelist_node *n = freelist_get_node(dumbervm.ppage_freelist, KSEG0_VADDR_TO_PADDR(kseg0_va));
-			freelist_node_set_otherpages(n, npages - 1);
+			struct memlist_node *n = memlist_get_node(dumbervm.ppage_memlist, KSEG0_VADDR_TO_PADDR(kseg0_va));
+			memlist_node_set_otherpages(n, npages - 1);
 		}
 
 		paddr_t pa = KSEG0_VADDR_TO_PADDR(kseg0_va);          // Physical address of the new block we created.   
@@ -241,7 +241,7 @@ alloc_kpages(unsigned npages)
 		return 0;
 	}
 
-	/* No freelist required */
+	/* No memlist required */
 	vaddr_t va = PADDR_TO_KSEG0_VADDR(pa);
 
 	KASSERT(va >= MIPS_KSEG0);
@@ -260,7 +260,7 @@ free_kpages(vaddr_t addr)
 	paddr_t paddr = addr - MIPS_KSEG0;
 
 	// For now, just remove a single page.
-	freelist_remove(dumbervm.ppage_freelist, paddr, PAGE_SIZE);
+	memlist_remove(dumbervm.ppage_memlist, paddr);
 }
 
 void
@@ -577,19 +577,19 @@ free_upages(vaddr_t vaddr)
 	// get the paddr through the page table 
 	paddr_t paddr = translate_vaddr(vaddr);
 
-	// get the page count from the freelist 
-	struct freelist_node *n = freelist_get_node(dumbervm.ppage_freelist, paddr);
-	nppages = freelist_node_get_otherpages(n) + 1;
+	// get the page count from the memlist 
+	struct memlist_node *n = memlist_get_node(dumbervm.ppage_memlist, paddr);
+	nppages = memlist_node_get_otherpages(n) + 1;
 
 	/**
 	 * Free each page by getting each paddr from vaddr to vaddr + nppages * PAGE_SIZE
-	 * and then freelist remove each page
+	 * and then memlist remove each page
 	 */
 
 	for (int i = 0; i < nppages; i++)
 	{
 		paddr_t paddr = translate_vaddr(vaddr + (i * PAGE_SIZE));
-		freelist_remove(dumbervm.ppage_freelist, paddr, PAGE_SIZE);
+		memlist_remove(dumbervm.ppage_memlist, paddr);
 	}
 
 	// TODO: we need to remove the pagetable entries
@@ -597,7 +597,7 @@ free_upages(vaddr_t vaddr)
 
 
 // 	// For Kyle cause I don't know how the size thing work in free_list
-// 	//freelist_remove(ppage_freelist, addr, PAGE_SIZE);
+// 	//memlist_remove(ppage_memlist, addr, PAGE_SIZE);
 
 // 	/*
 // 		pointer = malloc 
@@ -605,7 +605,7 @@ free_upages(vaddr_t vaddr)
 // 		free(pointer)
 
 // 		alloc_upages(npages=3) {
-// 			when alloc first save freelist_node.npages = 3
+// 			when alloc first save memlist_node.npages = 3
 // 		}	
 
 		

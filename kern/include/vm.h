@@ -43,8 +43,8 @@
 
 struct vm
 {
-    struct freelist *ppage_freelist;
-    struct freelist *swap_freelist; // Holds offset 0- size of swap space
+    struct memlist *ppage_memlist;
+    struct memlist *swap_memlist; // Holds offset 0- size of swap space
 
     struct vnode *swap_space;
 

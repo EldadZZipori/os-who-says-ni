@@ -92,16 +92,16 @@ Print a proctable with pids.
 Usage: proctable myproctable
 end
 
-define printfreelist
+define printmemlist
     set $node = $arg0->head
-    printf "freelist contents:\nHEAD -> "
+    printf "memlist contents:\nHEAD -> "
     while ($node != 0)
-    printf "[ %u: %u bytes ] -> ", $node->addr - $arg0->start, $node->sz
+    printf "[ %u: %u bytes, a: %u ] -> ", $node->paddr - $arg0->start, $node->sz, $node->allocated
     set $node = $node->next
     end
     printf "NULL\n"
 end
 
-define pfl 
-    printfreelist dumbervm.ppage_freelist
+define pml 
+    printmemlist dumbervm.ppage_memlist
 end

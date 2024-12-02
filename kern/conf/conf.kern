@@ -439,6 +439,7 @@ optfile   synchprobs  synchprobs/airballoon.c
 
 file		test/arraytest.c
 file		test/bitmaptest.c
+file        test/memlisttest.c
 file		test/threadlisttest.c
 file		test/threadtest.c
 file		test/tt3.c
@@ -475,5 +476,5 @@ file        syscall/execv.c
 #           Virtual Machine            #
 #                                      #
 ########################################
-file        vm/freelist.c
+file        vm/memlist.c
 file  arch/mips/vm/dumbervm.c

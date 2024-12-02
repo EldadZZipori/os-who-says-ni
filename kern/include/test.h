@@ -46,6 +46,7 @@ int airballoon(int, char **);
 /* data structure tests */
 int arraytest(int, char **);
 int bitmaptest(int, char **);
+int memlisttest(int, char **);
 int threadlisttest(int, char **);
 
 /* thread tests */
