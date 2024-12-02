@@ -319,8 +319,8 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	int vpn2 = VADDR_GET_VPN2(faultaddress);
 	vaddr_t* ll_pagetable_va = (vaddr_t *) TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]); // the low level page table starts at the address stored in the top level page table entry
 
-	
-	if (ll_pagetable_va[vpn2] == 0) // there is no entry in the low level page table entry
+	paddr_t ll_pagetable_entry = ll_pagetable_va[vpn2];
+	if (ll_pagetable_entry == 0) // there is no entry in the low level page table entry
 	{
 		return EFAULT;
 	}
@@ -329,18 +329,39 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	{
 		case VM_FAULT_READONLY:
 			// we tried to write to a read only page that is already in the TLB
+			// or we tried to write to a page whose dirty bit is not set yet
+			if (LLPTE_GET_WRITE_PERMISSION_BIT(ll_pagetable_entry))
+			{
+				// set dirty bit
+				ll_pagetable_va[vpn2] |= (0b1 << 10); // set bit 10 to 1
+			} else {
+				// hard fault
+			}
 		break;
 		case VM_FAULT_READ:
 			// we tried to read from a page not in the TLB
 			// but is in pagetable.
-			LLPTE_GET_READBLE()
+			if(!LLPTE_GET_READ_PERMISSION_BIT(ll_pagetable_entry))
+			{
+				return EFAULT; // tried to read from a non readable page
+			}
+			// add to tlb 
+			// and set valid bit
+			
 		break;
 		case VM_FAULT_WRITE:
 			// we tried to write to a page not in the TLB...? I think?
 			// but is in pagetable.
+			if(!LLPTE_GET_WRITE_PERMISSION_BIT(ll_pagetable_entry))
+			{
+				return EFAULT;
+			}
+			// add to tlb 
+			// and set valid bit 
+			// and then set dirty bit? or call vm_fault
 		break;
 	}
-
+	ll_pagetable_va[vpn2] |= (0b1 << 9); // set bit 9 (valid bit) to 1
 	// now we know that there is an actual translation in the page tables
 	uint32_t entrylo = (LLPTE_MASK_TLBE(ll_pagetable_va[vpn2])); // entries in the low level page table are aligned with the tlb
 	uint32_t entryhigh = faultaddress;
