@@ -167,6 +167,10 @@ void freelist_remove(struct freelist *fl, paddr_t blk, size_t sz)
         {
             cur = cur->next;
         }
+        else
+        {
+            break;
+        }
     }
 
     // either cur = allocd block we want to free
