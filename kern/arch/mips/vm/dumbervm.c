@@ -302,6 +302,13 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		return EFAULT;
 	}
 
+	/* Tried to access kernel memory */
+	if (faultaddress >= MIPS_KSEG0)
+	{
+		return EFAULT;
+	}
+
+
 	int vpn1 = VADDR_GET_VPN1(faultaddress);
 
 	if(as->ptbase[vpn1] ==  0)	// top level page table was never created, no mapping
@@ -312,9 +319,26 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	int vpn2 = VADDR_GET_VPN2(faultaddress);
 	vaddr_t* ll_pagetable_va = (vaddr_t *) TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]); // the low level page table starts at the address stored in the top level page table entry
 
+	
 	if (ll_pagetable_va[vpn2] == 0) // there is no entry in the low level page table entry
 	{
 		return EFAULT;
+	}
+	
+	switch (faulttype)
+	{
+		case VM_FAULT_READONLY:
+			// we tried to write to a read only page that is already in the TLB
+		break;
+		case VM_FAULT_READ:
+			// we tried to read from a page not in the TLB
+			// but is in pagetable.
+			LLPTE_GET_READBLE()
+		break;
+		case VM_FAULT_WRITE:
+			// we tried to write to a page not in the TLB...? I think?
+			// but is in pagetable.
+		break;
 	}
 
 	// now we know that there is an actual translation in the page tables
