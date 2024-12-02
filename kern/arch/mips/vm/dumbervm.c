@@ -117,9 +117,10 @@ getppages(unsigned long npages)
 	{
 		// get first free physical page 
 		pa = (paddr_t)freelist_get_first_fit(dumbervm.ppage_freelist, npages*PAGE_SIZE);
+
 		// TODO: add the actuall node here
-		freelist_node_set_otherpages(NULL, 0);
-		//freelist_node_set_otherpages(dumbervm.ppage_freelist, npages - 1);
+		struct freelist_node *n = freelist_get_node(dumbervm.ppage_freelist, pa);
+		freelist_node_set_otherpages(n, 0);
 		
 		// NOTE: should be possible to return error here if out of memory
 
@@ -591,7 +592,7 @@ free_upages(vaddr_t vaddr)
 		freelist_remove(dumbervm.ppage_freelist, paddr, PAGE_SIZE);
 	}
 
-	// TODO: do we need to write zeros? 
+	// TODO: we need to remove the pagetable entries
 }
 
 

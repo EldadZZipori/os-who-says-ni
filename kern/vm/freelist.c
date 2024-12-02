@@ -204,7 +204,7 @@ void freelist_remove(struct freelist *fl, paddr_t blk, size_t sz)
         { 
             cur->sz += cur->next->sz; // merge sizes
             cur->next = cur->next->next; // fix forward ptr
-            cur->next->prev = cur; // fix backward ptr
+            if (cur->next != NULL) cur->next->prev = cur; // fix backward ptr
             cur->allocated = false; // set to be a large free blk 
             kfree(cur->next);
         }
