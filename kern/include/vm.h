@@ -39,6 +39,7 @@
 
 #include <machine/vm.h>
 #include <kern/types.h>
+#include <addrspace.h>
 
 struct vm
 {
@@ -69,6 +70,8 @@ vaddr_t alloc_kpages(unsigned npages);
 void free_kpages(vaddr_t addr);
 
 int alloc_heap_upages(struct addrspace* as, int npages);
+void free_upages(vaddr_t vaddr);
+paddr_t translate_vaddr(vaddr_t vaddr);
 
 
 /* TLB shootdown handling called from interprocessor_interrupt */

@@ -41,11 +41,11 @@ vm_bootstrap(void)
 	struct freelist temp_ppage_fl; 
 	struct freelist_node temp_ppage_fl_head; 
 
-	temp_ppage_fl.start = (void*)ram_start;
-	temp_ppage_fl.end = (void*)ram_end+1;
+	temp_ppage_fl.start = ram_start;
+	temp_ppage_fl.end = ram_end+1;
 	temp_ppage_fl.head = &temp_ppage_fl_head;
 
-	temp_ppage_fl.head->addr = (void*)ram_start;
+	temp_ppage_fl.head->paddr = (paddr_t)ram_start;
 	temp_ppage_fl.head->sz = ram_end - ram_start;
 	temp_ppage_fl.head->next = NULL;
 	temp_ppage_fl.head->prev = NULL;
@@ -55,7 +55,7 @@ vm_bootstrap(void)
 
 
 	// allocate first object in tracked RAM space: the RAM freelist lol
-	struct freelist *ppage_freelist = freelist_create((void*)ram_start, (void*)ram_end+1);
+	struct freelist *ppage_freelist = freelist_create(ram_start, ram_end+1);
 	if (ppage_freelist == NULL) {
 		panic("Can't allocate ppage freelist\n");
 	}
@@ -89,7 +89,7 @@ vm_bootstrap(void)
 		return;
 	}
 
-	struct freelist* swap_freelist = freelist_create((void *)0, (void*)(uintptr_t)swap_space_stat.st_size);
+	struct freelist* swap_freelist = freelist_create((paddr_t)0, (paddr_t)(uintptr_t)swap_space_stat.st_size);
 	if (swap_freelist == NULL)
 	{
 		vfs_close(swap_space);
@@ -159,6 +159,13 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
     	int vpn2 = VADDR_GET_VPN2(*va);
 
 		vaddr_t kseg0_va = alloc_kpages(1);
+
+		// set the 'otherpages' field in the freelist node of the first page in the block
+		if (i == 0) {
+			struct freelist_node *n = freelist_get_node(dumbervm.ppage_freelist, KSEG0_VADDR_TO_PADDR(kseg0_va));
+			freelist_node_set_otherpages(n, npages - 1);
+		}
+
 		paddr_t pa = KSEG0_VADDR_TO_PADDR(kseg0_va);          // Physical address of the new block we created.   
 
 		vaddr_t* ll_pagetable_va;
@@ -208,14 +215,16 @@ as_create_stack(struct addrspace* as)
 int 
 alloc_heap_upages(struct addrspace* as, int npages)
 {
-	vaddr_t* va = as->user_heap_end;
-	int result = alloc_upages(as, va, npages, 1, 1, 0);
+	vaddr_t va = as->user_heap_end;
+	int result = alloc_upages(as, &va, npages, 1, 1, 0);
 	if (result)
 	{
 		return result;
 	}
 
 	as->user_heap_end = (vaddr_t) va;
+
+	return 0;
 }
 
 /* Allocate/free some kernel-space virtual pages */
@@ -250,7 +259,7 @@ free_kpages(vaddr_t addr)
 	paddr_t paddr = addr - MIPS_KSEG0;
 
 	// For now, just remove a single page.
-	freelist_remove(dumbervm.ppage_freelist, (void*)paddr, PAGE_SIZE);
+	freelist_remove(dumbervm.ppage_freelist, paddr, PAGE_SIZE);
 }
 
 void
@@ -484,9 +493,9 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 		if (old->ptbase[i] != 0) 
 		{
 			vaddr_t *old_as_llpt = (vaddr_t *)old->ptbase[i];
-			// vaddr_t *new_as_llpt = (vaddr_t *)new->ptbase[i]; // we need to allocate this
-			vaddr_t *new_as_llpt = (vaddr_t *)alloc_upages(1); // will be page-aligned
-			new->ptbase[i] = new_as_llpt | TLPTE_MASK_PAGE_COUNT(old->ptbase[i]); // Add the llpte count into the tlpte 
+			vaddr_t *new_as_llpt = (vaddr_t *)new->ptbase[i]; // we need to allocate this
+			//vaddr_t *new_as_llpt = (vaddr_t *)alloc_upages(1); // will be page-aligned
+			new->ptbase[i] = (vaddr_t)((int32_t)new_as_llpt | (int32_t)TLPTE_MASK_PAGE_COUNT((int32_t)(old->ptbase[i]))); // Add the llpte count into the tlpte 
 		
 			for (int j = 0; j < 1024; j++)
 			{
@@ -511,21 +520,20 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 
 
 
-static
 void 
-free_upages(vaddr_t addr)
+free_upages(vaddr_t vaddr)
 {
 	int nppages;
 
-	// not sure what we need to assert here about the vaddr
+	// TODO: not sure what we need to assert here about the vaddr
 	KASSERT(true); // leave empty for now 
 
 	// get the paddr through the page table 
-	paddr_t paddr = translate_vaddr(addr);
+	paddr_t paddr = translate_vaddr(vaddr);
 
 	// get the page count from the freelist 
-	struct freelist_node *node_firstppage = freelist_get_node(dumbervm.ppage_freelist, paddr);
-	nppages = freelist_node_get_otherpages(node_firstppage) + 1;
+	struct freelist_node *n = freelist_get_node(dumbervm.ppage_freelist, paddr);
+	nppages = freelist_node_get_otherpages(n) + 1;
 
 	/**
 	 * Free each page by getting each paddr from vaddr to vaddr + nppages * PAGE_SIZE
@@ -534,8 +542,8 @@ free_upages(vaddr_t addr)
 
 	for (int i = 0; i < nppages; i++)
 	{
-		paddr_t paddr = translate_vaddr(addr + (i * PAGE_SIZE));
-		freelist_remove(dumbervm.ppage_freelist, (void*)paddr, PAGE_SIZE);
+		paddr_t paddr = translate_vaddr(vaddr + (i * PAGE_SIZE));
+		freelist_remove(dumbervm.ppage_freelist, paddr, PAGE_SIZE);
 	}
 
 	// TODO: do we need to write zeros? 
@@ -558,7 +566,6 @@ free_upages(vaddr_t addr)
 		
 // 	*/
 // }
-static 
 paddr_t
 translate_vaddr(vaddr_t vaddr)
 {

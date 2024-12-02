@@ -15,7 +15,7 @@
  * @param end void pointer, representing a physical or virtual address, 
  *              of the end of hte memory region (exclusive)
 */
-struct freelist* freelist_create(void *start, void *end) {
+struct freelist* freelist_create(paddr_t start, paddr_t end) {
 
     struct freelist *fl = kmalloc(sizeof(struct freelist));
     if (fl == NULL) 
@@ -40,7 +40,7 @@ struct freelist* freelist_create(void *start, void *end) {
 
     fl->start = start; 
     fl->end = end;
-    fl->head->addr = start;
+    fl->head->paddr = start;
     fl->head->sz = end - start;
     fl->head->allocated = false;
     fl->head->next = NULL;
@@ -106,7 +106,7 @@ void freelist_destroy(struct freelist *fl) {
  *                  v                   
  * fl -> 40 -> 60 -> 30 -> 200 -> NULL
  */
-void* freelist_get_first_fit(struct freelist *fl, size_t sz) {
+paddr_t freelist_get_first_fit(struct freelist *fl, size_t sz) {
     KASSERT(fl != NULL);
     KASSERT(sz > 0);
     struct freelist_node *cur = fl->head;
@@ -116,14 +116,14 @@ void* freelist_get_first_fit(struct freelist *fl, size_t sz) {
         if (cur->sz == sz) // perfect fit, just set to allocated and dont change ptrs
         { 
             cur->allocated = true;
-            return cur->addr; 
+            return cur->paddr; 
         }
         else if (cur->sz > sz) 
         {
             // split block into 
             // [ allocd, sz = sz] [ not_allocd, sz = prevsz - sz]
             struct freelist_node *new = kmalloc(sizeof(struct freelist_node));
-            new->addr = cur->addr + sz; // start after allocd block
+            new->paddr = cur->paddr + sz; // start after allocd block
             new->sz = cur->sz - sz; // current sz - alloc sz
             new->allocated = false; 
             new->prev = cur;
@@ -132,14 +132,14 @@ void* freelist_get_first_fit(struct freelist *fl, size_t sz) {
             cur->sz = sz; 
             cur->allocated = true; 
             cur->next = new; 
-            return cur->addr;
+            return cur->paddr;
         }
     } 
-    return NULL;
+    return (paddr_t)NULL;
 }
 
 /* Free a block */
-void freelist_remove(struct freelist *fl, void *blk, size_t sz)
+void freelist_remove(struct freelist *fl, paddr_t blk, size_t sz)
 {
     KASSERT(fl != NULL);
     KASSERT(fl->head != NULL);
@@ -149,7 +149,7 @@ void freelist_remove(struct freelist *fl, void *blk, size_t sz)
     struct freelist_node *cur = fl->head; 
     struct freelist_node *new = kmalloc(sizeof(struct freelist_node)); 
 
-    new->addr = blk; 
+    new->paddr = blk; 
     new->sz = sz; 
 
     // Case 1: if freelist is empty, add node
@@ -163,7 +163,7 @@ void freelist_remove(struct freelist *fl, void *blk, size_t sz)
     // find the allocated block we want to free
     while (cur != NULL) 
     { 
-        if (cur->addr != blk) // not this one
+        if (cur->paddr != blk) // not this one
         {
             cur = cur->next;
         }
@@ -248,7 +248,7 @@ struct freelist *freelist_copy(struct freelist *src, struct freelist *dst)
             cur_dst->next->prev = cur_dst; // set prev ptr
         }
         // copy fields 
-        cur_dst->addr = cur_src->addr;
+        cur_dst->paddr = cur_src->paddr;
         cur_dst->sz = cur_src->sz;
         cur_dst->allocated = cur_src->allocated;
 
@@ -259,20 +259,13 @@ struct freelist *freelist_copy(struct freelist *src, struct freelist *dst)
     return dst;
 }
 
-void freelist_node_set_otherpages(struct freelist_node *n, int otherpages)
-{
-    if (n == NULL) return; 
-    n->otherpages = otherpages;
-    return;
-}
-
-struct freelist_node* freelist_get_node(vadr_t addr) 
+struct freelist_node* freelist_get_node(struct freelist *fl, paddr_t paddr) 
 {
     // find the node with the address
     struct freelist_node *cur = fl->head;
     while (cur != NULL) 
     {
-        if (cur->addr == addr) 
+        if (cur->paddr == paddr) 
         {
             return cur;
         }
@@ -283,9 +276,15 @@ struct freelist_node* freelist_get_node(vadr_t addr)
 
 }
 
-int freelist_get_otherpages(vaddr_t addr) 
+void freelist_node_set_otherpages(struct freelist_node *n, int otherpages)
 {
-    struct freelist_node *n = freelist_get_node(addr);
+    if (n == NULL) return; 
+    n->otherpages = otherpages;
+    return;
+}
+
+int freelist_node_get_otherpages(struct freelist_node *n) 
+{
     if (n == NULL) return -1; 
     return n->otherpages;
 }

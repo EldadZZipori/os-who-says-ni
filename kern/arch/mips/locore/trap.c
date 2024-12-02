@@ -242,7 +242,6 @@ mips_trap(struct trapframe *tf)
 	case EX_MOD:
 		if (vm_fault(VM_FAULT_READONLY, tf->tf_vaddr)==0) {
 			//NOTE: check this later
-
 			goto done;
 		}
 		break;
