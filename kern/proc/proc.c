@@ -109,17 +109,17 @@ proc_create(const char *name)
 	if (kfile_table != NULL)
 	{
 		// more for next assignment
-		lock_acquire(kfile_table->files_lk[0]);
+		//lock_acquire(kfile_table->files_lk[0]);
 		kfile_table->files[0]->ref_count++;
-		lock_release(kfile_table->files_lk[0]);
+		//lock_release(kfile_table->files_lk[0]);
 
-		lock_acquire(kfile_table->files_lk[1]);
+		//lock_acquire(kfile_table->files_lk[1]);
 		kfile_table->files[1]->ref_count++;
-		lock_release(kfile_table->files_lk[1]);
+		//lock_release(kfile_table->files_lk[1]);
 
-		lock_acquire(kfile_table->files_lk[2]);
+		//lock_acquire(kfile_table->files_lk[2]);
 		kfile_table->files[2]->ref_count++;
-		lock_release(kfile_table->files_lk[2]);
+		//lock_release(kfile_table->files_lk[2]);
 		
 	}
 
@@ -513,9 +513,11 @@ __copy_fd_table(struct proc* from, struct proc* to)
 	{
 		fd = from->fdtable[i];
 		to->fdtable[i] = fd;
-		lock_acquire(kfile_table->files_lk[fd]);
+		//lock_acquire(kfile_table->files_lk[fd]);
+		lock_acquire(kfile_table->location_lk);
 		kfile_table->files[fd]->ref_count++; // Remeber to add the reference
-		lock_release(kfile_table->files_lk[fd]);
+		lock_release(kfile_table->location_lk);
+		//lock_release(kfile_table->files_lk[fd]);
 
 		VOP_INCREF(kfile_table->files[fd]->vn); // To the vnode too~!!!!
 	}

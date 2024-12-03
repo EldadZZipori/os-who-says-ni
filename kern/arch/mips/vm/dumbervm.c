@@ -256,22 +256,28 @@ free_kpages(vaddr_t addr)
 	{
 		unsigned int ppage_index = (paddr - dumbervm.ram_start) / PAGE_SIZE; // Should be page aligned
 		spinlock_acquire(&dumbervm.ppage_bm_sl);
-		if (bitmap_isset(dumbervm.ppage_lastpage_bm, ppage_index)) // if this is true the allocation was more than 1
+
+		if (bitmap_isset(dumbervm.ppage_lastpage_bm, ppage_index)) // This is a single allocation
 		{
 			bitmap_unmark(dumbervm.ppage_bm, ppage_index);
 			dumbervm.n_ppages_allocated--;
-			while(!bitmap_isset(dumbervm.ppage_lastpage_bm, ppage_index))
-			{
-				ppage_index++;
-				bitmap_unmark(dumbervm.ppage_bm, ppage_index);
-				dumbervm.n_ppages_allocated--;
-			}
+			bitmap_unmark(dumbervm.ppage_lastpage_bm, ppage_index);
+			spinlock_release(&dumbervm.ppage_bm_sl);
+			return;
+
 		}
-		else
+		while (!bitmap_isset(dumbervm.ppage_lastpage_bm, ppage_index)) // Deallocate untill seeing a 1
 		{
 			bitmap_unmark(dumbervm.ppage_bm, ppage_index);
 			dumbervm.n_ppages_allocated--;
+			ppage_index++;
 		}
+
+		bitmap_unmark(dumbervm.ppage_bm, ppage_index);	// deallocate the 1
+		dumbervm.n_ppages_allocated--;
+		bitmap_unmark(dumbervm.ppage_lastpage_bm, ppage_index);
+		
+		
 
 		spinlock_release(&dumbervm.ppage_bm_sl);
 	}

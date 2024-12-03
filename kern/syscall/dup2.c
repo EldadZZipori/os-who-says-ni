@@ -73,9 +73,12 @@ sys_dup2(int oldfd, int newfd, int* retval)
     curproc->fdtable_num_entries++;
     
     // Protect!!!!
-    lock_acquire(kfile_table->files_lk[acttual_index]);
+    //lock_acquire(kfile_table->files_lk[acttual_index]);
+    lock_acquire(kfile_table->location_lk);
     kfile_table->files[acttual_index]->ref_count++;
-    lock_release(kfile_table->files_lk[acttual_index]);
+    lock_release(kfile_table->location_lk);
+    //lock_release(kfile_table->files_lk[acttual_index]);
+    
 
     VOP_INCREF(kfile_table->files[acttual_index]->vn); 
     

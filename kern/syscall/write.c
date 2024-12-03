@@ -58,7 +58,9 @@ ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
     }
 
     // acquire lock for abstract file - second layer of file structure
-    lock_acquire(kfile_table->files_lk[ft_idx]); // acquire absfile lock
+    //lock_acquire(kfile_table->files_lk[ft_idx]); // acquire absfile lock
+    lock_acquire(kfile_table->location_lk);
+
 
     // get ptr to abstract file
     struct abstractfile *af = kfile_table->files[ft_idx];
@@ -71,7 +73,7 @@ ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
     // check that file is open for writing
     if ((status & (O_WRONLY | O_RDWR | O_APPEND)) == 0)
     {
-        lock_release(kfile_table->files_lk[ft_idx]);
+        lock_release(kfile_table->location_lk);
         lock_release(curproc->fdtable_lk);
         return EBADF;
     }
@@ -94,7 +96,7 @@ ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
     result = VOP_STAT(vn, &file_stat);
     if (result) 
     {
-        lock_release(kfile_table->files_lk[ft_idx]);
+        lock_release(kfile_table->location_lk);
         lock_release(curproc->fdtable_lk);
         return EIO;
     }
@@ -109,7 +111,7 @@ ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
     result = VOP_WRITE(vn, &uio);
     if (result) 
     {
-        lock_release(kfile_table->files_lk[ft_idx]);
+        lock_release(kfile_table->location_lk);
         lock_release(curproc->fdtable_lk);
         return result; // will return EIO if VOP_WRITE fails or ENOSPC if there is no space left on the device
                        // ENOSPC is hard to find. It is returned inside sfs_write. 
@@ -121,7 +123,7 @@ ssize_t sys_write(int filehandle, userptr_t buf, size_t size, int *retval)
     af->offset = uio.uio_offset;
 
     // release locks
-    lock_release(kfile_table->files_lk[ft_idx]);
+    lock_release(kfile_table->location_lk);
     lock_release(curproc->fdtable_lk);
 
     *retval = size - uio.uio_resid;

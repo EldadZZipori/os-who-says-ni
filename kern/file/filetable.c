@@ -30,11 +30,11 @@ ft_bootstrap()
         panic("Could not create file table\n");
     }
 
-    kfile_table->files_lk = (struct lock**)kmalloc(FILETABLE_INIT_SIZE*sizeof(struct lock*));
-    if (kfile_table->files_lk == NULL) 
-    {
-        panic("Could not create file table\n");
-    }
+    // kfile_table->files_lk = (struct lock**)kmalloc(FILETABLE_INIT_SIZE*sizeof(struct lock*));
+    // if (kfile_table->files_lk == NULL) 
+    // {
+    //     panic("Could not create file table\n");
+    // }
 
     kfile_table->location_lk = lock_create("file table location lock");
     if(kfile_table->location_lk == NULL)
@@ -42,17 +42,17 @@ ft_bootstrap()
         panic("cannot create location lock for file table");
     }
 
-	char *ft_loc = (char *) kmalloc(32 * sizeof(char));
-	for (unsigned int i = 0; i < FILETABLE_INIT_SIZE; i++)
-	{
-		snprintf(ft_loc, 32, "kfile_table lock %d", i);
-		kfile_table->files_lk[i] = lock_create(ft_loc);
+	//char *ft_loc = (char *) kmalloc(32 * sizeof(char));
+	// for (unsigned int i = 0; i < FILETABLE_INIT_SIZE; i++)
+	// {
+	// 	//snprintf(ft_loc, 32, "kfile_table lock %d", i);
+	// 	kfile_table->files_lk[i] = lock_create("file_table location lock");
 
-		if (kfile_table->files_lk[i] == NULL)
-		{
-			panic("Creating locks for file table failed\n");
-		}
-	}
+	// 	if (kfile_table->files_lk[i] == NULL)
+	// 	{
+	// 		panic("Creating locks for file table failed\n");
+	// 	}
+	// }
     
     /* Make sure to track the size of the file - room to make it dynamic in the future */
     kfile_table->curr_size = FILETABLE_INIT_SIZE;
@@ -96,10 +96,10 @@ ft_destroy(struct filetable* ft)
 {
     (void)ft;
     unsigned int i;
-    for (i = 0; i < ft->curr_size; i++)
-    {
-        lock_destroy(ft->files_lk[i]);
-    }
+    // for (i = 0; i < ft->curr_size; i++)
+    // {
+    //     lock_destroy(ft->files_lk[i]);
+    // }
 
     for (i = 0; i < ft->files_counter; i++)
     {
@@ -247,9 +247,11 @@ __close(struct proc* cur_proc, int fd)
     cur_proc->fdtable_num_entries--; // This shuld be the only place where the entries count of the individual process decreases
 
     // We probably want to lock this index before writing to it
-    lock_acquire(kfile_table->files_lk[index_in_fd]);
+    //lock_acquire(kfile_table->files_lk[index_in_fd]);
+    lock_acquire(kfile_table->location_lk);
     kfile_table->files[index_in_fd]->ref_count --; // this should be the only place where ref_count of an absreact file decreases
-    lock_release(kfile_table->files_lk[index_in_fd]);
+    lock_release(kfile_table->location_lk);
+    //lock_release(kfile_table->files_lk[index_in_fd]);
     /* 
      *  We are assuming here that the vfs sructre knows to remove the v-node 
      *  once it has no references.

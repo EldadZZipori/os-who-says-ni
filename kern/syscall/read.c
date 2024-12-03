@@ -47,7 +47,10 @@ ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
     }
 
     // acquire lock for abstract file - second layer of file structure
-    lock_acquire(kfile_table->files_lk[ft_idx]); // acquire absfile lock
+    //lock_acquire(kfile_table->files_lk[ft_idx]); // acquire absfile lock
+    lock_acquire(kfile_table->location_lk);
+    
+    
 
     // get ptr to abstract file
     af = kfile_table->files[ft_idx];
@@ -61,7 +64,8 @@ ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
     int access_mode = status & O_ACCMODE;
     if (access_mode != O_RDONLY && access_mode!= O_RDWR) 
     {
-        lock_release(kfile_table->files_lk[ft_idx]);
+        //lock_release(kfile_table->files_lk[ft_idx]);
+        lock_release(kfile_table->location_lk);
         lock_release(curproc->fdtable_lk);
         return EBADF;
     }
@@ -84,7 +88,7 @@ ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
     result = VOP_READ(vn, &uio);
     if (result) 
     {
-        lock_release(kfile_table->files_lk[ft_idx]);
+        lock_release(kfile_table->location_lk);
         lock_release(curproc->fdtable_lk);
         return result; // will return EIO if VOP_READ fails
     }
@@ -102,7 +106,7 @@ ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
     af->offset = uio.uio_offset;
 
     // release locks
-    lock_release(kfile_table->files_lk[ft_idx]);
+        lock_release(kfile_table->location_lk);
     lock_release(curproc->fdtable_lk);
 
     // return number of bytes read

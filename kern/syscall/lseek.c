@@ -85,9 +85,11 @@ sys_lseek(int fd, off_t pos, int sp, int64_t *retval_64)
     }
 
     // Protect!!!!
-    lock_acquire(kfile_table->files_lk[actual_index]);
+   // lock_acquire(kfile_table->files_lk[actual_index]);
+    lock_acquire(kfile_table->location_lk);
     kfile_table->files[actual_index]->offset = actual_pos;
-    lock_release(kfile_table->files_lk[actual_index]);
+    lock_release(kfile_table->location_lk);
+    //lock_release(kfile_table->files_lk[actual_index]);
     *retval_64 = actual_pos;
 
     lock_release(curproc->fdtable_lk);
