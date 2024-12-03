@@ -95,7 +95,7 @@ bitmap_create(unsigned nbits)
  *              not include the stolen region for the bitmap itself.
  * @param end   the end of the region that we will track. 
  */
-struct bitmap *
+int
 bitmap_bootstrap(paddr_t bitmap_address, unsigned nbits)
 {
         struct bitmap *b;
@@ -104,15 +104,10 @@ bitmap_bootstrap(paddr_t bitmap_address, unsigned nbits)
         words = DIVROUNDUP(nbits, BITS_PER_WORD);
         b = (struct bitmap *) PADDR_TO_KSEG0_VADDR(bitmap_address);//kmalloc(sizeof(struct bitmap));
         bitmap_address += sizeof(struct bitmap);
-        if (b == NULL) {
-                return NULL;
-        }
+
         b->v = (void *) PADDR_TO_KSEG0_VADDR(bitmap_address);//kmalloc(words*sizeof(WORD_TYPE));
         bitmap_address+= words*sizeof(WORD_TYPE);
-        if (b->v == NULL) {
-                kfree(b);
-                return NULL;
-        }
+
 
         bzero(b->v, words*sizeof(WORD_TYPE));
         b->nbits = nbits;
@@ -130,7 +125,7 @@ bitmap_bootstrap(paddr_t bitmap_address, unsigned nbits)
                 }
         }
 
-        return b;
+        return bitmap_address;
 }
 
 void *
@@ -165,17 +160,17 @@ bitmap_alloc(struct bitmap *b, unsigned *index)
 }
 
 int
-bitmap_alloc_nbits(struct bitmap *b, size_t sz, unsigned *idx)
+bitmap_alloc_nbits(struct bitmap *alloc_bm, struct bitmap *last_page_bm , size_t sz, unsigned *idx)
 {
         int valid;
 
-        for (unsigned int i = 0; i < b->nbits - sz; i++)
+        for (unsigned int i = 0; i < alloc_bm->nbits - sz; i++)
         {
                 valid = 1; // assume is valid
 
                 for (unsigned int j = 0; j < sz; j++)
                 {
-                        if (bitmap_isset(b, i+j))
+                        if (bitmap_isset(alloc_bm, i+j))
                         {
                                 valid = 0; // this bit is not valid, so chunk is not valid
                         }
@@ -185,7 +180,10 @@ bitmap_alloc_nbits(struct bitmap *b, size_t sz, unsigned *idx)
                         *idx = i;
                         for (unsigned int k = 0; k < sz; k++ )
                         {
-                                bitmap_mark(b, i+k); // set all these bits to 1
+                                if (k == 0) bitmap_mark(last_page_bm, i+k);
+                                else if(k == sz-1) bitmap_mark(last_page_bm, i+k);
+                                
+                                bitmap_mark(alloc_bm, i+k); // set all these bits to 1
                                 dumbervm.n_ppages_allocated++;
 
                         }

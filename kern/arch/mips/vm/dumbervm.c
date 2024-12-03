@@ -31,15 +31,21 @@ vm_bootstrap(void)
 	 * 3. Init a bitmap on stolen first page
 	 */
 	paddr_t ram_end = ram_getsize();
-	paddr_t ram_start = ram_getfirstfree(); // when this is called stealram is unavailable
+	paddr_t ppages_bm_start = ram_getfirstfree(); // when this is called stealram is unavailable
 
-	paddr_t tracked_ram_start = ram_start + PAGE_SIZE;
+	paddr_t tracked_ram_start = ppages_bm_start + PAGE_SIZE;
 	tracked_ram_start = (tracked_ram_start + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1); // align to first page after the bitmap
 
 	unsigned int n_ppages = (ram_end - tracked_ram_start) / PAGE_SIZE;
 	dumbervm.n_ppages = n_ppages;
 
-	dumbervm.ppage_bm = bitmap_bootstrap(ram_start, n_ppages); // the return of this function is ram_start itself
+	paddr_t ppage_lastpage_bm_start = bitmap_bootstrap(ppages_bm_start, n_ppages); // the return of this function is ram_start itself
+	
+	dumbervm.ppage_bm = (struct bitmap*)PADDR_TO_KSEG0_VADDR(ppages_bm_start);
+
+	bitmap_bootstrap(ppage_lastpage_bm_start, n_ppages);
+
+	dumbervm.ppage_lastpage_bm = (struct bitmap*)PADDR_TO_KSEG0_VADDR(ppage_lastpage_bm_start);
 
 	dumbervm.ram_start = tracked_ram_start;
 
@@ -99,7 +105,7 @@ getppages(unsigned long npages)
 		// no mem left
 		unsigned int index;
 		spinlock_acquire(&dumbervm.ppage_bm_sl);
-		int result = bitmap_alloc_nbits(dumbervm.ppage_bm, npages, &index);
+		int result = bitmap_alloc_nbits(dumbervm.ppage_bm, dumbervm.ppage_lastpage_bm ,npages, &index);
 		spinlock_release(&dumbervm.ppage_bm_sl);
 
 		if (!result)
@@ -250,8 +256,23 @@ free_kpages(vaddr_t addr)
 	{
 		unsigned int ppage_index = (paddr - dumbervm.ram_start) / PAGE_SIZE; // Should be page aligned
 		spinlock_acquire(&dumbervm.ppage_bm_sl);
-		bitmap_unmark(dumbervm.ppage_bm, ppage_index);
-		dumbervm.n_ppages_allocated--;
+		if (bitmap_isset(dumbervm.ppage_lastpage_bm, ppage_index)) // if this is true the allocation was more than 1
+		{
+			bitmap_unmark(dumbervm.ppage_bm, ppage_index);
+			dumbervm.n_ppages_allocated--;
+			while(!bitmap_isset(dumbervm.ppage_lastpage_bm, ppage_index))
+			{
+				ppage_index++;
+				bitmap_unmark(dumbervm.ppage_bm, ppage_index);
+				dumbervm.n_ppages_allocated--;
+			}
+		}
+		else
+		{
+			bitmap_unmark(dumbervm.ppage_bm, ppage_index);
+			dumbervm.n_ppages_allocated--;
+		}
+
 		spinlock_release(&dumbervm.ppage_bm_sl);
 	}
 	

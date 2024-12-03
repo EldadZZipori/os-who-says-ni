@@ -45,6 +45,8 @@
 struct vm
 {
     struct bitmap *ppage_bm;
+    struct bitmap *ppage_lastpage_bm;
+
     struct bitmap *swap_bm; // Holds offset 0- size of swap space
 
     unsigned int n_ppages;
