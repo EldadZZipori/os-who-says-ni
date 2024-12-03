@@ -169,7 +169,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 			ll_pagetable_va = (vaddr_t *)TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]);
 			as->ptbase[vpn1] += 0b1;
 		}
-
+		
 		ll_pagetable_va[vpn2] = pa | (writeable << 10) | (lastpage << 4) | ((readable << 2) | (writeable << 1) | (executable)); // this will be page aligned
 
 		*va += (vaddr_t)0x1000;
@@ -347,50 +347,119 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		return EFAULT;
 	}
 	
+	/** 
+	 * VM_FAULT_READONLY: Attempted to write to a TLB entry whose dirty bit is not set
+	 * happens when: 
+	 * 	  - kernel sets up process: loading non-writeable page from disk (load segment)
+	 *    - IMPORTANT: if we set dirty bit during load_elf, user should never see this fault
+	 * what we should do: 
+	 *   - set dirty bit only in TLB, not in PTE
+	 *   - set loaded bit in low level page table
+	 * 
+	 * VM_FAULT_READ: Attempted to read from a page not present in the TLB
+	 * happens when:
+	 *    - user runtime: TLB miss
+	 * what we should do:
+	 *   - put in TLB
+	 * 
+	 * VM_FAULT_WRITE: Attempted to write to a page not present in the TLB
+	 * happens when:
+	 *    - user runtime: TLB miss
+	 * what we should do:
+	 *  - put in TLB
+	*/
 	switch (faulttype)
 	{
+		uint32_t entry_lo, entry_hi;
+
 		case VM_FAULT_READONLY:
-			// we tried to write to a read only page that is already in the TLB
-			// or we tried to write to a page whose dirty bit is not set yet
-			if (LLPTE_GET_WRITE_PERMISSION_BIT(ll_pagetable_entry))
+
+			// assert we are kernel 
+			// assert dirty bit is not set (since we are here)
+			// assert this page is non-writeable
+			// assert this page is not loaded
+			KASSERT(curproc->p_addrspace == NULL); // TODO: Better way to check this?
+			KASSERT(LLPTE_GET_DIRTY_BIT(ll_pagetable_entry) == 0);
+			KASSERT(LLPTE_GET_WRITE_PERMISSION_BIT(ll_pagetable_entry) == 0);
+			KASSERT(LLPTE_GET_LOADED_BIT(ll_pagetable_entry) == 0);
+			
+			// 1. set dirty bit in TLB
+			int idx = tlb_probe(faultaddress, 0);
+			if (idx > 0)
+			{ 
+				spl = splhigh();
+				tlb_read(&entryhi, &entrylo, idx);
+				entrylo |= (0b1 << 10); // set dirty bit
+				tlb_write(entryhi, entrylo, idx);
+				splx(spl);
+			} 
+			else
 			{
-				// set dirty bit
-				ll_pagetable_va[vpn2] |= (0b1 << 10); // set bit 10 to 1
-			} else {
-				// hard fault
+				entryhigh = ll_pagetable_va; // kseg0 virtual address of the low level page table
+				entrylo = (LLPTE_MASK_TLBE(ll_pagetable_entry)); // entries in the low level page table are aligned with the tlb
+				entrylo |= (0b1 << 10); // set dirty bit
+				tlb_random(entryhigh, entrylo); // overwrite random entry
 			}
+
+			// 2. set loaded bit in low level page table
+			ll_pagetable_va[vpn2] |= (0b1 << 5); // set bit 5 (loaded) to 1
+
 		break;
+
 		case VM_FAULT_READ:
-			// we tried to read from a page not in the TLB
-			// but is in pagetable.
+			// assert we are a user 
+			// assert this page is indeed not in the TLB
+			KASSERT(curproc->p_addrspace != NULL); // TODO: Better way to check this?
+			KASSERT(tlb_probe(faultaddress, 0) < 0);
+
 			if(!LLPTE_GET_READ_PERMISSION_BIT(ll_pagetable_entry))
 			{
 				return EFAULT; // tried to read from a non readable page
 			}
-			// add to tlb 
-			// and set valid bit
+
+			// add to tlb
+			entryhigh = ll_pagetable_va; // kseg0 virtual address of the low level page table
+			entrylo = (LLPTE_MASK_TLBE(ll_pagetable_entry)); // entries in the low level page table are aligned with the tlb
+			spl = splhigh();
+			tlb_random(entryhigh, entrylo); // load into tlb
+			splx(spl);
 			
 		break;
+
 		case VM_FAULT_WRITE:
-			// we tried to write to a page not in the TLB...? I think?
-			// but is in pagetable.
+			// assert we are a user
+			// assert this page is indeed not in the TLB
+			KASSERT(curproc->p_addrspace != NULL); // TODO: Better way to check this?
+			KASSERT(tlb_probe(faultaddress, 0) < 0);
+
 			if(!LLPTE_GET_WRITE_PERMISSION_BIT(ll_pagetable_entry))
 			{
 				return EFAULT;
 			}
-			// add to tlb 
-			// and set valid bit 
-			// and then set dirty bit? or call vm_fault
+			// add to tlb
+			entrylo = (LLPTE_MASK_TLBE(ll_pagetable_va[vpn2])); // entries in the low level page table are aligned with the tlb
+			entryhigh = ll_pagetable_va; // kseg0 virtual address of the low level page table
+			spl = splhigh();
+			tlb_random(entryhigh, entrylo); // Just randomly evict for now
+			splx(spl);
+
 		break;
 	}
+
+	// why do we need to set the valid bit here?
+	// why not set valid bit into PTE when we allocate the page?
+	// so that when loaded into TLB, it is already valid
+	// and then, we can clear the valid bit when we move to swap
+	// which will also do TLB shootdown on the entry.
 	ll_pagetable_va[vpn2] |= (0b1 << 9); // set bit 9 (valid bit) to 1
+
 	// now we know that there is an actual translation in the page tables
-	uint32_t entrylo = (LLPTE_MASK_TLBE(ll_pagetable_va[vpn2])); // entries in the low level page table are aligned with the tlb
-	uint32_t entryhigh = faultaddress;
+	// uint32_t entrylo = (LLPTE_MASK_TLBE(ll_pagetable_va[vpn2])); // entries in the low level page table are aligned with the tlb
+	// uint32_t entryhigh = faultaddress;
 	
-	spl = splhigh();
-	tlb_random(entryhigh, entrylo); // Just randomly evict for now
-	splx(spl);
+	// spl = splhigh();
+	// tlb_random(entryhigh, entrylo); // Just randomly evict for now
+	// splx(spl);
 
 	return 0;
 }
