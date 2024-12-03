@@ -191,7 +191,7 @@ as_create_stack(struct addrspace* as)
 		return result;
 	}
 	vaddr_t stacktop = stack_va;
-	if (stacktop == USERSPACETOP) {
+	if (stacktop != USERSPACETOP) {
 		return ENOMEM;
 	}
 	as->user_stackbase = USERSPACETOP - (DUMBVMER_STACKPAGES * PAGE_SIZE);
