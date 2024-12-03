@@ -155,3 +155,23 @@ define pbms
     printbitmap dumbervm.ppage_bm
     printbitmap dumbervm.ppage_lastpage_bm
 end
+
+# Define the function to extract and print the data
+define printpagetable
+    if $argc != 1
+        printf "Usage: printpagetable <array_variable>\n"
+        return
+    end
+
+    # Set the array variable from the argument
+    set $array = $arg0
+    set $i = 0
+    printf "pagetable contents:\n"
+    while *(unsigned int *)($array + $i * sizeof(unsigned int)) != 0
+        set $entry = *(unsigned int *)($array + $i * sizeof(unsigned int))
+        set $pagecount = $entry & 0xFFF      # Extract bits 0-11
+        set $llpt_paddr = ($entry >> 12) & 0xFFFFF  # Extract bits 12-31
+        printf "[ 0x%05x | 0x%03x ]\n", $llpt_paddr, $pagecount
+        set $i = $i + 1
+    end
+end
