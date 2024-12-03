@@ -2,6 +2,8 @@
 #ifndef _MEMLIST_H_
 #define _MEMLIST_H_
 
+#include <spinlock.h>
+
 struct memlist_node {
 	paddr_t paddr;
 	size_t sz;
