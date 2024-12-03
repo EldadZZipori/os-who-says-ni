@@ -120,8 +120,6 @@ define printbitmap
     # Calculate the number of bytes
     set $nbytes = ($nbits + 7) / 8
 
-    # Iterate through the bits and print binary
-    printf "Bitmap (%d bits):\n", $nbits
     set $i = 0
     while $i < $nbits
         set $byte_index = $i / 8
@@ -146,4 +144,14 @@ end
 
 define pbm 
     printbitmap dumbervm.ppage_bm
+end
+
+define plpbm
+    printbitmap dumbervm.ppage_lastpage_bm
+end
+
+define pbms
+    printf "bitmap and lastpagemap:\n"
+    printbitmap dumbervm.ppage_bm
+    printbitmap dumbervm.ppage_lastpage_bm
 end
