@@ -8,13 +8,12 @@
 #include <mips/tlb.h>
 #include <addrspace.h>
 #include <vm.h>
-#include <kern/memlist.h>
 #include <synch.h>
 #include <vfs.h>
 #include <kern/fcntl.h>
 #include <kern/stat.h>
 #include <vnode.h>
-
+#include <bitmap.h>
 
 #define DUMBVMER_STACKPAGES    18
 
@@ -23,52 +22,36 @@
 
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
 
-
 void
 vm_bootstrap(void)
 {
 	/*
 	 * 1. Fetch bottom of ram
 	 * 2. Fetch size of ram
-	 * 3. Init a memlist to manage the physical space on our system
-	 * 4. Add the memlist to the ram
+	 * 3. Init a bitmap on stolen first page
 	 */
-
 	paddr_t ram_end = ram_getsize();
-	paddr_t ram_start = ram_getfirstfree();
+	paddr_t ram_start = ram_getfirstfree(); // when this is called stealram is unavailable
 
-	// allocate memlist on stack
-	struct memlist temp_ppage_fl; 
-	struct memlist_node temp_ppage_fl_head; 
+	paddr_t tracked_ram_start = ram_start + PAGE_SIZE;
+	tracked_ram_start = (tracked_ram_start + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1); // align to first page after the bitmap
 
-	temp_ppage_fl.start = ram_start;
-	temp_ppage_fl.end = ram_end+1;
-	temp_ppage_fl.head = &temp_ppage_fl_head;
+	unsigned int n_ppages = (ram_end - tracked_ram_start) / PAGE_SIZE;
+	dumbervm.n_ppages = n_ppages;
 
-	temp_ppage_fl.head->paddr = (paddr_t)ram_start;
-	temp_ppage_fl.head->sz = ram_end - ram_start;
-	temp_ppage_fl.head->next = NULL;
-	temp_ppage_fl.head->prev = NULL;
+	dumbervm.ppage_bm = bitmap_bootstrap(ram_start, n_ppages); // the return of this function is ram_start itself
 
-	dumbervm.ppage_memlist = &temp_ppage_fl;
+	dumbervm.ram_start = tracked_ram_start;
+
+	spinlock_init(&dumbervm.ppage_bm_sl);
+
 	dumbervm.vm_ready = true;
+	
+}
 
-
-	// allocate first object in tracked RAM space: the RAM memlist lol
-	struct memlist *ppage_memlist = memlist_create(ram_start, ram_end+1);
-	if (ppage_memlist == NULL) {
-		panic("Can't allocate ppage memlist\n");
-	}
-
-	// make sure we didnt allocate any extra nodes
-	KASSERT(temp_ppage_fl_head.next == NULL);
-
-	// copy temp memlist to actual memlist
-	memlist_copy(&temp_ppage_fl, ppage_memlist);
-
-	// set the memlist to the actual memlist
-	dumbervm.ppage_memlist = ppage_memlist;
-
+void
+swap_space_bootstrap(void)
+{
 	struct vnode* swap_space;
 	char swap_space_name[9] = "lhd0raw:";
 	int result = vfs_open(swap_space_name,O_RDWR, 0, &swap_space);
@@ -89,15 +72,13 @@ vm_bootstrap(void)
 		return;
 	}
 
-	struct memlist* swap_memlist = memlist_create((paddr_t)0, (paddr_t)(uintptr_t)swap_space_stat.st_size);
+	struct bitmap* swap_memlist = bitmap_create((swap_space_stat.st_size)/PAGE_SIZE);
 	if (swap_memlist == NULL)
 	{
 		vfs_close(swap_space);
 		kprintf("dumbervm: cannot get swap space size, continuing without swap space");
 		return;
 	}
-
-	
 }
 
 static
@@ -112,31 +93,33 @@ paddr_t
 getppages(unsigned long npages)
 {
 	KASSERT(npages > 0);
-	paddr_t pa;
 	if (dumbervm.vm_ready)
 	{
 		// get first free physical page 
-		pa = (paddr_t)memlist_get_first_fit(dumbervm.ppage_memlist, npages*PAGE_SIZE);
+		// no mem left
+		unsigned int index;
+		spinlock_acquire(&dumbervm.ppage_bm_sl);
+		int result = bitmap_alloc_nbits(dumbervm.ppage_bm, npages, &index);
+		spinlock_release(&dumbervm.ppage_bm_sl);
 
-		// TODO: add the actuall node here
-		struct memlist_node *n = memlist_get_node(dumbervm.ppage_memlist, pa);
-		memlist_node_set_otherpages(n, 0);
-		
-		// NOTE: should be possible to return error here if out of memory
+		if (!result)
+		{
+			return dumbervm.ram_start + (0x1000 * index);
+		}
+		// If we get here go check the swap space for more space
 
-		KASSERT(pa >= (paddr_t)dumbervm.ppage_memlist->start);
-		KASSERT(pa < (paddr_t)dumbervm.ppage_memlist->end);
+		return ENOMEM;
 	}
 	else
 	{
 		spinlock_acquire(&stealmem_lock);
 
-		pa = ram_stealmem(npages);
+		paddr_t pa = ram_stealmem(npages);
 
 		spinlock_release(&stealmem_lock);
-	}
 
-	return pa;
+		return pa;
+	}
 
 }
 
@@ -158,14 +141,12 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 	{
 		int vpn1 = VADDR_GET_VPN1(*va);
     	int vpn2 = VADDR_GET_VPN2(*va);
+		bool lastpage = (i == npages - 1);
+
 
 		vaddr_t kseg0_va = alloc_kpages(1);
 
 		// set the 'otherpages' field in the memlist node of the first page in the block
-		if (i == 0) {
-			struct memlist_node *n = memlist_get_node(dumbervm.ppage_memlist, KSEG0_VADDR_TO_PADDR(kseg0_va));
-			memlist_node_set_otherpages(n, npages - 1);
-		}
 
 		paddr_t pa = KSEG0_VADDR_TO_PADDR(kseg0_va);          // Physical address of the new block we created.   
 
@@ -183,7 +164,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 			as->ptbase[vpn1] += 0b1;
 		}
 
-		ll_pagetable_va[vpn2] = pa & ((readable << 2) & (writeable << 1) & (executable)); // this will be page aligned
+		ll_pagetable_va[vpn2] = pa | (lastpage << 4) | ((readable << 2) | (writeable << 1) | (executable)); // this will be page aligned
 
 		*va += (vaddr_t)0x1000;
 		as->n_kuseg_pages_allocated++;
@@ -236,9 +217,13 @@ alloc_kpages(unsigned npages)
 
 	paddr_t pa = getppages(npages);
 
-
 	if (pa == 0) {
 		return 0;
+	}
+
+	if (pa % PAGE_SIZE != 0)
+	{
+		return pa;
 	}
 
 	/* No memlist required */
@@ -260,7 +245,16 @@ free_kpages(vaddr_t addr)
 	paddr_t paddr = addr - MIPS_KSEG0;
 
 	// For now, just remove a single page.
-	memlist_remove(dumbervm.ppage_memlist, paddr);
+	//memlist_remove(dumbervm.ppage_memlist, paddr);
+	if ((paddr) % PAGE_SIZE == 0)
+	{
+		unsigned int ppage_index = (paddr - dumbervm.ram_start) / PAGE_SIZE; // Should be page aligned
+		spinlock_acquire(&dumbervm.ppage_bm_sl);
+		bitmap_unmark(dumbervm.ppage_bm, ppage_index);
+		dumbervm.n_ppages_allocated--;
+		spinlock_release(&dumbervm.ppage_bm_sl);
+	}
+	
 }
 
 void
@@ -569,49 +563,36 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 void 
 free_upages(vaddr_t vaddr)
 {
-	int nppages;
+	int i;
 
-	// TODO: not sure what we need to assert here about the vaddr
-	KASSERT(true); // leave empty for now 
-
-	// get the paddr through the page table 
-	paddr_t paddr = translate_vaddr(vaddr);
-
-	// get the page count from the memlist 
-	struct memlist_node *n = memlist_get_node(dumbervm.ppage_memlist, paddr);
-	nppages = memlist_node_get_otherpages(n) + 1;
 
 	/**
 	 * Free each page by getting each paddr from vaddr to vaddr + nppages * PAGE_SIZE
-	 * and then memlist remove each page
+	 * and then bitmap free each page
+	 * get lastpage bool from llpte
 	 */
 
-	for (int i = 0; i < nppages; i++)
+	while(1)
 	{
-		paddr_t paddr = translate_vaddr(vaddr + (i * PAGE_SIZE));
-		memlist_remove(dumbervm.ppage_memlist, paddr);
+		vaddr += (i * PAGE_SIZE);
+		paddr_t paddr = translate_vaddr(vaddr);
+		vaddr_t llpte = get_lltpe(vaddr);
+
+		free_kpages(PADDR_TO_KSEG0_VADDR(paddr));
+
+		if (LLPTE_GET_LASTPAGE_BIT(llpte))
+		{
+			// last page. exit
+			break;
+		}
+		i++;
 	}
 
 	// TODO: we need to remove the pagetable entries
 }
 
-
-// 	// For Kyle cause I don't know how the size thing work in free_list
-// 	//memlist_remove(ppage_memlist, addr, PAGE_SIZE);
-
-// 	/*
-// 		pointer = malloc 
-// 		free(pointer+1)
-// 		free(pointer)
-
-// 		alloc_upages(npages=3) {
-// 			when alloc first save memlist_node.npages = 3
-// 		}	
-
 		
-		
-// 	*/
-// }
+	
 paddr_t
 translate_vaddr(vaddr_t vaddr)
 {
@@ -639,4 +620,26 @@ translate_vaddr(vaddr_t vaddr)
 
 	// return [      PPAGE      | OFFSET ]
 	return (paddr_t) (LLPTE_MASK_PPN(ll_pagetable_va[vpn2]) | VADDR_GET_OFFSET(vaddr));
+}
+
+vaddr_t get_lltpe(vaddr_t vaddr)
+{
+	int vpn1 = VADDR_GET_VPN1(vaddr);
+	int vpn2 = VADDR_GET_VPN2(vaddr);
+
+	struct addrspace *as = proc_getas();
+	if (as == NULL) {
+		return 0;
+	}
+
+	KASSERT(as->ptbase != NULL); // top-level page table must be created
+
+	if(as->ptbase[vpn1] ==  0)	// lower-level page table was never created, no mapping
+	{
+		return 0;
+	}
+
+	vaddr_t* ll_pagetable_va = (vaddr_t *) TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]);
+
+	return ll_pagetable_va[vpn2];
 }

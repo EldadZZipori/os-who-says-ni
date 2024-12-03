@@ -5,6 +5,7 @@
 #include <current.h>
 #include <synch.h>
 #include <kern/memlist.h>
+#include <vm.h>
 
 
 /**
@@ -30,13 +31,8 @@ struct memlist* memlist_create(paddr_t start, paddr_t end) {
         return NULL;
     }
 
-    ml->ml_lk = lock_create("memlist lock");
-    if (ml->ml_lk == NULL)
-    {
-        kfree(ml->head);
-        kfree(ml);
-        return NULL;
-    }
+    spinlock_init(&ml->ml_lk); //= lock_create("memlist lock");
+
 
     ml->start = start; 
     ml->end = end;
@@ -48,6 +44,47 @@ struct memlist* memlist_create(paddr_t start, paddr_t end) {
 
     return ml;
 }
+
+/**
+ * Bootstrap the ram memory list by creating a temporary memlist on the stack
+ * then allocating memory for the memlist itself using the temporary stack 
+ * memlist, then jump to vm_bootstrap to copy it to the heap
+ */
+struct memlist* memlist_bootstrap(paddr_t start, paddr_t end) {
+
+    struct memlist *ml = (struct memlist *) PADDR_TO_KSEG0_VADDR(start);
+    start += sizeof(struct memlist); // increase by size of memlist, not size of pointer
+
+    ml->head = (struct memlist_node *) PADDR_TO_KSEG0_VADDR(start);
+    start += sizeof(struct memlist_node);
+
+    struct memlist_node *node2 = (struct memlist_node *) PADDR_TO_KSEG0_VADDR(start);
+    start += sizeof(struct memlist_node);
+ 
+    spinlock_init(&ml->ml_lk); //= lock_create("memlist lock");
+
+    // round up 'start' to be page-aligned
+    start = (start + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1); 
+
+    // memlist fields
+    ml->start = start; 
+    ml->end = end;
+    // first node
+    ml->head->paddr = start;
+    ml->head->sz = PAGE_SIZE;
+    ml->head->allocated = false;
+    ml->head->next = node2;  
+    ml->head->prev = NULL;
+    // second node 
+    node2->paddr = start + PAGE_SIZE;
+    node2->sz = end - start - PAGE_SIZE;
+    node2->allocated = false; 
+    node2->next = NULL;
+    node2->prev = ml->head;
+
+    return ml;
+}
+
 
 struct memlist_node *memlist_node_create(struct memlist_node *prev, struct memlist_node *next)
 {
@@ -73,7 +110,7 @@ void memlist_destroy(struct memlist *ml) {
         cur = cur->next;
     }
     
-    lock_destroy(ml->ml_lk);
+    spinlock_cleanup(&ml->ml_lk);
     kfree(ml);
 }
 
@@ -109,6 +146,7 @@ void memlist_destroy(struct memlist *ml) {
 paddr_t memlist_get_first_fit(struct memlist *ml, size_t sz) {
     KASSERT(ml != NULL);
     KASSERT(sz > 0);
+    spinlock_acquire(&ml->ml_lk);
     struct memlist_node *cur = ml->head;
     while (cur != NULL) 
     {
@@ -116,6 +154,7 @@ paddr_t memlist_get_first_fit(struct memlist *ml, size_t sz) {
         if (cur->sz == sz && cur->allocated == false) // perfect fit, just set to allocated and dont change ptrs
         { 
             cur->allocated = true;
+            spinlock_release(&ml->ml_lk);
             return cur->paddr; 
         }
         else if (cur->sz > sz && cur->allocated == false) 
@@ -123,6 +162,10 @@ paddr_t memlist_get_first_fit(struct memlist *ml, size_t sz) {
             // split block into 
             // [ allocd, sz = sz] [ not_allocd, sz = prevsz - sz]
             struct memlist_node *new = kmalloc(sizeof(struct memlist_node));
+            // 0-100
+            // memlist_node on 0 to sizeof(struct memlist_node) = 1
+            // 
+
             new->paddr = cur->paddr + sz; // start after allocd block
             new->sz = cur->sz - sz; // current sz - alloc sz
             new->allocated = false; 
@@ -132,10 +175,12 @@ paddr_t memlist_get_first_fit(struct memlist *ml, size_t sz) {
             cur->sz = sz; 
             cur->allocated = true; 
             cur->next = new; 
+            spinlock_release(&ml->ml_lk);
             return cur->paddr;
         }
         cur = cur->next;
     } 
+    spinlock_release(&ml->ml_lk);
     return (paddr_t)NULL;
 }
 
@@ -147,6 +192,7 @@ void memlist_remove(struct memlist *ml, paddr_t blk)
     KASSERT(blk < ml->end);
     KASSERT(blk >= ml->start);
 
+    spinlock_acquire(&ml->ml_lk);
     struct memlist_node *cur = ml->head; 
 
     // find the allocated block we want to free
@@ -175,6 +221,8 @@ void memlist_remove(struct memlist *ml, paddr_t blk)
         if ((cur->prev == NULL || cur->prev->allocated) && (cur->next == NULL || cur->next->allocated))
         {
             cur->allocated = false; // freed up now
+            spinlock_release(&ml->ml_lk);
+
         }
 
         // case 2: prev not allocated, next allocated or NULL
@@ -184,6 +232,7 @@ void memlist_remove(struct memlist *ml, paddr_t blk)
             cur->prev->sz += cur->sz; // merge sizes
             cur->prev->next = cur->next; // fix forward ptr
             if (cur->next != NULL) cur->next->prev = cur->prev; // fix backward ptr
+            spinlock_release(&ml->ml_lk);
             kfree(cur);
         }
 
@@ -195,6 +244,7 @@ void memlist_remove(struct memlist *ml, paddr_t blk)
             cur->next = cur->next->next; // fix forward ptr
             if (cur->next != NULL) cur->next->prev = cur; // fix backward ptr
             cur->allocated = false; // set to be a large free blk 
+            spinlock_release(&ml->ml_lk);
             kfree(cur->next);
         }
 
@@ -205,6 +255,7 @@ void memlist_remove(struct memlist *ml, paddr_t blk)
             cur->prev->sz += (cur->sz + cur->next->sz); // merge sizes
             cur->prev->next = cur->next->next; // fix forward ptr
             cur->next->prev = cur->prev; // fix backward ptr 
+            spinlock_release(&ml->ml_lk);
             kfree(cur->next);
             kfree(cur);
         }
@@ -255,16 +306,18 @@ struct memlist *memlist_copy(struct memlist *src, struct memlist *dst)
 struct memlist_node* memlist_get_node(struct memlist *ml, paddr_t paddr) 
 {
     // find the node with the address
+    spinlock_acquire(&ml->ml_lk);
     struct memlist_node *cur = ml->head;
     while (cur != NULL) 
     {
         if (cur->paddr == paddr) 
         {
+            spinlock_release(&ml->ml_lk);
             return cur;
         }
         cur = cur->next;
     }
-
+    spinlock_release(&ml->ml_lk);
     return NULL; // not in memlist
 
 }

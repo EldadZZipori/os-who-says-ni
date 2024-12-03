@@ -15,11 +15,12 @@ struct memlist {
     paddr_t start; 
     paddr_t end;
 	struct memlist_node *head;
-    struct lock* ml_lk;
+    struct spinlock ml_lk;
 };
 
 /* Function definitions */
 struct memlist* memlist_create(paddr_t start, paddr_t end); 
+struct memlist* memlist_bootstrap(paddr_t start, paddr_t end);
 struct memlist_node *memlist_node_create(struct memlist_node *prev, struct memlist_node *next);
 void memlist_destroy(struct memlist *ml);
 paddr_t memlist_get_first_fit(struct memlist *ml, size_t sz);

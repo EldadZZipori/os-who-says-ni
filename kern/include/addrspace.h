@@ -48,6 +48,7 @@
 #define LLPTE_GET_READ_PERMISSION_BIT(x)    (((x)>>2) & 0b1)
 #define LLPTE_GET_WRITE_PERMISSION_BIT(x)   (((x)>>1) & 0b1)
 #define LLPTE_GET_DIRTY_BIT(x)              (((x)>>10) & 0b1)
+#define LLPTE_GET_LASTPAGE_BIT(x)           (((x)>>4) & 0b1)
 #define LLPTE_GET_EXECUTABLE(x) ((x) & 0b1)
 #define TLPTE_MASK_VADDR(x) ((x) & 0xfffff000)
 #define LLPTE_MASK_PPN(x) ((x) & 0xfffff000)
@@ -55,6 +56,7 @@
 #define LLPTE_MASK_NVDG_FLAGS(x) ((x) & 0x00000f00)
 #define TLPTE_MASK_PAGE_COUNT(x) ((x) & 0x00000fff)
 #define LLPTE_MASK_RWE_FLAGS(x) ((x) & 0x7)
+
 
 struct vnode;
 

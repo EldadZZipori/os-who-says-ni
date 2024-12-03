@@ -35,6 +35,7 @@
 #include <kern/errno.h>
 #include <lib.h>
 #include <bitmap.h>
+#include <vm.h>
 
 /*
  * It would be a lot more efficient on most platforms to use uint32_t
@@ -89,6 +90,49 @@ bitmap_create(unsigned nbits)
         return b;
 }
 
+/**
+ * @param start the start of the region that we will track. This must 
+ *              not include the stolen region for the bitmap itself.
+ * @param end   the end of the region that we will track. 
+ */
+struct bitmap *
+bitmap_bootstrap(paddr_t bitmap_address, unsigned nbits)
+{
+        struct bitmap *b;
+        unsigned words;
+
+        words = DIVROUNDUP(nbits, BITS_PER_WORD);
+        b = (struct bitmap *) PADDR_TO_KSEG0_VADDR(bitmap_address);//kmalloc(sizeof(struct bitmap));
+        bitmap_address += sizeof(struct bitmap);
+        if (b == NULL) {
+                return NULL;
+        }
+        b->v = (void *) PADDR_TO_KSEG0_VADDR(bitmap_address);//kmalloc(words*sizeof(WORD_TYPE));
+        bitmap_address+= words*sizeof(WORD_TYPE);
+        if (b->v == NULL) {
+                kfree(b);
+                return NULL;
+        }
+
+        bzero(b->v, words*sizeof(WORD_TYPE));
+        b->nbits = nbits;
+
+        /* Mark any leftover bits at the end in use */
+        if (words > nbits / BITS_PER_WORD) {
+                unsigned j, ix = words-1;
+                unsigned overbits = nbits - ix*BITS_PER_WORD;
+
+                KASSERT(nbits / BITS_PER_WORD == words-1);
+                KASSERT(overbits > 0 && overbits < BITS_PER_WORD);
+
+                for (j=overbits; j<BITS_PER_WORD; j++) {
+                        b->v[ix] |= ((WORD_TYPE)1 << j);
+                }
+        }
+
+        return b;
+}
+
 void *
 bitmap_getdata(struct bitmap *b)
 {
@@ -118,6 +162,37 @@ bitmap_alloc(struct bitmap *b, unsigned *index)
                 }
         }
         return ENOSPC;
+}
+
+int
+bitmap_alloc_nbits(struct bitmap *b, size_t sz, unsigned *idx)
+{
+        int valid;
+
+        for (unsigned int i = 0; i < b->nbits - sz; i++)
+        {
+                valid = 1; // assume is valid
+
+                for (unsigned int j = 0; j < sz; j++)
+                {
+                        if (bitmap_isset(b, i+j))
+                        {
+                                valid = 0; // this bit is not valid, so chunk is not valid
+                        }
+                }
+                if (valid)
+                {
+                        *idx = i;
+                        for (unsigned int k = 0; k < sz; k++ )
+                        {
+                                bitmap_mark(b, i+k); // set all these bits to 1
+                                dumbervm.n_ppages_allocated++;
+
+                        }
+                        return 0;
+                }
+        }
+        return -1; // exited loop
 }
 
 static

@@ -55,5 +55,10 @@ void           bitmap_unmark(struct bitmap *, unsigned index);
 int            bitmap_isset(struct bitmap *, unsigned index);
 void           bitmap_destroy(struct bitmap *);
 
+struct bitmap *
+bitmap_bootstrap(paddr_t bitmap_address, unsigned nbits);
+
+int 
+bitmap_alloc_nbits(struct bitmap *b, size_t nbits, unsigned *idx);
 
 #endif /* _BITMAP_H_ */

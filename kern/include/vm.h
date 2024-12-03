@@ -40,13 +40,22 @@
 #include <machine/vm.h>
 #include <kern/types.h>
 #include <addrspace.h>
+#include <spinlock.h>
 
 struct vm
 {
-    struct memlist *ppage_memlist;
-    struct memlist *swap_memlist; // Holds offset 0- size of swap space
+    struct bitmap *ppage_bm;
+    struct bitmap *swap_bm; // Holds offset 0- size of swap space
+
+    unsigned int n_ppages;
+    unsigned int n_ppages_allocated;
 
     struct vnode *swap_space;
+
+    paddr_t ram_start;
+
+    struct spinlock ppage_bm_sl;
+    struct spinlock swap_bm_sl;
 
     bool vm_ready;
 };
@@ -61,6 +70,7 @@ struct vm dumbervm;
 
 /* Initialization function */
 void vm_bootstrap(void);
+void swap_space_bootstrap(void);
 
 /* Fault handling function called by trap code */
 int vm_fault(int faulttype, vaddr_t faultaddress);
@@ -72,6 +82,7 @@ void free_kpages(vaddr_t addr);
 int alloc_heap_upages(struct addrspace* as, int npages);
 void free_upages(vaddr_t vaddr);
 paddr_t translate_vaddr(vaddr_t vaddr);
+vaddr_t get_lltpe(vaddr_t vaddr);
 
 
 /* TLB shootdown handling called from interprocessor_interrupt */
