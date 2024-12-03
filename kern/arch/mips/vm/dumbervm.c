@@ -114,7 +114,7 @@ getppages(unsigned long npages)
 		}
 		// If we get here go check the swap space for more space
 
-		return ENOMEM;
+		return 0;
 	}
 	else
 	{
@@ -170,7 +170,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 			as->ptbase[vpn1] += 0b1;
 		}
 
-		ll_pagetable_va[vpn2] = pa | (lastpage << 4) | ((readable << 2) | (writeable << 1) | (executable)); // this will be page aligned
+		ll_pagetable_va[vpn2] = pa | (writeable << 10) | (lastpage << 4) | ((readable << 2) | (writeable << 1) | (executable)); // this will be page aligned
 
 		*va += (vaddr_t)0x1000;
 		as->n_kuseg_pages_allocated++;

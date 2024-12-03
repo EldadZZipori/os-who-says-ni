@@ -248,6 +248,7 @@ bitmap_alloc_nbits(struct bitmap *alloc_bm, struct bitmap *last_page_bm, size_t 
         {
             if(k == sz-1) bitmap_mark(last_page_bm, best_i+k);
             bitmap_mark(alloc_bm, best_i + k);
+            dumbervm.n_ppages_allocated++;
             // Additional operations if needed
         }
         return 0;
