@@ -105,3 +105,45 @@ end
 define pml 
     printmemlist dumbervm.ppage_memlist
 end
+
+define printbitmap
+    # Check arguments
+    if $argc != 1
+        printf "Usage: print_bitmap <bitmap_ptr>\n"
+        return
+    end
+
+    # Retrieve arguments
+    set $bitmap_ptr = $arg0->v
+    set $nbits = $arg0->nbits
+
+    # Calculate the number of bytes
+    set $nbytes = ($nbits + 7) / 8
+
+    # Iterate through the bits and print binary
+    printf "Bitmap (%d bits):\n", $nbits
+    set $i = 0
+    while $i < $nbits
+        set $byte_index = $i / 8
+        set $bit_index = $i % 8
+        set $byte = *($bitmap_ptr + $byte_index)
+        set $bit = ($byte >> $bit_index) & 1
+
+        # Print the bit
+        printf "%d", $bit
+
+        # Add a space or newline for formatting
+        set $i = $i + 1
+        if $i % 8 == 0 
+            printf " "  
+        end
+        if $i % 64 == 0
+            printf "\n"  
+        end
+    end
+    printf "\n"
+end
+
+define pbm 
+    printbitmap dumbervm.ppage_bm
+end
