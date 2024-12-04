@@ -93,14 +93,14 @@ as_zero_region(vaddr_t va, unsigned npages)
 {
 	(void) va;
 	(void) npages;
-	// for (unsigned int i = 0; i < npages; i++)
+	for (unsigned int i = 0; i < npages; i++)
 	// {
 	// 	paddr_t pa = translate_vaddr(va + (i * PAGE_SIZE));
 	// 	//KASSERT(pa != 0);
 	// 	vaddr_t kseg0_va = PADDR_TO_KSEG0_VADDR(pa);
 	// 	bzero((void *)kseg0_va, PAGE_SIZE);
 	// }
-	//bzero((void *)va, npages * PAGE_SIZE);
+	bzero((void *)va, npages * PAGE_SIZE);
 }
 
 static
@@ -630,38 +630,29 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 
 	new->user_heap_start = old->user_heap_start;
 	new->user_heap_end = old->user_heap_end;
-	int result;
 
-	vaddr_t first_va = 0;
-	result = alloc_upages(new , &first_va,(old->n_kuseg_pages_allocated - DUMBVMER_STACKPAGES), 0, 0,0);
-	new->user_first_free_vaddr = first_va;
-	as_zero_region(new->user_first_free_vaddr, (old->n_kuseg_pages_allocated - DUMBVMER_STACKPAGES));
-	result = as_create_stack(new);
-	if(result)
-	{
-		as_destroy(new);
-		return result;
-	}
-
-	// Copy the data only from the old address to the new address, the mapping are all ready the same
-	// this will copy all the data over both from bottom of the userspace and from the top (stack)
+	// try with arrays: 
 	for (int i = 0; i < 1024; i++)
 	{
 		if (old->ptbase[i] != 0) 
 		{
+			// non-zero value in tlpt. copy llpt then go through it
 			vaddr_t *old_as_llpt = (vaddr_t *)TLPTE_MASK_VADDR(old->ptbase[i]);
-			vaddr_t *new_as_llpt = (vaddr_t *)alloc_kpages(1); // will be page-aligned
-
-			new->ptbase[i] = (vaddr_t)((int32_t)new_as_llpt | (int32_t)TLPTE_MASK_PAGE_COUNT((int32_t)(old->ptbase[i]))); // Add the llpte count into the tlpte 
-		
+			vaddr_t *new_as_llpt = (vaddr_t *)alloc_kpages(1); // make it a pointer so we can treat as array
+			memcpy(new_as_llpt, old_as_llpt, PAGE_SIZE);
+			new->ptbase[i] = (vaddr_t)new_as_llpt & TLPTE_MASK_PAGE_COUNT((vaddr_t)old->ptbase[i]); // put in top-level pagetable
+			
+			
 			for (int j = 0; j < 1024; j++)
 			{
 				if (old_as_llpt[j] != 0)
 				{
-					paddr_t new_ppn = KSEG0_VADDR_TO_PADDR(alloc_kpages(1));
-					paddr_t old_ppn = LLPTE_MASK_PPN(old_as_llpt[j]);
-					memcpy((void * )PADDR_TO_KSEG0_VADDR(new_ppn), (void *)PADDR_TO_KSEG0_VADDR(old_ppn), PAGE_SIZE);
-					new_as_llpt[j] = new_ppn & LLPTE_MASK_NVDG_FLAGS(old_as_llpt[j]) & LLPTE_MASK_RWE_FLAGS(old_as_llpt[j]);
+					// allocate page, copy data into it, and update llpte
+					vaddr_t* old_as_datapage = (vaddr_t *) PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(old_as_llpt[j])); // only PPN
+					vaddr_t* new_as_datapage = (vaddr_t *) alloc_kpages(1);
+					new->n_kuseg_pages_allocated++;
+					memcpy(new_as_datapage, old_as_datapage, PAGE_SIZE);	
+					new_as_llpt[j] = (vaddr_t)new_as_datapage | (old_as_llpt[j] & 0x00000f00); // NVDG flags
 				}	
 			}
 		}
