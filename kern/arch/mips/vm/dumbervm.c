@@ -91,7 +91,16 @@ static
 void
 as_zero_region(vaddr_t va, unsigned npages)
 {
-	bzero((void *)va , npages * PAGE_SIZE);
+	(void) va;
+	(void) npages;
+	// for (unsigned int i = 0; i < npages; i++)
+	// {
+	// 	paddr_t pa = translate_vaddr(va + (i * PAGE_SIZE));
+	// 	//KASSERT(pa != 0);
+	// 	vaddr_t kseg0_va = PADDR_TO_KSEG0_VADDR(pa);
+	// 	bzero((void *)kseg0_va, PAGE_SIZE);
+	// }
+	//bzero((void *)va, npages * PAGE_SIZE);
 }
 
 static
@@ -174,8 +183,12 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 		
 		ll_pagetable_va[vpn2] = pa | (writeable << 10) | (0x1 << 9) | (lastpage << 4) | ((readable << 2) | (writeable << 1) | (executable)); // this will be page aligned
 
+		// temporarily write dirty bit 
+
+		ll_pagetable_va[vpn2] |= (0x1 << 10);
+
 		*va += (vaddr_t)0x1000;
-		as->n_kuseg_pages_allocated++;
+		as->n_kuseg_pages_allocated++;	
 	}
 
 
@@ -552,7 +565,8 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 
 	// TODO: deallocate all memory from vaddr to vaddr + npages
 	int result;
-	result = alloc_upages(as, &va, npages, readable, writeable, executable);
+	// bit-shifting so that flags are all 0 or 1 (for PTE)
+	result = alloc_upages(as, &va, npages, readable >> 2, writeable >> 1, executable);
 	if (result)
 	{
 		return result;
@@ -604,8 +618,6 @@ as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 int
 as_copy(struct addrspace *old, struct addrspace **ret)
 {
-	(void) old;
-	(void) ret;
 
 	/* 
 	 * as_create already creates the first page for for the top level table itself.
@@ -623,7 +635,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	vaddr_t first_va = 0;
 	result = alloc_upages(new , &first_va,(old->n_kuseg_pages_allocated - DUMBVMER_STACKPAGES), 0, 0,0);
 	new->user_first_free_vaddr = first_va;
-	as_zero_region(0, (old->n_kuseg_pages_allocated - DUMBVMER_STACKPAGES));
+	as_zero_region(new->user_first_free_vaddr, (old->n_kuseg_pages_allocated - DUMBVMER_STACKPAGES));
 	result = as_create_stack(new);
 	if(result)
 	{
@@ -637,19 +649,19 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	{
 		if (old->ptbase[i] != 0) 
 		{
-			vaddr_t *old_as_llpt = (vaddr_t *)old->ptbase[i];
-			vaddr_t *new_as_llpt = (vaddr_t *)new->ptbase[i]; // we need to allocate this
-			//vaddr_t *new_as_llpt = (vaddr_t *)alloc_upages(1); // will be page-aligned
+			vaddr_t *old_as_llpt = (vaddr_t *)TLPTE_MASK_VADDR(old->ptbase[i]);
+			vaddr_t *new_as_llpt = (vaddr_t *)alloc_kpages(1); // will be page-aligned
+
 			new->ptbase[i] = (vaddr_t)((int32_t)new_as_llpt | (int32_t)TLPTE_MASK_PAGE_COUNT((int32_t)(old->ptbase[i]))); // Add the llpte count into the tlpte 
 		
 			for (int j = 0; j < 1024; j++)
 			{
 				if (old_as_llpt[j] != 0)
 				{
-					paddr_t new_ppn = LLPTE_MASK_PPN(new_as_llpt[j]);
+					paddr_t new_ppn = KSEG0_VADDR_TO_PADDR(alloc_kpages(1));
 					paddr_t old_ppn = LLPTE_MASK_PPN(old_as_llpt[j]);
 					memcpy((void * )PADDR_TO_KSEG0_VADDR(new_ppn), (void *)PADDR_TO_KSEG0_VADDR(old_ppn), PAGE_SIZE);
-					new_as_llpt[j] = new_as_llpt[j] & LLPTE_MASK_NVDG_FLAGS(old_as_llpt[j]) & LLPTE_MASK_RWE_FLAGS(old_as_llpt[j]);
+					new_as_llpt[j] = new_ppn & LLPTE_MASK_NVDG_FLAGS(old_as_llpt[j]) & LLPTE_MASK_RWE_FLAGS(old_as_llpt[j]);
 				}	
 			}
 		}
