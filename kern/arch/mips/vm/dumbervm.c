@@ -15,7 +15,7 @@
 #include <vnode.h>
 #include <bitmap.h>
 
-#define DUMBVMER_STACKPAGES    4
+#define DUMBVMER_STACKPAGES    8
 
 
 /* General VM stuff */
@@ -641,7 +641,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 			vaddr_t *old_as_llpt = (vaddr_t *)TLPTE_MASK_VADDR(old->ptbase[i]);
 			vaddr_t *new_as_llpt = (vaddr_t *)alloc_kpages(1); // make it a pointer so we can treat as array
 			memcpy(new_as_llpt, old_as_llpt, PAGE_SIZE);
-			new->ptbase[i] = (vaddr_t)new_as_llpt & TLPTE_MASK_PAGE_COUNT((vaddr_t)old->ptbase[i]); // put in top-level pagetable
+			new->ptbase[i] = (vaddr_t)new_as_llpt | TLPTE_MASK_PAGE_COUNT((vaddr_t)old->ptbase[i]); // put in top-level pagetable
 			
 			
 			for (int j = 0; j < 1024; j++)
