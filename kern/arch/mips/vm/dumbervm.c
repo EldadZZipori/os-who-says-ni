@@ -169,8 +169,10 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 			ll_pagetable_va = (vaddr_t *)TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]);
 			as->ptbase[vpn1] += 0b1;
 		}
+
+		// write valid bit
 		
-		ll_pagetable_va[vpn2] = pa | (writeable << 10) | (lastpage << 4) | ((readable << 2) | (writeable << 1) | (executable)); // this will be page aligned
+		ll_pagetable_va[vpn2] = pa | (writeable << 10) | (0x1 << 9) | (lastpage << 4) | ((readable << 2) | (writeable << 1) | (executable)); // this will be page aligned
 
 		*va += (vaddr_t)0x1000;
 		as->n_kuseg_pages_allocated++;
@@ -302,8 +304,6 @@ vm_tlbshootdown(const struct tlbshootdown *ts)
 int
 vm_fault(int faulttype, vaddr_t faultaddress)
 {
-	(void) faulttype;
-	(void) faultaddress;
 	int spl;
 
 	if (curproc == NULL) {
@@ -370,7 +370,14 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	*/
 	switch (faulttype)
 	{
-		uint32_t entry_lo, entry_hi;
+		
+		uint32_t entrylo, entryhi;
+
+		// FOR DEBUGGING PURPOSES ONLY
+		// Entry should be valid after we are done with it
+		ll_pagetable_va[vpn2] |= (0b1 << 9); // set bit 9 (valid bit) to 1
+
+		spl = splhigh();
 
 		case VM_FAULT_READONLY:
 
@@ -384,22 +391,22 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 			KASSERT(LLPTE_GET_LOADED_BIT(ll_pagetable_entry) == 0);
 			
 			// 1. set dirty bit in TLB
+			// spl = splhigh();
 			int idx = tlb_probe(faultaddress, 0);
 			if (idx > 0)
 			{ 
-				spl = splhigh();
 				tlb_read(&entryhi, &entrylo, idx);
 				entrylo |= (0b1 << 10); // set dirty bit
 				tlb_write(entryhi, entrylo, idx);
-				splx(spl);
 			} 
 			else
 			{
-				entryhigh = ll_pagetable_va; // kseg0 virtual address of the low level page table
+				entryhi = TLPTE_MASK_VADDR(faultaddress); // kseg0 virtual address of the low level page table
 				entrylo = (LLPTE_MASK_TLBE(ll_pagetable_entry)); // entries in the low level page table are aligned with the tlb
 				entrylo |= (0b1 << 10); // set dirty bit
-				tlb_random(entryhigh, entrylo); // overwrite random entry
+				tlb_random(entryhi, entrylo); // overwrite random entry
 			}
+			// splx(spl);
 
 			// 2. set loaded bit in low level page table
 			ll_pagetable_va[vpn2] |= (0b1 << 5); // set bit 5 (loaded) to 1
@@ -409,6 +416,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		case VM_FAULT_READ:
 			// assert we are a user 
 			// assert this page is indeed not in the TLB
+			// spl = splhigh();
 			KASSERT(curproc->p_addrspace != NULL); // TODO: Better way to check this?
 			KASSERT(tlb_probe(faultaddress, 0) < 0);
 
@@ -418,11 +426,10 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 			}
 
 			// add to tlb
-			entryhigh = ll_pagetable_va; // kseg0 virtual address of the low level page table
+			entryhi = TLPTE_MASK_VADDR(faultaddress); // kseg0 virtual address of the low level page table
 			entrylo = (LLPTE_MASK_TLBE(ll_pagetable_entry)); // entries in the low level page table are aligned with the tlb
-			spl = splhigh();
-			tlb_random(entryhigh, entrylo); // load into tlb
-			splx(spl);
+			tlb_random(entryhi, entrylo); // load into tlb
+			// splx(spl);
 			
 		break;
 
@@ -437,15 +444,17 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 				return EFAULT;
 			}
 			// add to tlb
+			entryhi = TLPTE_MASK_VADDR(faultaddress); // kseg0 virtual address of the low level page table
 			entrylo = (LLPTE_MASK_TLBE(ll_pagetable_va[vpn2])); // entries in the low level page table are aligned with the tlb
-			entryhigh = ll_pagetable_va; // kseg0 virtual address of the low level page table
-			spl = splhigh();
-			tlb_random(entryhigh, entrylo); // Just randomly evict for now
-			splx(spl);
+			tlb_random(entryhi, entrylo); // Just randomly evict for now
+			// splx(spl);
 
 		break;
+
+		splx(spl);
 	}
 
+	
 	// why do we need to set the valid bit here?
 	// why not set valid bit into PTE when we allocate the page?
 	// so that when loaded into TLB, it is already valid
