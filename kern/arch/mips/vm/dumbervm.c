@@ -157,7 +157,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 	{
 		int vpn1 = VADDR_GET_VPN1(*va);
     	int vpn2 = VADDR_GET_VPN2(*va);
-		bool lastpage = (i == npages - 1);
+		bool lastpage = true; // for 
 
 
 		vaddr_t kseg0_va = alloc_kpages(1);
@@ -315,6 +315,7 @@ free_kpages(vaddr_t addr)
 void
 vm_tlbshootdown_all(void)
 {
+	as_activate();
     return;
 }
 
@@ -322,6 +323,7 @@ void
 vm_tlbshootdown(const struct tlbshootdown *ts)
 {
 	(void)ts;
+	as_activate();
     // if (ts == NULL || ts->ts_vaddr == 0) {
     //     return;
     // }
@@ -528,11 +530,59 @@ as_create(void)
 	return as;
 }
 
+
 void
 as_destroy(struct addrspace *as)
 {
-	kfree(as);
+    if (as == NULL) {
+        return;
+    }
+
+    if (as->ptbase != NULL)
+    {
+        // Iterate over top-level page table entries
+        for (int i = 0; i < 1024; i++)
+        {
+            if (as->ptbase[i] != 0)
+            {
+                // Extract the low-level page table virtual address by masking out flags
+                vaddr_t llpt_entry = as->ptbase[i];
+                vaddr_t llpt_vaddr = TLPTE_MASK_VADDR(llpt_entry);
+                vaddr_t* llpt = (vaddr_t*)llpt_vaddr;
+
+                // Iterate over low-level page table entries
+                for (int j = 0; j < 1024; j++)
+                {
+                    if (llpt[j] != 0)
+                    {
+                        // Extract the physical address of the data page
+                        vaddr_t llpte_entry = llpt[j];
+                        paddr_t data_paddr = LLPTE_MASK_PPN(llpte_entry);
+                        vaddr_t data_vaddr = PADDR_TO_KSEG0_VADDR(data_paddr);
+
+                        // Free the data page
+                        free_kpages(data_vaddr);
+                    }
+                }
+
+                // Free the low-level page table itself
+                free_kpages(llpt_vaddr);
+            }
+        }
+
+        // Free the top-level page table
+        free_kpages((vaddr_t)as->ptbase);
+    }
+
+    // Destroy the heap lock if it exists
+    if (as->heap_lk != NULL) {
+        lock_destroy(as->heap_lk);
+    }
+
+    // Free the address space structure
+    kfree(as);
 }
+
 
 void
 as_activate(void)
