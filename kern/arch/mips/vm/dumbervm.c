@@ -16,6 +16,7 @@
 #include <bitmap.h>
 
 #define DUMBVMER_STACKPAGES    8
+#define DUMB_HEAP_START	0x1000000
 
 
 /* General VM stuff */
@@ -229,7 +230,19 @@ alloc_heap_upages(struct addrspace* as, int npages)
 
 	return 0;
 }
-
+int 
+free_heap_upages(struct addrspace* as, int npages)
+{
+	vaddr_t va = as->user_heap_end;
+	for (int i = 0; i < npages; i++)
+	{
+		va -= 0x1000;
+		free_upages(as, va);
+		
+	}
+	as->user_heap_end = va;
+	return 0;
+}
 /* Allocate/free some kernel-space virtual pages */
 vaddr_t
 alloc_kpages(unsigned npages)
@@ -603,6 +616,8 @@ int
 as_complete_load(struct addrspace *as)
 {
 	(void)as;
+	as->user_heap_end = DUMB_HEAP_START;
+	as->user_heap_start = DUMB_HEAP_START;
 	return 0;
 }
 
@@ -671,9 +686,9 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 
 
 void 
-free_upages(vaddr_t vaddr)
+free_upages(struct addrspace* as, vaddr_t vaddr)
 {
-	int i;
+	int i = 0;
 
 
 	/**
@@ -685,8 +700,8 @@ free_upages(vaddr_t vaddr)
 	while(1)
 	{
 		vaddr += (i * PAGE_SIZE);
-		paddr_t paddr = translate_vaddr(vaddr);
-		vaddr_t llpte = get_lltpe(vaddr);
+		paddr_t paddr = translate_vaddr(as, vaddr);
+		vaddr_t llpte = get_lltpe(as, vaddr);
 
 		free_kpages(PADDR_TO_KSEG0_VADDR(paddr));
 
@@ -704,12 +719,11 @@ free_upages(vaddr_t vaddr)
 		
 	
 paddr_t
-translate_vaddr(vaddr_t vaddr)
+translate_vaddr(struct addrspace* as, paddr_t vaddr)
 {
 	int vpn1 = VADDR_GET_VPN1(vaddr);
 	int vpn2 = VADDR_GET_VPN2(vaddr);
 
-	struct addrspace *as = proc_getas();
 	if (as == NULL) {
 		return 0;
 	}
@@ -732,12 +746,11 @@ translate_vaddr(vaddr_t vaddr)
 	return (paddr_t) (LLPTE_MASK_PPN(ll_pagetable_va[vpn2]) | VADDR_GET_OFFSET(vaddr));
 }
 
-vaddr_t get_lltpe(vaddr_t vaddr)
+vaddr_t get_lltpe(struct addrspace* as,vaddr_t vaddr)
 {
 	int vpn1 = VADDR_GET_VPN1(vaddr);
 	int vpn2 = VADDR_GET_VPN2(vaddr);
 
-	struct addrspace *as = proc_getas();
 	if (as == NULL) {
 		return 0;
 	}

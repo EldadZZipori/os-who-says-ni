@@ -335,6 +335,6 @@ int
 __waitpid(int pid, int* status, int options);
 
 int
-sbrk (int amount, void* retval);
+sys_sbrk (int amount, int* retval);
 #endif /* _SYSCALL_H_ */
 
