@@ -705,6 +705,10 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 			// non-zero value in tlpt. copy llpt then go through it
 			vaddr_t *old_as_llpt = (vaddr_t *)TLPTE_MASK_VADDR(old->ptbase[i]);
 			vaddr_t *new_as_llpt = (vaddr_t *)alloc_kpages(1); // make it a pointer so we can treat as array
+			if (new_as_llpt == 0)
+			{
+				return ENOMEM;
+			}
 			memcpy(new_as_llpt, old_as_llpt, PAGE_SIZE);
 			new->ptbase[i] = (vaddr_t)new_as_llpt | TLPTE_MASK_PAGE_COUNT((vaddr_t)old->ptbase[i]); // put in top-level pagetable
 			
@@ -716,6 +720,10 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 					// allocate page, copy data into it, and update llpte
 					vaddr_t* old_as_datapage = (vaddr_t *) PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(old_as_llpt[j])); // only PPN
 					vaddr_t* new_as_datapage = (vaddr_t *) alloc_kpages(1);
+					if (new_as_datapage == 0)
+					{
+						return ENOMEM;
+					}
 					new->n_kuseg_pages_allocated++;
 					memcpy(new_as_datapage, old_as_datapage, PAGE_SIZE);	
 					paddr_t new_llpte = (paddr_t)(KSEG0_VADDR_TO_PADDR((paddr_t)new_as_datapage) | (old_as_llpt[j] & 0x00000fff)); // NVDG flags
