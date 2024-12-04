@@ -653,7 +653,8 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 					vaddr_t* new_as_datapage = (vaddr_t *) alloc_kpages(1);
 					new->n_kuseg_pages_allocated++;
 					memcpy(new_as_datapage, old_as_datapage, PAGE_SIZE);	
-					new_as_llpt[j] = (vaddr_t)KSEG0_VADDR_TO_PADDR(new_as_datapage) | (old_as_llpt[j] & 0x00000f00); // NVDG flags
+					paddr_t new_llpte = (paddr_t)(KSEG0_VADDR_TO_PADDR((paddr_t)new_as_datapage) | (old_as_llpt[j] & 0x00000fff)); // NVDG flags
+					new_as_llpt[j] = new_llpte;
 				}	
 			}
 		}

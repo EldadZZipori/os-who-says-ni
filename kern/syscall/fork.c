@@ -61,7 +61,10 @@ sys_fork(struct trapframe *tf, int *retval)
         proc_destroy(new_proc);
         return ENOMEM;
     }
-
+    struct addrspace* as1 = curproc->p_addrspace;
+    struct addrspace* as2 = new_proc->p_addrspace;
+    (void)as1;
+    (void) as2;
     // 2. copy file table 
     err = __copy_fd_table(curproc, new_proc);
     if (err) {
@@ -69,7 +72,7 @@ sys_fork(struct trapframe *tf, int *retval)
         proc_destroy(new_proc);
         return ENOMEM;
     }
-
+    
     // 4. copy kernel thread 
     struct trapframe tf_copy = *tf;
 
