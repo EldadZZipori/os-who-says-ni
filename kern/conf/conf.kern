@@ -470,6 +470,7 @@ file        syscall/getpid.c
 file        syscall/_exit.c
 file        syscall/waitpid.c
 file        syscall/execv.c
+file        syscall/sbrk.c
 
 ########################################
 #                                      #
