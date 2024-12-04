@@ -630,6 +630,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 
 	new->user_heap_start = old->user_heap_start;
 	new->user_heap_end = old->user_heap_end;
+	new->user_stackbase = old->user_stackbase;
 
 	// try with arrays: 
 	for (int i = 0; i < 1024; i++)
