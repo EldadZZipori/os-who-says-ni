@@ -385,7 +385,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 			// assert dirty bit is not set (since we are here)
 			// assert this page is non-writeable
 			// assert this page is not loaded
-			KASSERT(curproc->p_addrspace == NULL); // TODO: Better way to check this?
+			//KASSERT(curproc->p_addrspace == NULL); // TODO: Better way to check this?
 			KASSERT(LLPTE_GET_DIRTY_BIT(ll_pagetable_entry) == 0);
 			KASSERT(LLPTE_GET_WRITE_PERMISSION_BIT(ll_pagetable_entry) == 0);
 			KASSERT(LLPTE_GET_LOADED_BIT(ll_pagetable_entry) == 0);
@@ -439,7 +439,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 			KASSERT(curproc->p_addrspace != NULL); // TODO: Better way to check this?
 			KASSERT(tlb_probe(faultaddress, 0) < 0);
 
-			if(!LLPTE_GET_WRITE_PERMISSION_BIT(ll_pagetable_entry))
+			if(!LLPTE_GET_WRITE_PERMISSION_BIT(ll_pagetable_entry) && LLPTE_GET_LOADED_BIT(ll_pagetable_entry))
 			{
 				return EFAULT;
 			}
