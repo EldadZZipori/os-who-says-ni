@@ -15,7 +15,7 @@
 #include <vnode.h>
 #include <bitmap.h>
 
-#define DUMBVMER_STACKPAGES    18
+#define DUMBVMER_STACKPAGES    4
 
 
 /* General VM stuff */
