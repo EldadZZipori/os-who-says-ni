@@ -479,3 +479,5 @@ file        syscall/sbrk.c
 ########################################
 file        vm/memlist.c
 file  arch/mips/vm/dumbervm.c
+file  arch/mips/vm/swapspace.c
+

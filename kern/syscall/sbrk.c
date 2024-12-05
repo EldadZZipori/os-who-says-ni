@@ -18,7 +18,7 @@ sys_sbrk (int amount, int* retval)
     spinlock_acquire(&curproc->p_lock);
     struct addrspace* as = curproc->p_addrspace;
 
-    lock_acquire(as->heap_lk);
+    lock_acquire(as->address_lk);
 
     int abs_amount;
     bool is_negative;
@@ -36,13 +36,13 @@ sys_sbrk (int amount, int* retval)
     if (as->user_heap_end + amount >= as->user_stackbase)
     {
         // problem cannot expand or retract the heap anymore
-        lock_release(as->heap_lk);
+        lock_release(as->address_lk);
         spinlock_release(&curproc->p_lock);
         return ENOMEM;
     }
     else if (as->user_heap_end + amount < as->user_heap_start)
     {
-        lock_release(as->heap_lk);
+        lock_release(as->address_lk);
         spinlock_release(&curproc->p_lock);
         return EINVAL;
     }
@@ -50,7 +50,7 @@ sys_sbrk (int amount, int* retval)
     if (amount == 0)
     {
         *retval = as->user_heap_end;
-        lock_release(as->heap_lk);
+        lock_release(as->address_lk);
         spinlock_release(&curproc->p_lock);
         return 0;
     }
@@ -58,7 +58,7 @@ sys_sbrk (int amount, int* retval)
     /* We only allow page allinged sizes */
     if (abs_amount % PAGE_SIZE != 0)
     {
-        lock_release(as->heap_lk);
+        lock_release(as->address_lk);
         spinlock_release(&curproc->p_lock);
         return -1; // Some issue here.
     }
@@ -79,13 +79,13 @@ sys_sbrk (int amount, int* retval)
         result = alloc_heap_upages(as, npages);
         if (result)
         {
-            lock_release(as->heap_lk);
+            lock_release(as->address_lk);
             spinlock_release(&curproc->p_lock);
             return result;
         }
     }
 
-    lock_release(as->heap_lk);
+    lock_release(as->address_lk);
     spinlock_release(&curproc->p_lock);
     return 0;
 
