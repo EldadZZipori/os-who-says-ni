@@ -5,7 +5,7 @@
  * For now this is the amount of  total files we are allowing in our system. 
  * would be better to dynamiclly change the size of the table.
  */
-#define FILETABLE_INIT_SIZE 16
+#define FILETABLE_INIT_SIZE 32
 
 struct filetable* kfile_table;
 
