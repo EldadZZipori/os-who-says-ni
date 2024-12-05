@@ -421,7 +421,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 			// 1. set dirty bit in TLB
 			// spl = splhigh();
 			int idx = tlb_probe(faultaddress, 0);
-			if (idx > 0)
+			if (idx >= 0)
 			{ 
 				tlb_read(&entryhi, &entrylo, idx);
 				entrylo |= (0b1 << 10); // set dirty bit
@@ -446,7 +446,8 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 			// assert this page is indeed not in the TLB
 			// spl = splhigh();
 			KASSERT(curproc->p_addrspace != NULL); // TODO: Better way to check this?
-			KASSERT(tlb_probe(faultaddress, 0) < 0);
+			int index = tlb_probe(faultaddress, 0);
+			KASSERT(index < 0);
 
 			if(!LLPTE_GET_READ_PERMISSION_BIT(ll_pagetable_entry))
 			{
@@ -581,6 +582,8 @@ as_destroy(struct addrspace *as)
 
     // Free the address space structure
     kfree(as);
+
+	as_activate(); // just invalidate the tlb.
 }
 
 
@@ -774,6 +777,11 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 			// last page. exit
 			break;
 		}
+
+		vaddr_t* llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[VADDR_GET_VPN1(vaddr)]);
+		int vpn2 = VADDR_GET_VPN2(vaddr);
+		llpt[vpn2] = 0;
+
 		i++;
 	}
 
