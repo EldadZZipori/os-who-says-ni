@@ -362,7 +362,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		int s_vpn2 = VADDR_GET_VPN2(swapable_page);
 		vaddr_t* s_llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[s_vpn1]); // get the original llpte
 		paddr_t stolen_page = s_llpt[s_vpn2]; 
-		paddr_t stolen_ppn = LLPTE_MASK_PPN(stolen_page) >> 12;
+		paddr_t stolen_ppn = LLPTE_MASK_PPN(stolen_page);
 
 		s_llpt[s_vpn2] = LLPTE_SET_SWAP_BIT((location_in_swap << 12) | (stolen_page & 0xfff)); // mark the stolen page as swap space and space its location in the swap
 
@@ -384,7 +384,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		memcpy((void *)PADDR_TO_KSEG0_VADDR(stolen_ppn), dumbervm.swap_buffer, PAGE_SIZE); // copy the data that was in swap into the ppn we just stole
 
 		as_zero_region((vaddr_t)dumbervm.swap_buffer, 1);
-		ll_pagetable_va[vpn2] = (stolen_ppn << 12) | (ll_pagetable_entry & 0xfff) ;//mark the stolen ppn on the translation for the fault virtual address
+		ll_pagetable_va[vpn2] = (stolen_ppn) | (ll_pagetable_entry & 0xfff) ;//mark the stolen ppn on the translation for the fault virtual address
 		ll_pagetable_entry = ll_pagetable_va[vpn2];
 
 		// Invalidate the stolen page
@@ -574,7 +574,7 @@ as_destroy(struct addrspace *as)
                     {
                         // Extract the physical address of the data page
                         vaddr_t llpte_entry = llpt[j];
-                        paddr_t data_paddr = LLPTE_MASK_PPN(llpte_entry) >> 12;
+                        paddr_t data_paddr = LLPTE_MASK_PPN(llpte_entry);
                         vaddr_t data_vaddr = PADDR_TO_KSEG0_VADDR(data_paddr);
 
                         // Free the data page
@@ -794,7 +794,6 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 		}
 
 		if (LLPTE_GET_LASTPAGE_BIT(llpte))
-		{
 			// last page. exit
 			break;
 		}
