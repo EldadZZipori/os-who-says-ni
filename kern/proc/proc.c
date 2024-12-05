@@ -310,10 +310,10 @@ proc_destroy(struct proc *proc)
 
 
 	// tell all our children we are dead
-	for (int i = 0; i < proc->children_size; i++)
-	{
-		proc->children[i]->parent = NULL;
-	}
+	// for (int i = 0; i < proc->children_size; i++)
+	// {
+	// 	proc->children[i]->parent = NULL;
+	// }
 	/* 
 	 * Check we are not called because one of these failed
 	 */
