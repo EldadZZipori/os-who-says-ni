@@ -585,8 +585,8 @@ as_create(void)
 		return NULL;
 	}
 
-	as->heap_lk = lock_create("heap lock");
-	if (as->heap_lk == NULL)
+	as->address_lk = lock_create("address lock");
+	if (as->address_lk == NULL)
 	{
 		kfree(as);
 		return NULL;
@@ -651,8 +651,8 @@ as_destroy(struct addrspace *as)
     }
 
     // Destroy the heap lock if it exists
-    if (as->heap_lk != NULL) {
-        lock_destroy(as->heap_lk);
+    if (as->address_lk != NULL) {
+        lock_destroy(as->address_lk);
     }
 
     // Free the address space structure
@@ -760,12 +760,15 @@ int
 as_copy(struct addrspace *old, struct addrspace **ret)
 {
 
+	lock_acquire(old->address_lk);
+
 	/* 
 	 * as_create already creates the first page for for the top level table itself.
 	 */
 	struct addrspace *new = as_create();
 	if (new == NULL)
 	{
+		lock_release(old->address_lk);
 		return ENOMEM; // This might not be the most idicative 
 	}
 
@@ -783,6 +786,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 			vaddr_t *new_as_llpt = (vaddr_t *)alloc_kpages(1); // make it a pointer so we can treat as array
 			if (new_as_llpt == 0)
 			{
+				lock_release(old->address_lk);
 				return ENOMEM;
 			}
 			memcpy(new_as_llpt, old_as_llpt, PAGE_SIZE);
@@ -798,6 +802,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 					vaddr_t* new_as_datapage = (vaddr_t *) alloc_kpages(1);
 					if (new_as_datapage == 0)
 					{
+						lock_release(old->address_lk);
 						return ENOMEM;
 					}
 					new->n_kuseg_pages_allocated++;
@@ -814,6 +819,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	
 		
 	*ret = new;
+	lock_release(old->address_lk);
 	return 0;
 }
 

@@ -256,7 +256,11 @@ __close(struct proc* cur_proc, int fd)
      *  We are assuming here that the vfs sructre knows to remove the v-node 
      *  once it has no references.
      */
-    vfs_close(kfile_table->files[index_in_fd]->vn);
+    if (kfile_table->files[index_in_fd]->vn != NULL)
+    {
+        vfs_close(kfile_table->files[index_in_fd]->vn);
+    }
+    
 
     if (kfile_table->files[index_in_fd]->ref_count == 0)
     {
