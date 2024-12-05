@@ -86,8 +86,8 @@ swap_space_bootstrap(void)
 		return;
 	}
 
-	struct bitmap* swap_memlist = bitmap_create((swap_space_stat.st_size)/PAGE_SIZE);
-	if (swap_memlist == NULL)
+	dumbervm.swap_bm = bitmap_create((swap_space_stat.st_size)/PAGE_SIZE);
+	if (dumbervm.swap_bm == NULL)
 	{
 		vfs_close(swap_space);
 		kprintf("dumbervm: cannot get swap space size, continuing without swap space");
@@ -285,15 +285,20 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 			as->ptbase[vpn1] += 0b1;
 		}
 		vaddr_t kseg0_va;
-		kseg0_va = alloc_kpages(1);
+		
 
 		// set the 'otherpages' field in the memlist node of the first page in the block
 
-		paddr_t pa = KSEG0_VADDR_TO_PADDR(kseg0_va);          // Physical address of the new block we created.
-		if (kseg0_va == 0) // in this case we should allocate memory from the swap space
+		paddr_t pa;          // Physical address of the new block we created.
+		if (dumbervm.n_ppages_allocated >= dumbervm.n_ppages - 40) // in this case we should allocate memory from the swap space
 		{
 			off_t swap_location = alloc_swap_page(); // find free area in swap space
-			pa = swap_location;
+			pa = LLPTE_SET_SWAP_BIT(swap_location);
+		}
+		else
+		{
+			kseg0_va = alloc_kpages(1);
+			pa = KSEG0_VADDR_TO_PADDR(kseg0_va);
 		}
 
 		// write valid bit
