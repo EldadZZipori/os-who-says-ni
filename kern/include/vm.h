@@ -54,6 +54,8 @@ struct vm
 
     struct vnode *swap_space;
 
+    void* swap_buffer;
+
     paddr_t ram_start;
 
     struct spinlock ppage_bm_sl;
@@ -72,6 +74,7 @@ struct vm dumbervm;
 #define VM_FAULT_READONLY    2    /* A write to a readonly page was attempted*/
 
 
+
 /* Initialization function */
 void vm_bootstrap(void);
 void swap_space_bootstrap(void);
@@ -88,11 +91,17 @@ int free_heap_upages(struct addrspace* as, int npages);
 void free_upages(struct addrspace* as, vaddr_t vaddr);
 paddr_t translate_vaddr(struct addrspace* as, vaddr_t vaddr);
 vaddr_t get_lltpe(struct addrspace* as,vaddr_t vaddr);
-off_t alloc_swap_page();
+int 
+read_from_swap(struct addrspace* as, off_t swap_location, void * buf);
+int 
+write_stolen_page_to_swap(struct addrspace* as, off_t swap_location, paddr_t stolen_ppn);
+vaddr_t
+find_swapable_page(struct addrspace* as);
 
 /* TLB shootdown handling called from interprocessor_interrupt */
 void vm_tlbshootdown_all(void);
 void vm_tlbshootdown(const struct tlbshootdown *);
 
+long long alloc_swap_page();
 
 #endif /* _VM_H_ */

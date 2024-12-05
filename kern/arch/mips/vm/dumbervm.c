@@ -24,7 +24,6 @@
 /* General VM stuff */
 
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
-
 void
 vm_bootstrap(void)
 {
@@ -68,6 +67,12 @@ swap_space_bootstrap(void)
 	if (result)
 	{
 		kprintf("dumbervm: no swap space found, continuing without swap space");
+		return;
+	}
+	dumbervm.swap_buffer = kmalloc(PAGE_SIZE);
+	if (dumbervm.swap_buffer == NULL)
+	{
+		kprintf("dumbervm: can't create buffer for swap sapce");
 		return;
 	}
 
@@ -143,10 +148,9 @@ getppages(unsigned long npages)
 
 }
 
-off_t
-alloc_swap_page()
+long long alloc_swap_page()
 {
-	int index;
+	unsigned int index;
 	spinlock_acquire(&dumbervm.swap_bm_sl);
 	int result = bitmap_alloc(dumbervm.swap_bm, &index);
 	spinlock_release(&dumbervm.swap_bm_sl);
@@ -196,7 +200,7 @@ write_stolen_page_to_swap(struct addrspace* as, off_t swap_location, paddr_t sto
 	struct uio uio;
     struct iovec iov;
 
-	iov.iov_kbase = PADDR_TO_KSEG0_VADDR(stolen_ppn);
+	iov.iov_kbase = (void *)PADDR_TO_KSEG0_VADDR(stolen_ppn);
     iov.iov_len = PAGE_SIZE;
     uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
@@ -211,6 +215,26 @@ write_stolen_page_to_swap(struct addrspace* as, off_t swap_location, paddr_t sto
 
 }
 
+int 
+read_from_swap(struct addrspace* as, off_t swap_location, void * buf)
+{
+	struct uio uio;
+    struct iovec iov;
+    iov.iov_kbase =buf;
+    iov.iov_len = PAGE_SIZE;
+    uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = swap_location;
+	uio.uio_resid = PAGE_SIZE;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_READ;
+	uio.uio_space = as;
+
+    // read from the file
+    int result = VOP_READ(dumbervm.swap_space, &uio);
+	return result;
+	
+}
 static
 int 
 alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, int writeable, int executable)
@@ -427,7 +451,6 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		 */
 		return EFAULT;
 	}
-
 	/* Tried to access kernel memory */
 	if (faultaddress >= MIPS_KSEG0)
 	{
@@ -449,6 +472,39 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	if (ll_pagetable_entry == 0) // there is no entry in the low level page table entry
 	{
 		return EFAULT;
+	}
+
+	if (LLPTE_GET_SWAP_BIT(ll_pagetable_entry))
+	{
+		off_t location_in_swap = LLPTE_GET_SWAP_OFFSET(ll_pagetable_entry);
+		vaddr_t swapable_page = find_swapable_page(as); // find a page that belongs to the user so we can steal it
+		int s_vpn1 = VADDR_GET_VPN1(swapable_page);
+		int s_vpn2 = VADDR_GET_VPN2(swapable_page);
+		vaddr_t* s_llpt= (vaddr_t *)as->ptbase[s_vpn1]; // get the original llpte
+		paddr_t stolen_page = s_llpt[s_vpn2]; 
+		paddr_t stolen_ppn = LLPTE_MASK_PPN(stolen_page);
+
+		s_llpt[s_vpn2] = LLPTE_SET_SWAP_BIT((location_in_swap << 12) | (stolen_page & 0xfff)); // mark the stolen page as swap space and space its location in the swap
+
+		int result = read_from_swap(as, location_in_swap, dumbervm.swap_buffer); // copy data from swap to a buffer
+		if (result)
+		{
+			kprintf("dumbervm: problem reading from swap space\n");
+			return ENOMEM;
+		}
+
+		result = write_stolen_page_to_swap(as, location_in_swap, stolen_page); // save the stolen data into the swap space
+
+		if (result)
+		{
+			kprintf("dumbervm: problem writing to swap space\n");
+			return ENOMEM;
+		}
+
+		memcpy((void *)PADDR_TO_KSEG0_VADDR(stolen_ppn), dumbervm.swap_buffer, PAGE_SIZE); // copy the data that was in swap into the ppn we just stole
+
+		ll_pagetable_va[vpn2] = LLPTE_UNSET_SWAP_BIT((stolen_ppn << 12) | (faultaddress & 0xfff)) ;//mark the stolen ppn on the translation for the fault virtual address
+		ll_pagetable_entry = ll_pagetable_va[vpn2];
 	}
 	
 	/** 
@@ -857,7 +913,6 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 }
 
 		
-	
 paddr_t
 translate_vaddr(struct addrspace* as, paddr_t vaddr)
 {
