@@ -386,6 +386,18 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		as_zero_region((vaddr_t)dumbervm.swap_buffer, 1);
 		ll_pagetable_va[vpn2] = (stolen_ppn << 12) | (ll_pagetable_entry & 0xfff) ;//mark the stolen ppn on the translation for the fault virtual address
 		ll_pagetable_entry = ll_pagetable_va[vpn2];
+
+		// Invalidate the stolen page
+		spl = splhigh(); 
+		int idx = tlb_probe(swapable_page, 0);
+
+		if (idx >= 0)
+		{
+			tlb_write(TLBHI_INVALID(idx),TLBLO_INVALID(),idx);
+		}
+
+		splx(spl);
+
 	}
 	
 	/** 
@@ -502,14 +514,6 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	// and then, we can clear the valid bit when we move to swap
 	// which will also do TLB shootdown on the entry.
 	ll_pagetable_va[vpn2] |= (0b1 << 9); // set bit 9 (valid bit) to 1
-
-	// now we know that there is an actual translation in the page tables
-	// uint32_t entrylo = (LLPTE_MASK_TLBE(ll_pagetable_va[vpn2])); // entries in the low level page table are aligned with the tlb
-	// uint32_t entryhigh = faultaddress;
-	
-	// spl = splhigh();
-	// tlb_random(entryhigh, entrylo); // Just randomly evict for now
-	// splx(spl);
 
 	return 0;
 }

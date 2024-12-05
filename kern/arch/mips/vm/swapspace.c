@@ -1,9 +1,20 @@
-#include <vm.h>
-#include <kern/errno.h>
 #include <types.h>
-#include <uio.h>
+#include <kern/errno.h>
+#include <lib.h>
+#include <spl.h>
+#include <spinlock.h>
+#include <proc.h>
+#include <current.h>
+#include <mips/tlb.h>
+#include <addrspace.h>
+#include <vm.h>
+#include <synch.h>
+#include <vfs.h>
 #include <kern/fcntl.h>
-#include <stat.h>
+#include <kern/stat.h>
+#include <vnode.h>
+#include <bitmap.h>
+#include <uio.h>
 
 void
 swap_space_bootstrap(void)
