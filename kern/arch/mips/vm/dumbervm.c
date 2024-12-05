@@ -186,7 +186,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 
 		// temporarily write dirty bit 
 
-		ll_pagetable_va[vpn2] |= (0x1 << 10);
+		ll_pagetable_va[vpn2] |= (0x1 << 10) |(readable << 2) | (writeable << 1) ; // for now everything is readable and writeable
 
 		*va += (vaddr_t)0x1000;
 		as->n_kuseg_pages_allocated++;	
