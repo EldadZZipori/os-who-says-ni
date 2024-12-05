@@ -59,6 +59,8 @@ struct vm
     struct spinlock ppage_bm_sl;
     struct spinlock swap_bm_sl;
 
+    long swap_sz;
+
     bool vm_ready;
 };
 
@@ -86,7 +88,7 @@ int free_heap_upages(struct addrspace* as, int npages);
 void free_upages(struct addrspace* as, vaddr_t vaddr);
 paddr_t translate_vaddr(struct addrspace* as, vaddr_t vaddr);
 vaddr_t get_lltpe(struct addrspace* as,vaddr_t vaddr);
-
+off_t alloc_swap_page();
 
 /* TLB shootdown handling called from interprocessor_interrupt */
 void vm_tlbshootdown_all(void);

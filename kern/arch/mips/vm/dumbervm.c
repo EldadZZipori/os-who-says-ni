@@ -14,6 +14,8 @@
 #include <kern/stat.h>
 #include <vnode.h>
 #include <bitmap.h>
+#include <uio.h>
+
 
 #define DUMBVMER_STACKPAGES    8
 #define DUMB_HEAP_START	0x1000000
@@ -86,6 +88,8 @@ swap_space_bootstrap(void)
 		kprintf("dumbervm: cannot get swap space size, continuing without swap space");
 		return;
 	}
+
+	dumbervm.swap_sz = swap_space_stat.st_size;
 }
 
 static
@@ -139,6 +143,73 @@ getppages(unsigned long npages)
 
 }
 
+off_t
+alloc_swap_page()
+{
+	int index;
+	spinlock_acquire(&dumbervm.swap_bm_sl);
+	int result = bitmap_alloc(dumbervm.swap_bm, &index);
+	spinlock_release(&dumbervm.swap_bm_sl);
+
+
+	if (!result)// this means there is space in the 
+	{
+		return index * 0x1000; // swap starts at 0 so should be simple
+	}
+
+	return ENOMEM;
+
+
+}
+
+vaddr_t
+find_swapable_page(struct addrspace* as)
+{
+    if (as == NULL) {
+        return 0;
+    }
+
+    int start_i = random() % 1024; 
+    int start_j = random() % 1024;
+
+    int i = start_i;
+    do {
+        if (as->ptbase[i] != 0) {
+            vaddr_t* llpt = (vaddr_t*) TLPTE_MASK_VADDR(as->ptbase[i]);
+            int j = start_j;
+            do {
+                if (llpt[j] != 0) {
+                    return (i << 22) | (j << 12);
+                }
+                j = (j + 1) % 1024;
+            } while (j != start_j);
+        }
+        i = (i + 1) % 1024;
+    } while (i != start_i);
+
+    return 0; /* No swapable page found */
+}
+
+int 
+write_stolen_page_to_swap(struct addrspace* as, off_t swap_location, paddr_t stolen_ppn)
+{
+	struct uio uio;
+    struct iovec iov;
+
+	iov.iov_kbase = PADDR_TO_KSEG0_VADDR(stolen_ppn);
+    iov.iov_len = PAGE_SIZE;
+    uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = swap_location;
+	uio.uio_resid = PAGE_SIZE;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_WRITE;
+	uio.uio_space = as;
+
+	int result = VOP_WRITE(dumbervm.swap_space, &uio);
+	return result
+
+}
 
 static
 int 
@@ -158,13 +229,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 		int vpn1 = VADDR_GET_VPN1(*va);
     	int vpn2 = VADDR_GET_VPN2(*va);
 		bool lastpage = true; // for 
-
-
-		vaddr_t kseg0_va = alloc_kpages(1);
-
-		// set the 'otherpages' field in the memlist node of the first page in the block
-
-		paddr_t pa = KSEG0_VADDR_TO_PADDR(kseg0_va);          // Physical address of the new block we created.   
+   
 
 		vaddr_t* ll_pagetable_va;
 		if (as->ptbase[vpn1] == 0)  // This means the low level page table for this top level page entery was not created yet
@@ -179,6 +244,29 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 			ll_pagetable_va = (vaddr_t *)TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]);
 			as->ptbase[vpn1] += 0b1;
 		}
+		vaddr_t kseg0_va;
+		kseg0_va = alloc_kpages(1);
+
+		if (kseg0_va == 0) // in this case we should allocate memory from the swap space
+		{
+			off_t swap_location = alloc_swap_page(); // find free area in swap space
+			vaddr_t swapable_page = find_swapable_page(as); // find a page that belongs to the user so we can steal it
+			int s_vpn1 = VADDR_GET_VPN1(swapable_page);
+    		int s_vpn2 = VADDR_GET_VPN2(swapable_page);
+			vaddr_t* s_llpt= as->ptbase[s_vpn1]; // get the original llpte
+			paddr_t stolen_page = s_llpt[s_vpn2]; 
+			paddr_t stolen_ppn = LLPTE_MASK_PPN(stolen_page);
+
+			s_llpt[s_vpn2] = LLPTE_SET_SWAP_BIT((swap_location << 12) | (stolen_page & 0xfff)); // mark the stolen page as swap space and space its location in the swap
+
+			
+
+
+		}
+
+		// set the 'otherpages' field in the memlist node of the first page in the block
+
+		paddr_t pa = KSEG0_VADDR_TO_PADDR(kseg0_va);          // Physical address of the new block we created.
 
 		// write valid bit
 		

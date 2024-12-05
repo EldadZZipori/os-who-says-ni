@@ -45,6 +45,8 @@
 #define VADDR_GET_OFFSET(x)  ((x) & 0xfff)       // First 12 bits of address
 #define VADDR_GET_VPN1(x)    (((x)>>22) & 0x3ff) // Bit 22-31
 #define VADDR_GET_VPN2(x)    (((x)>>12) & 0x3ff) // Bit 12-21
+#define LLPTE_SET_SWAP_BIT(x) ((x) | 0b1000)
+#define LLPTE_UNSET_SWAP_BIT(x) ((x) & 0b0111)
 #define LLPTE_GET_READ_PERMISSION_BIT(x)    (((x)>>2) & 0b1)
 #define LLPTE_GET_WRITE_PERMISSION_BIT(x)   (((x)>>1) & 0b1)
 #define LLPTE_GET_DIRTY_BIT(x)              (((x)>>10) & 0b1)
