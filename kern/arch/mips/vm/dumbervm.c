@@ -447,7 +447,11 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 			// spl = splhigh();
 			KASSERT(curproc->p_addrspace != NULL); // TODO: Better way to check this?
 			int index = tlb_probe(faultaddress, 0);
-			KASSERT(index < 0);
+			if (index >=0 )
+			{
+				KASSERT(index < 0);
+			}
+			
 
 			if(!LLPTE_GET_READ_PERMISSION_BIT(ll_pagetable_entry))
 			{
