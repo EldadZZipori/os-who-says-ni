@@ -148,7 +148,7 @@ getppages(unsigned long npages)
 
 }
 
-long long alloc_swap_page()
+long long alloc_swap_page(void)
 {
 	unsigned int index;
 	spinlock_acquire(&dumbervm.swap_bm_sl);
@@ -163,6 +163,22 @@ long long alloc_swap_page()
 
 	return ENOMEM;
 
+
+}
+
+void 
+free_swap_page(paddr_t llpte)
+{
+	
+	off_t swap_location = LLPTE_GET_SWAP_OFFSET(llpte);
+
+	KASSERT(swap_location%PAGE_SIZE == 0);
+	unsigned int index = swap_location / PAGE_SIZE;
+
+	spinlock_acquire(&dumbervm.swap_bm_sl);
+	bitmap_unmark(dumbervm.swap_bm, index);
+	dumbervm.n_ppages_allocated--;
+	spinlock_release(&dumbervm.swap_bm_sl);
 
 }
 
@@ -899,7 +915,14 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 		paddr_t paddr = translate_vaddr(as, vaddr);
 		vaddr_t llpte = get_lltpe(as, vaddr);
 
-		free_kpages(PADDR_TO_KSEG0_VADDR(paddr));
+		if (LLPTE_GET_SWAP_BIT(llpte))
+		{
+			free_swap_page(llpte);
+		}
+		else
+		{
+			free_kpages(PADDR_TO_KSEG0_VADDR(paddr));
+		}
 
 		if (LLPTE_GET_LASTPAGE_BIT(llpte))
 		{

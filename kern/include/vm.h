@@ -97,11 +97,13 @@ int
 write_stolen_page_to_swap(struct addrspace* as, off_t swap_location, paddr_t stolen_ppn);
 vaddr_t
 find_swapable_page(struct addrspace* as);
+void 
+free_swap_page(paddr_t llpte);
 
 /* TLB shootdown handling called from interprocessor_interrupt */
 void vm_tlbshootdown_all(void);
 void vm_tlbshootdown(const struct tlbshootdown *);
 
-long long alloc_swap_page();
+long long alloc_swap_page(void);
 
 #endif /* _VM_H_ */
