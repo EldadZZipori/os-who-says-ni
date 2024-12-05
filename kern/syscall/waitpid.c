@@ -96,6 +96,21 @@ __waitpid(int pid, int* status, int options)
         *status = child->exit_status;
     }
     lock_release(child->children_lk);
+    if (curproc->parent == NULL) // if we are the kernel, clean our children when they return
+    {
+        for (int i = 0; i < curproc->children_size; i++)
+        {
+            if (curproc->children[i] != NULL)
+            {
+                lock_acquire(curproc->children[i]->children_lk);
+                proc_destroy(curproc->children[i]);
+                curproc->children[i] = NULL;
+            }
+
+        }
+        
+    }
+    
 
     return 0;
 }

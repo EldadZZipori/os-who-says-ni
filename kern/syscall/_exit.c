@@ -47,6 +47,11 @@ __exit(int exitcode)
         {
             lock_acquire(calling_proc->children[i]->children_lk);
             proc_destroy(calling_proc->children[i]);
+            for (int j = i; j < calling_proc->children_size - 1; j++) {
+                calling_proc->children[j] = calling_proc->children[j + 1];
+            }
+            calling_proc->children[calling_proc->children_size - 1] = NULL;
+            calling_proc->children_size--;
         }
         /*
          * When it is still running, make it aware that it is an orphan
@@ -58,7 +63,7 @@ __exit(int exitcode)
     }
 
     // if we are an orphan we can just destroy ourself cause no one cares for us
-    if (calling_proc->parent == NULL) 
+    if (calling_proc->parent == NULL)  
     {
         proc_remthread(curthread);
         proc_destroy(calling_proc);

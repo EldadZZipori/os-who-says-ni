@@ -291,6 +291,7 @@ proc_destroy(struct proc *proc)
 	threadarray_cleanup(&proc->p_threads);
 	spinlock_cleanup(&proc->p_lock);
 
+
 	/* Assignment 4 - File related clearnups */
 
 	// Make sure to close all references to the files once the process is done.
@@ -325,8 +326,6 @@ proc_destroy(struct proc *proc)
 	{
 		cv_destroy(proc->waiting_on_me);
 	}
-	
-
 
 	kfree(proc->p_name);
 	kfree(proc);

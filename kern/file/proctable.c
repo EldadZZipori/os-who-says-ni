@@ -105,6 +105,7 @@ pt_add_proc(struct proc* pr, int pid)
         return EINVAL; // TODO return something more meaningfull
     }
 
+
     kproc_table->processes[pid] = pr;
     kproc_table->process_counter++;
 
