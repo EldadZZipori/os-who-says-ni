@@ -63,7 +63,7 @@ __exit(int exitcode)
     }
 
     // if we are an orphan we can just destroy ourself cause no one cares for us
-    if (calling_proc->parent == NULL)  
+    if (calling_proc->parent == NULL) 
     {
         proc_remthread(curthread);
         proc_destroy(calling_proc);

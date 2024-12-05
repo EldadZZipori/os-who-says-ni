@@ -308,6 +308,12 @@ proc_destroy(struct proc *proc)
 	pt_remove_proc(proc->p_pid);
 	lock_release(kproc_table->pid_lk);
 
+
+	// tell all our children we are dead
+	for (int i = 0; i < proc->children_size; i++)
+	{
+		proc->children[i]->parent = NULL;
+	}
 	/* 
 	 * Check we are not called because one of these failed
 	 */

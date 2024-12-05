@@ -106,8 +106,22 @@ __waitpid(int pid, int* status, int options)
                 proc_destroy(curproc->children[i]);
                 curproc->children[i] = NULL;
             }
-
         }
+        // for (unsigned int i = 0; i < kproc_table->curr_size; i++)
+        // {
+        //     if (kproc_table->processes[i] == NULL)
+        //     {
+        //         lock_acquire(kproc_table->pid_lk);
+        //         pt_remove_proc(i);
+        //         lock_release(kproc_table->pid_lk);
+        //     }
+        //     else if(kproc_table->processes[i]->state == ZOMBIE)
+        //     {
+        //         lock_acquire(kproc_table->pid_lk);
+        //         pt_remove_proc(i);
+        //         lock_release(kproc_table->pid_lk);
+        //     }
+        // }
         
     }
     
