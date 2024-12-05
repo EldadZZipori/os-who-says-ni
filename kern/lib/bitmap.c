@@ -159,102 +159,102 @@ bitmap_alloc(struct bitmap *b, unsigned *index)
         return ENOSPC;
 }
 
-// int
-// bitmap_alloc_nbits(struct bitmap *alloc_bm, struct bitmap *last_page_bm , size_t sz, unsigned *idx)
-// {
-//         int valid;
-
-//         for (unsigned int i = 0; i < alloc_bm->nbits - sz; i++)
-//         {
-//                 valid = 1; // assume is valid
-
-//                 for (unsigned int j = 0; j < sz; j++)
-//                 {
-//                         if (bitmap_isset(alloc_bm, i+j))
-//                         {
-//                                 valid = 0; // this bit is not valid, so chunk is not valid
-//                         }
-//                 }
-//                 if (valid)
-//                 {
-//                         *idx = i;
-//                         for (unsigned int k = 0; k < sz; k++ )
-//                         {
-//                                 if(k == sz-1) bitmap_mark(last_page_bm, i+k);
-                                
-//                                 bitmap_mark(alloc_bm, i+k); // set all these bits to 1
-//                                 dumbervm.n_ppages_allocated++;
-
-//                         }
-//                         return 0;
-//                 }
-//         }
-//         return -1; // exited loop
-// }
 int
-bitmap_alloc_nbits(struct bitmap *alloc_bm, struct bitmap *last_page_bm, size_t sz, unsigned *idx)
+bitmap_alloc_nbits(struct bitmap *alloc_bm, struct bitmap *last_page_bm , size_t sz, unsigned *idx)
 {
-    int found = 0;
-    unsigned best_i = 0;
-    int max_continuous_zeros = -1;
+        int valid;
 
-    for (unsigned int i = 0; i <= alloc_bm->nbits - sz; i++)
-    {
-        int valid = 1;
-
-        for (unsigned int j = 0; j < sz; j++)
+        for (unsigned int i = 0; i < alloc_bm->nbits - sz; i++)
         {
-            if (bitmap_isset(alloc_bm, i + j))
-            {
-                valid = 0;
-                break;
-            }
-        }
+                valid = 1; // assume is valid
 
-        if (valid)
-        {
-            // Simulate allocation to find the maximum continuous zeros after allocation
-            int current_max_zeros = 0;
-            int temp_zeros = 0;
-            for (unsigned int k = 0; k < alloc_bm->nbits; k++)
-            {
-                int bit = (k >= i && k < i + sz) ? 1 : bitmap_isset(alloc_bm, k);
-
-                if (!bit)
+                for (unsigned int j = 0; j < sz; j++)
                 {
-                    temp_zeros++;
-                    if (temp_zeros > current_max_zeros)
-                        current_max_zeros = temp_zeros;
+                        if (bitmap_isset(alloc_bm, i+j))
+                        {
+                                valid = 0; // this bit is not valid, so chunk is not valid
+                        }
                 }
-                else
+                if (valid)
                 {
-                    temp_zeros = 0;
+                        *idx = i;
+                        for (unsigned int k = 0; k < sz; k++ )
+                        {
+                                if(k == sz-1) bitmap_mark(last_page_bm, i+k);
+                                
+                                bitmap_mark(alloc_bm, i+k); // set all these bits to 1
+                                dumbervm.n_ppages_allocated++;
+
+                        }
+                        return 0;
                 }
-            }
-
-            if (current_max_zeros > max_continuous_zeros)
-            {
-                max_continuous_zeros = current_max_zeros;
-                best_i = i;
-                found = 1;
-            }
         }
-    }
-
-    if (found)
-    {
-        *idx = best_i;
-        for (unsigned int k = 0; k < sz; k++)
-        {
-            if(k == sz-1) bitmap_mark(last_page_bm, best_i+k);
-            bitmap_mark(alloc_bm, best_i + k);
-            dumbervm.n_ppages_allocated++;
-            // Additional operations if needed
-        }
-        return 0;
-    }
-    return -1; // No suitable block found
+        return -1; // exited loop
 }
+// int
+// bitmap_alloc_nbits(struct bitmap *alloc_bm, struct bitmap *last_page_bm, size_t sz, unsigned *idx)
+// {
+//     int found = 0;
+//     unsigned best_i = 0;
+//     int max_continuous_zeros = -1;
+
+//     for (unsigned int i = 0; i <= alloc_bm->nbits - sz; i++)
+//     {
+//         int valid = 1;
+
+//         for (unsigned int j = 0; j < sz; j++)
+//         {
+//             if (bitmap_isset(alloc_bm, i + j))
+//             {
+//                 valid = 0;
+//                 break;
+//             }
+//         }
+
+//         if (valid)
+//         {
+//             // Simulate allocation to find the maximum continuous zeros after allocation
+//             int current_max_zeros = 0;
+//             int temp_zeros = 0;
+//             for (unsigned int k = 0; k < alloc_bm->nbits; k++)
+//             {
+//                 int bit = (k >= i && k < i + sz) ? 1 : bitmap_isset(alloc_bm, k);
+
+//                 if (!bit)
+//                 {
+//                     temp_zeros++;
+//                     if (temp_zeros > current_max_zeros)
+//                         current_max_zeros = temp_zeros;
+//                 }
+//                 else
+//                 {
+//                     temp_zeros = 0;
+//                 }
+//             }
+
+//             if (current_max_zeros > max_continuous_zeros)
+//             {
+//                 max_continuous_zeros = current_max_zeros;
+//                 best_i = i;
+//                 found = 1;
+//             }
+//         }
+//     }
+
+//     if (found)
+//     {
+//         *idx = best_i;
+//         for (unsigned int k = 0; k < sz; k++)
+//         {
+//             if(k == sz-1) bitmap_mark(last_page_bm, best_i+k);
+//             bitmap_mark(alloc_bm, best_i + k);
+//             dumbervm.n_ppages_allocated++;
+//             // Additional operations if needed
+//         }
+//         return 0;
+//     }
+//     return -1; // No suitable block found
+// }
 
 
 static
