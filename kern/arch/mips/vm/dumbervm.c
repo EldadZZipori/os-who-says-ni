@@ -794,6 +794,7 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 		}
 
 		if (LLPTE_GET_LASTPAGE_BIT(llpte))
+		{
 			// last page. exit
 			break;
 		}
