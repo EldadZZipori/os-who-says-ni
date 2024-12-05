@@ -99,6 +99,10 @@ proc_create(const char *name)
 	 */
 	proc->fdtable_lk = lock_create("Process table lock");
 	
+	for (int i = 0; i< MAX_CHILDREN_PER_PERSON; i++)
+	{
+		proc->children[i] = NULL;
+	}
 
 	/*
 	 * The file descriptor table will only be bootstraped after 
