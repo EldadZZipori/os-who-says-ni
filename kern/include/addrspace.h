@@ -42,21 +42,27 @@
 #define MIPS_KUSEG_END       0x7fffffff
 
 
+/* VADDR MACROS */
 #define VADDR_GET_OFFSET(x)  ((x) & 0xfff)       // First 12 bits of address
 #define VADDR_GET_VPN1(x)    (((x)>>22) & 0x3ff) // Bit 22-31
 #define VADDR_GET_VPN2(x)    (((x)>>12) & 0x3ff) // Bit 12-21
-#define LLPTE_GET_READ_PERMISSION_BIT(x)    (((x)>>2) & 0b1)
-#define LLPTE_GET_WRITE_PERMISSION_BIT(x)   (((x)>>1) & 0b1)
-#define LLPTE_GET_DIRTY_BIT(x)              (((x)>>10) & 0b1)
-#define LLPTE_GET_LASTPAGE_BIT(x)           (((x)>>4) & 0b1)
-#define LLPTE_GET_LOADED_BIT(x)             (((x)>>3) & 0b1)
-#define LLPTE_GET_EXECUTABLE(x) ((x) & 0b1)
-#define TLPTE_MASK_VADDR(x) ((x) & 0xfffff000)
-#define LLPTE_MASK_PPN(x) ((x) & 0xfffff000)
-#define LLPTE_MASK_TLBE(x) ((x) & 0xffffff00)
-#define LLPTE_MASK_NVDG_FLAGS(x) ((x) & 0x00000f00)
-#define TLPTE_MASK_PAGE_COUNT(x) ((x) & 0x00000fff)
-#define LLPTE_MASK_RWE_FLAGS(x) ((x) & 0x7)
+
+/* LLPTE MACROS */
+#define LLPTE_GET_READ_PERMISSION_BIT(x)        (((x)>>2) & 0b1)
+#define LLPTE_GET_WRITE_PERMISSION_BIT(x)       (((x)>>1) & 0b1)
+#define LLPTE_GET_DIRTY_BIT(x)                  (((x)>>10) & 0b1)
+#define LLPTE_GET_LASTPAGE_BIT(x)               (((x)>>4) & 0b1)
+#define LLPTE_GET_LOADED_BIT(x)                 (((x)>>3) & 0b1)
+#define LLPTE_GET_EXECUTABLE(x)                 ((x) & 0b1)
+#define LLPTE_MASK_PPN(x)                       ((x) & 0xfffff000)
+#define LLPTE_MASK_TLBE(x)                      ((x) & 0xffffff00)
+#define LLPTE_MASK_NVDG_FLAGS(x)                ((x) & 0x00000f00)
+#define LLPTE_MASK_RWE_FLAGS(x)                 ((x) & 0x7)
+
+/* TLPTE MACROS */
+#define TLPTE_MASK_PAGE_COUNT(x)                ((x) & 0x00000fff)
+#define TLPTE_MASK_VADDR(x)                     ((x) & 0xfffff000)
+
 
 
 struct vnode;
@@ -154,6 +160,8 @@ int               as_complete_load(struct addrspace *as);
 int               as_define_stack(struct addrspace *as, vaddr_t *initstackptr);
 
 
+void as_zero_region(vaddr_t va, unsigned npages);
+int as_create_stack(struct addrspace* as);
 /*
  * Functions in loadelf.c
  *    load_elf - load an ELF user program executable into the current
