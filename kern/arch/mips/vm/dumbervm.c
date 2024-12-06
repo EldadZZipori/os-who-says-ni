@@ -486,23 +486,13 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 void 
 invalidate_tlb(void)
 {
-	int spl = splhigh();
+	int i, spl;
 
-	for (int i = 0; i < NUM_TLB; i++) {
-		uint32_t entryhi, entrylo;
+	/* Disable interrupts on this CPU while frobbing the TLB. */
+	spl = splhigh();
 
-		// Read the current entry at index i
-		tlb_read(&entryhi, &entrylo, i);
-
-		// Check if the current entry is invalid
-		if (entryhi == (unsigned) TLBHI_INVALID(i) && entrylo == (unsigned) TLBLO_INVALID()) {
-			continue; // Already invalid, skip to the next entry
-		}
-
-		// make sure 
-		if (tlb_probe(entryhi,0) == -1) {
-			tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
-		}
+	for (i=0; i<NUM_TLB; i++) {
+		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
 	}
 
 	splx(spl);
