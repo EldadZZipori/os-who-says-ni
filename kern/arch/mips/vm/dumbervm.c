@@ -315,7 +315,7 @@ free_kpages(vaddr_t addr)
 void
 vm_tlbshootdown_all(void)
 {
-	as_activate();
+	invalidate_tlb();
     return;
 }
 
@@ -323,7 +323,7 @@ void
 vm_tlbshootdown(const struct tlbshootdown *ts)
 {
 	(void)ts;
-	as_activate();
+	invalidate_tlb();
     // if (ts == NULL || ts->ts_vaddr == 0) {
     //     return;
     // }
@@ -587,14 +587,13 @@ as_destroy(struct addrspace *as)
     // Free the address space structure
     kfree(as);
 
-	as_activate(); // just invalidate the tlb.
+	invalidate_tlb();
 }
 
 
 void
 as_activate(void)
 {
-	int i, spl;
 	struct addrspace *as;
 
 	as = proc_getas();
@@ -603,15 +602,33 @@ as_activate(void)
 	}
 
 	/* Disable interrupts on this CPU while frobbing the TLB. */
-	spl = splhigh();
+	invalidate_tlb();
+}
 
-	for (i=0; i<NUM_TLB; i++) {
-		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
+void 
+invalidate_tlb(void)
+{
+	int spl = splhigh();
+
+	for (int i = 0; i < NUM_TLB; i++) {
+		uint32_t entryhi, entrylo;
+
+		// Read the current entry at index i
+		tlb_read(&entryhi, &entrylo, i);
+
+		// Check if the current entry is invalid
+		if (entryhi == (unsigned) TLBHI_INVALID(i) && entrylo == (unsigned) TLBLO_INVALID()) {
+			continue; // Already invalid, skip to the next entry
+		}
+
+		// If not found, invalidate this entry
+		if (tlb_probe(entryhi, entrylo) == -1) {
+			tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
+		}
 	}
 
 	splx(spl);
 }
-
 void
 as_deactivate(void)
 {

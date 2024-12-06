@@ -87,7 +87,8 @@ void free_upages(struct addrspace* as, vaddr_t vaddr);
 paddr_t translate_vaddr(struct addrspace* as, vaddr_t vaddr);
 vaddr_t get_lltpe(struct addrspace* as,vaddr_t vaddr);
 
-
+void 
+invalidate_tlb(void);
 /* TLB shootdown handling called from interprocessor_interrupt */
 void vm_tlbshootdown_all(void);
 void vm_tlbshootdown(const struct tlbshootdown *);
