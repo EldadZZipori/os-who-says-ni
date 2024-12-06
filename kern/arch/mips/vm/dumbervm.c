@@ -518,26 +518,27 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 	 * get lastpage bool from llpte
 	 */
 
-	while(1)
-	{
-		vaddr += (i * PAGE_SIZE);
-		paddr_t paddr = translate_vaddr_to_paddr(as, vaddr);
-		vaddr_t llpte = get_lltpe(as, vaddr);
+	// NOTE: for now no lastpage bit, it is unnessaery here because we only come here from sbrk or when we deallocate all the addrspace
+	// while(1)
+	// {
+	vaddr += (i * PAGE_SIZE);
+	paddr_t paddr = translate_vaddr_to_paddr(as, vaddr);
+	//vaddr_t llpte = get_lltpe(as, vaddr);
 
-		free_kpages(PADDR_TO_KSEG0_VADDR(paddr));
+	free_kpages(PADDR_TO_KSEG0_VADDR(paddr));
 
-		if (LLPTE_GET_LASTPAGE_BIT(llpte))
-		{
-			// last page. exit
-			break;
-		}
+	// if (LLPTE_GET_LASTPAGE_BIT(llpte))
+	// {
+	// 	// last page. exit
+	// 	break;
+	// }
 
-		vaddr_t* llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[VADDR_GET_VPN1(vaddr)]);
-		int vpn2 = VADDR_GET_VPN2(vaddr);
-		llpt[vpn2] = 0;
+	// vaddr_t* llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[VADDR_GET_VPN1(vaddr)]);
+	// int vpn2 = VADDR_GET_VPN2(vaddr);
+	// llpt[vpn2] = 0;
 
-		i++;
-	}
+	// i++;
+	//}
 
 	// TODO: we need to remove the pagetable entries
 }

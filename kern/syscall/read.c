@@ -106,7 +106,7 @@ ssize_t sys_read(int filehandle, userptr_t buf, size_t size, int *retval)
     af->offset = uio.uio_offset;
 
     // release locks
-        lock_release(kfile_table->location_lk);
+    lock_release(kfile_table->location_lk);
     lock_release(curproc->fdtable_lk);
 
     // return number of bytes read
