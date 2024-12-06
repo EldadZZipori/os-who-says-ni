@@ -324,10 +324,11 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		 */
 		return EFAULT;
 	}
-
+	spl = splhigh();
 	/* Tried to access kernel memory */
 	if (faultaddress >= MIPS_KSEG0)
 	{
+		splx(spl);
 		return EFAULT;
 	}
 
@@ -336,6 +337,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
 	if(as->ptbase[vpn1] ==  0)	// top level page table was never created, no mapping
 	{
+		splx(spl);
 		return EFAULT;
 	}
 
@@ -345,6 +347,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	paddr_t ll_pagetable_entry = ll_pagetable_va[vpn2];
 	if (ll_pagetable_entry == 0) // there is no entry in the low level page table entry
 	{
+		splx(spl);
 		return EFAULT;
 	}
 	
@@ -378,7 +381,6 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		// Entry should be valid after we are done with it
 		ll_pagetable_va[vpn2] |= (0b1 << 9); // set bit 9 (valid bit) to 1
 
-		spl = splhigh();
 
 		case VM_FAULT_READONLY:
 
@@ -460,9 +462,9 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
 		break;
 
-		splx(spl);
 	}
 
+	splx(spl);
 	
 	// why do we need to set the valid bit here?
 	// why not set valid bit into PTE when we allocate the page?
