@@ -98,7 +98,7 @@ __waitpid(int pid, int* status, int options)
     lock_release(child->children_lk);
 
     int og_size = curproc->children_size;
-    if (curproc->parent == NULL) // if we are the kernel, clean our children when they return
+    if (strcmp(curproc->p_name, "[kernel]") == 0) // if we are the kernel, clean our children when we return
     {
         for (int i = 0; i < og_size; i++)
         {
@@ -107,7 +107,7 @@ __waitpid(int pid, int* status, int options)
                 lock_acquire(curproc->children[i]->children_lk);
                 proc_destroy(curproc->children[i]);
                 curproc->children[i] = NULL;
-              // curproc->children_size--;
+                curproc->children_size--;
             }
         }
     }
