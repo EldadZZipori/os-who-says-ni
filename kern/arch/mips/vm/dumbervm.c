@@ -55,23 +55,6 @@ vm_bootstrap(void)
 	
 }
 
-
-static
-void
-as_zero_region(vaddr_t va, unsigned npages)
-{
-	(void) va;
-	(void) npages;
-	//for (unsigned int i = 0; i < npages; i++)
-	// {
-	// 	paddr_t pa = translate_vaddr(va + (i * PAGE_SIZE));
-	// 	//KASSERT(pa != 0);
-	// 	vaddr_t kseg0_va = PADDR_TO_KSEG0_VADDR(pa);
-	// 	bzero((void *)kseg0_va, PAGE_SIZE);
-	// }
-	bzero((void *)va, npages * PAGE_SIZE);
-}
-
 static
 paddr_t
 getppages(unsigned long npages)
@@ -130,12 +113,12 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 		//bool lastpage = true; // for 
 
 
-		vaddr_t kseg0_va = alloc_kpages(1);
+		//vaddr_t kseg0_va = alloc_kpages(1);
 
 		// set the 'otherpages' field in the memlist node of the first page in the block
 
-		paddr_t pa = KSEG0_VADDR_TO_PADDR(kseg0_va);          // Physical address of the new block we created.   
-		bool lastpage = true; // for 
+		//paddr_t pa = KSEG0_VADDR_TO_PADDR(kseg0_va);          // Physical address of the new block we created.   
+		//bool lastpage = true; // for 
    
 
 		vaddr_t* ll_pagetable_va;
@@ -158,7 +141,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 		// set the 'otherpages' field in the memlist node of the first page in the block
 
 		paddr_t pa;          // Physical address of the new block we created.
-		if (dumbervm.n_ppages_allocated >= dumbervm.n_ppages - 40) // in this case we should allocate memory from the swap space
+		if (dumbervm.n_ppages_allocated >= dumbervm.n_ppages - 25) // in this case we should allocate memory from the swap space
 		{
 			off_t swap_location = alloc_swap_page(); // find free area in swap space
 			pa = LLPTE_SET_SWAP_BIT(swap_location << 12);
@@ -180,7 +163,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 		// NOTE: for now just let everything be read/write
 		ll_pagetable_va[vpn2] = pa | TLBLO_DIRTY | TLBLO_VALID; 
 		
-		ll_pagetable_va[vpn2] |= (0x1 << 10) | (0b1 << 2) | (0b1 << 1); // for now everything is readable and writeable
+		//ll_pagetable_va[vpn2] |= (0x1 << 10) | (0b1 << 2) | (0b1 << 1); // for now everything is readable and writeable
 
 		*va += (vaddr_t)0x1000;
 		as->n_kuseg_pages_allocated++;	
@@ -563,7 +546,7 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 	// while(1)
 	// {
 	paddr_t paddr = translate_vaddr_to_paddr(as, vaddr);
-	//vaddr_t llpte = get_lltpe(as, vaddr);
+	vaddr_t llpte = get_lltpe(as, vaddr);
 
 	free_kpages(PADDR_TO_KSEG0_VADDR(paddr));
 		if (LLPTE_GET_SWAP_BIT(llpte))

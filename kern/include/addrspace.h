@@ -52,12 +52,16 @@
 #define LLPTE_GET_WRITE_PERMISSION_BIT(x)       (((x)>>1) & 0b1)
 #define LLPTE_GET_DIRTY_BIT(x)                  (((x)>>10) & 0b1)
 #define LLPTE_GET_LASTPAGE_BIT(x)               (((x)>>4) & 0b1)
-#define LLPTE_GET_LOADED_BIT(x)                 (((x)>>3) & 0b1)
+#define LLPTE_GET_LOADED_BIT(x)                 (((x)>>5) & 0b1)
 #define LLPTE_GET_EXECUTABLE(x)                 ((x) & 0b1)
 #define LLPTE_MASK_PPN(x)                       ((x) & 0xfffff000)
 #define LLPTE_MASK_TLBE(x)                      ((x) & 0xffffff00)
 #define LLPTE_MASK_NVDG_FLAGS(x)                ((x) & 0x00000f00)
 #define LLPTE_MASK_RWE_FLAGS(x)                 ((x) & 0x7)
+#define LLPTE_SET_SWAP_BIT(x)                   ((x) | 0b1000)
+#define LLPTE_UNSET_SWAP_BIT(x)                 ((x) & 0b0111)
+#define LLPTE_GET_SWAP_BIT(x)                   ((x>>3) & 0b1)
+#define LLPTE_GET_SWAP_OFFSET(x)                ((x>>12) & 0xfffff)
 
 /* TLPTE MACROS */
 #define TLPTE_MASK_PAGE_COUNT(x)                ((x) & 0x00000fff)
