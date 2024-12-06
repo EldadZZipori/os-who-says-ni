@@ -73,6 +73,9 @@ struct vm dumbervm;
 #define VM_FAULT_WRITE       1    /* A write was attempted */
 #define VM_FAULT_READONLY    2    /* A write to a readonly page was attempted*/
 
+#define DUMBVMER_STACKPAGES    8
+#define DUMB_HEAP_START	0x1000000
+
 
 
 /* Initialization function */
@@ -88,8 +91,11 @@ void free_kpages(vaddr_t addr);
 
 int alloc_heap_upages(struct addrspace* as, int npages);
 int free_heap_upages(struct addrspace* as, int npages);
+
+int alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, int writeable, int executable);
 void free_upages(struct addrspace* as, vaddr_t vaddr);
-paddr_t translate_vaddr(struct addrspace* as, vaddr_t vaddr);
+
+paddr_t translate_vaddr_to_paddr(struct addrspace* as, vaddr_t vaddr);
 vaddr_t get_lltpe(struct addrspace* as,vaddr_t vaddr);
 int 
 read_from_swap(struct addrspace* as, off_t swap_location, void * buf);
@@ -103,6 +109,7 @@ free_swap_page(paddr_t llpte);
 /* TLB shootdown handling called from interprocessor_interrupt */
 void vm_tlbshootdown_all(void);
 void vm_tlbshootdown(const struct tlbshootdown *);
+void invalidate_tlb(void);
 
 long long alloc_swap_page(void);
 

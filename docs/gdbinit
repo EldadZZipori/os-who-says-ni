@@ -1,0 +1,481 @@
+directory ~/os161/src/kern/compile/DUMBVM
+directory ~/os161/src/kern/compile/SYNCHPROBS
+
+set auto-load safe-path .
+
+define db
+    target remote unix:.sockets/gdb
+end
+
+# Always run these when entering gdb.
+db
+layout split
+b panic
+
+# GDB scripts for dumping resizable arrays.
+# Unfortunately, there does not seem to be a way to do this without
+# cutting and pasting for every type.
+
+define plainarray
+    set $n = $arg0.num
+    set $i = 0
+    printf "%u items\n", $n
+    while ($i < $n)
+        print $arg0.v[$i]
+        set $i++
+    end
+end
+document plainarray
+Print a plain resizable array.
+Usage: plainarray myarray
+end
+
+define array
+    set $n = $arg0.arr.num
+    set $i = 0
+    printf "%u items\n", $n
+    while ($i < $n)
+        print $arg0.arr.v[$i]
+        set $i++
+    end
+end
+document array
+Print the pointers in a typed resizable array.
+(Use plainarray for an untyped resizable array.)
+Usage: array allcpus
+end
+
+define cpuarray
+    set $n = $arg0.arr.num
+    set $i = 0
+    printf "%u cpus\n", $n
+    while ($i < $n)
+        printf "cpu %u:\n", $i
+        # print *(struct cpu *)($arg0.arr.v[$i])
+        set $i++
+    end
+end
+document cpuarray
+Print an array of struct cpu.
+Usage: cpuarray allcpus
+end
+
+define threadarray
+    set $n = $arg0.arr.num
+    set $i = 0
+    printf "%u threads\n", $n
+    while ($i < $n)
+        printf "thread %u:\n", $i
+        # print *(struct thread *)($arg0.arr.v[$i])
+        set $i++
+    end
+end
+document threadarray
+Print an array of struct thread.
+Usage: threadarray curproc->p_threads
+end
+
+define vnodearray
+    set $n = $arg0.arr.num
+    set $i = 0
+    printf "%u vnodes\n", $n
+    while ($i < $n)
+        printf "vnode %u:\n", $i
+        # # # # # print *(struct vnode *)($arg0.arr.v[$i])
+        set $i++
+    end
+end
+document vnodearray
+Print an array of struct vnode.
+Usage: vnodearray sfs->sfs_vnodes
+end
+
+define proctable 
+    set $n = $arg0->process_counter
+    set $i = 0
+    printf "%u processes\n", $n
+    while ($i < $n)
+        printf "pid %u at addr %p\n", $arg0->processes[$i]->my_pid, $arg0->processes[$i]
+        set $i++
+    end
+end
+document proctable
+Print a proctable with pids.
+Usage: proctable myproctable
+end
+
+define addrspaces
+    set $kpt = kproc_table 
+    set $i = 0 
+    set $n = $kpt->process_counter
+    printf "%u processes\n", $n
+    while ($i < $n)
+        printf "---\npid %u at addr %p\n", $kpt->processes[$i]->my_pid, $kpt->processes[$i]
+        printf "as->pbase1: %p\n", $kpt->processes[$i]->p_addrspace->pbase1    
+        set $i++
+    end
+end
+document addrspaces 
+Print all active address spaces.
+Usage: addrspaces
+end
+
+define printmemlist
+    set $node = $arg0->head
+    printf "memlist contents:\nHEAD -> "
+    while ($node != 0)
+        printf "[ %u: %u bytes, a: %u ] -> ", $node->paddr - $arg0->start, $node->sz, $node->allocated
+        set $node = $node->next
+    end
+    printf "NULL\n"
+end
+
+define pml 
+    printmemlist dumbervm.ppage_memlist
+end
+
+define printbitmap
+    # Check arguments
+    if $argc != 1
+        printf "Usage: print_bitmap <bitmap_ptr>\n"
+        return
+    end
+
+    # Retrieve arguments
+    set $bitmap_ptr = $arg0->v
+    set $nbits = $arg0->nbits
+
+    # Calculate the number of bytes
+    set $nbytes = ($nbits + 7) / 8
+
+    set $i = 0
+    while $i < $nbits
+        set $byte_index = $i / 8
+        set $bit_index = $i % 8
+        set $byte = *($bitmap_ptr + $byte_index)
+        set $bit = ($byte >> $bit_index) & 1
+
+        # Print the bit
+        printf "%d", $bit
+
+        # Add a space or newline for formatting
+        set $i = $i + 1
+        if $i % 8 == 0 
+            printf " "  
+        end
+        if $i % 64 == 0
+            printf "\n"  
+        end
+    end
+    printf "\n"
+end
+
+define pbm 
+    printbitmap dumbervm.ppage_bm
+end
+
+define plpbm
+    printbitmap dumbervm.ppage_lastpage_bm
+end
+
+define pbms
+    printf "bitmap and lastpagemap:\n"
+    printbitmap dumbervm.ppage_bm
+    printbitmap dumbervm.ppage_lastpage_bm
+end
+
+# Define the function to extract and print the data
+define printpagetable
+    x/64wx $arg0
+end
+
+define ppt 
+    printpagetable curthread->t_proc->p_addrspace->ptbase
+end
+
+define ptlpt
+    if $arg0
+        set $as = $arg0
+        set $i = 0
+
+        while ($i < 1024)
+            set $entry = $as->ptbase[$i]
+
+            # Print only if the entry is non-zero
+            if $entry != 0
+                printf "ptbase[%d] = ", $i
+                print $entry
+            end
+            set $i = $i + 1
+        end
+    else
+        printf "Usage: ptlpt as\n"
+    end
+end
+
+
+define ctlpt
+    if $arg0 && $arg1
+        set $as1 = $arg0
+        set $as2 = $arg1
+        set $i = 0
+        while ($i < 1024)
+            set $entry1 = $as1->ptbase[$i]
+            set $entry2 = $as2->ptbase[$i]
+            if $entry1 != $entry2
+                printf "Difference at index %d:\n", $i
+                printf "as1->ptbase[%d] = ", $i
+                print $entry1
+                printf "as2->ptbase[%d] = ", $i
+                print $entry2
+            end
+            set $i = $i + 1
+        end
+    else
+        printf "Usage: compare_pagetables as1 as2\n"
+    end
+end
+
+define cllpt
+    if $arg0 && $arg1
+        set $as1 = $arg0
+        set $as2 = $arg1
+        set $i = 0
+        set $diff_count = 0
+        while ($i < 64)
+            # Get the high-level page table entries
+            set $pt_entry1 = $as1->ptbase[$i]
+            set $pt_entry2 = $as2->ptbase[$i]
+
+            # Mask to get the low-level page table addresses
+            set $llpt_addr1 = $pt_entry1 & 0xfffff000
+            set $llpt_addr2 = $pt_entry2 & 0xfffff000
+
+            # Check if both low-level page tables are present
+            if $llpt_addr1 != 0 && $llpt_addr2 != 0
+                set $j = 0
+                while ($j < 1024)
+                    # Access entries in low-level page tables
+                    set $entry1 = *((unsigned int *)$llpt_addr1 + $j)
+                    set $entry2 = *((unsigned int *)$llpt_addr2 + $j)
+
+                    # Compare entries
+                    if $entry1 != $entry2
+                        set $diff_count = $diff_count + 1
+                        printf "Difference at high-level index %d, low-level index %d:\n", $i, $j
+                        printf "as1->ptbase[%d]->[%d] = 0x%x\n", $i, $j, $entry1
+                        printf "as2->ptbase[%d]->[%d] = 0x%x\n", $i, $j, $entry2
+                    end
+                    set $j = $j + 1
+                end
+            else
+                # Handle cases where one or both low-level page tables are missing
+                if $llpt_addr1 != $llpt_addr2
+                    set $diff_count = $diff_count + 1
+                    printf "Difference at high-level index %d:\n", $i
+                    printf "as1->ptbase[%d] = 0x%x\n", $i, $pt_entry1
+                    printf "as2->ptbase[%d] = 0x%x\n", $i, $pt_entry2
+                end
+            end
+            set $i = $i + 1
+        end
+        printf "Total differences found: %d\n", $diff_count
+    else
+        printf "Usage: compare_full_pagetables as1 as2\n"
+    end
+end
+
+define cptd
+    if $arg0 && $arg1
+        set $as1 = $arg0
+        set $as2 = $arg1
+        set $i = 0
+        set $diff_count = 0
+        while ($i < 64)
+            # Get high-level page table entries
+            set $pt_entry1 = $as1->ptbase[$i]
+            set $pt_entry2 = $as2->ptbase[$i]
+
+            # Mask to get low-level page table addresses
+            set $llpt_addr1 = $pt_entry1 & 0xFFFFF000
+            set $llpt_addr2 = $pt_entry2 & 0xFFFFF000
+
+            # Proceed only if both low-level page tables are present
+            if $llpt_addr1 != 0 && $llpt_addr2 != 0
+                set $j = 0
+                while ($j < 1024)
+                    # Get low-level page table entries
+                    set $llpt_entry1 = *((unsigned int *)$llpt_addr1 + $j)
+                    set $llpt_entry2 = *((unsigned int *)$llpt_addr2 + $j)
+
+                    # Mask to get physical addresses
+                    set $phys_addr1 = $llpt_entry1 & 0xFFFFF000
+                    set $phys_addr2 = $llpt_entry2 & 0xFFFFF000
+
+                    # Proceed only if both physical addresses are valid
+                    if $phys_addr1 != 0 && $phys_addr2 != 0
+                        # Convert to virtual addresses
+                        set $virt_addr1 = $phys_addr1 + 0x80000000
+                        set $virt_addr2 = $phys_addr2 + 0x80000000
+
+                        # Read data from the virtual addresses
+                        # For simplicity, we'll compare the first 4 bytes
+                        set $data1 = *((unsigned int *)$virt_addr1)
+                        set $data2 = *((unsigned int *)$virt_addr2)
+
+                        # Compare data
+                        if $data1 != $data2
+                            set $diff_count = $diff_count + 1
+                            printf "Difference at HL index %d, LL index %d:\n", $i, $j
+                            printf "Data at as1[0x%x]: 0x%x\n", $virt_addr1, $data1
+                            printf "Data at as2[0x%x]: 0x%x\n", $virt_addr2, $data2
+                        end
+                    else
+                        # Handle cases where one or both physical addresses are zero
+                        if $phys_addr1 != $phys_addr2
+                            set $diff_count = $diff_count + 1
+                            printf "Difference in physical addresses at HL index %d, LL index %d:\n", $i, $j
+                            printf "as1 physical addr: 0x%x\n", $phys_addr1
+                            printf "as2 physical addr: 0x%x\n", $phys_addr2
+                        end
+                    end
+                    set $j = $j + 1
+                end
+            else
+                # Handle cases where one or both low-level page tables are missing
+                if $llpt_addr1 != $llpt_addr2
+                    set $diff_count = $diff_count + 1
+                    printf "Difference in LLPT addresses at HL index %d:\n", $i
+                    printf "as1 LLPT addr: 0x%x\n", $llpt_addr1
+                    printf "as2 LLPT addr: 0x%x\n", $llpt_addr2
+                end
+            end
+            set $i = $i + 1
+        end
+        printf "Total differences found: %d\n", $diff_count
+    else
+        printf "Usage: compare_page_data as1 as2\n"
+    end
+end
+
+
+define pkpt
+    # Print the counter and current size
+    printf "counter: %d\n", kproc_table.process_counter
+    printf "current size: %d\n", kproc_table.curr_size
+
+    # Retrieve values into convenient variables
+    set $size = kproc_table.curr_size
+    set $procs = kproc_table.processes
+
+    printf "processes:\n"
+
+    # Loop through each process
+    set $i = 0
+    while $i < $size
+        set $proc = $procs[$i]
+        if ($proc == 0)
+            # If process pointer is NULL
+            printf "  [%d]: NULL\n", $i
+        else
+            # Print process details
+            printf "  [%d]: name=%s, pid=%d, children_size=%d\n", $i, $proc->p_name, $proc->p_pid, $proc->children_size
+            printf "    children:\n"
+            set $child_count = $proc->children_size
+            set $j = 0
+            # Loop through children
+            while $j < $child_count
+                set $child = $proc->children[$j]
+                if ($child == 0)
+                    printf "      [%d]: NULL\n", $j
+                else
+                    printf "      [%d]: pid=%d\n", $j, $child->p_pid
+                end
+                set $j = $j + 1
+            end
+        end
+        set $i = $i + 1
+    end
+end
+
+define pkft
+    # Print the files_counter and curr_size
+    printf "files_counter: %d\n", kfile_table.files_counter
+    printf "current size: %d\n", kfile_table.curr_size
+
+    # Retrieve values into convenient variables
+    set $size = kfile_table.curr_size
+    set $files = kfile_table.files
+
+    printf "files:\n"
+
+    # Loop through each file
+    set $i = 0
+    while $i < $size
+        set $f = $files[$i]
+        if ($f == 0)
+            # If file pointer is NULL
+            printf "  [%d]: NULL\n", $i
+        else
+            # Print file details
+            printf "  [%d]: ref_count=%u, status=%u, offset=%ld, vn=%p\n", \
+                $i, $f->ref_count, $f->status, $f->offset, $f->vn
+        end
+        set $i = $i + 1
+    end
+end
+
+define pllpt
+    if $arg0
+        set $as = $arg0
+        set $i = 0
+
+        printf "Low-level page tables for address space at %p:\n", $as
+
+        while ($i < 1024)
+            # Get the high-level page table entry
+            set $pt_entry = $as->ptbase[$i]
+
+            # Mask to get the low-level page table address
+            set $llpt_addr = $pt_entry & 0xfffff000
+
+            # Check if the low-level page table is present
+            if $llpt_addr != 0
+                printf "High-level index %d (ptbase[%d]): Low-level page table at 0x%x\n", $i, $i, $llpt_addr
+
+                # Print entries in the low-level page table
+                set $j = 0
+                while ($j < 64)
+                    # Access entry in low-level page table
+                    set $entry = *((unsigned int *)$llpt_addr + $j)
+
+                    # Print the entry if it's non-zero
+                    if $entry != 0
+                        printf "  [%d]: 0x%x\n", $j, $entry
+                    end
+                    set $j = $j + 1
+                end
+            end
+            set $i = $i + 1
+        end
+    else
+        printf "Usage: pllpt as\n"
+    end
+end
+
+define print_tlb
+    # Declare local variables explicitly
+    set $entryhi = 0
+    set $entrylo = 0
+    set $i = 0
+
+    while $i < 32
+        # Pass the address of the local variables to tlb_read
+        call tlb_read(&$entryhi, &$entrylo, $i)
+        printf "TLB Entry %d:\n", $i
+        printf "  EntryHi: 0x%08x\n", $entryhi
+        printf "  EntryLo: 0x%08x\n", $entrylo
+        set $i = $i + 1
+    end
+end
+

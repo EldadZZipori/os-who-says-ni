@@ -99,6 +99,10 @@ proc_create(const char *name)
 	 */
 	proc->fdtable_lk = lock_create("Process table lock");
 	
+	for (int i = 0; i< MAX_CHILDREN_PER_PERSON; i++)
+	{
+		proc->children[i] = NULL;
+	}
 
 	/*
 	 * The file descriptor table will only be bootstraped after 
@@ -291,6 +295,7 @@ proc_destroy(struct proc *proc)
 	threadarray_cleanup(&proc->p_threads);
 	spinlock_cleanup(&proc->p_lock);
 
+
 	/* Assignment 4 - File related clearnups */
 
 	// Make sure to close all references to the files once the process is done.
@@ -307,6 +312,12 @@ proc_destroy(struct proc *proc)
 	pt_remove_proc(proc->p_pid);
 	lock_release(kproc_table->pid_lk);
 
+
+	// tell all our children we are dead
+	// for (int i = 0; i < proc->children_size; i++)
+	// {
+	// 	proc->children[i]->parent = NULL;
+	// }
 	/* 
 	 * Check we are not called because one of these failed
 	 */
@@ -325,8 +336,6 @@ proc_destroy(struct proc *proc)
 	{
 		cv_destroy(proc->waiting_on_me);
 	}
-	
-
 
 	kfree(proc->p_name);
 	kfree(proc);

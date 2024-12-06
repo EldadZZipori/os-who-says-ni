@@ -116,7 +116,7 @@ ft_destroy(struct filetable* ft)
 void 
 ft_adjust_size(void) 
 {
-
+    return;
 }
 
 int 
