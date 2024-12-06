@@ -486,13 +486,18 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 void 
 invalidate_tlb(void)
 {
-	int i, spl;
+	int i, spl,idx;
 
 	/* Disable interrupts on this CPU while frobbing the TLB. */
 	spl = splhigh();
 
 	for (i=0; i<NUM_TLB; i++) {
-		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
+		idx = tlb_probe(TLBHI_INVALID(i),0);
+		if (idx <0)
+		{
+			tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
+		}
+		
 	}
 
 	splx(spl);
