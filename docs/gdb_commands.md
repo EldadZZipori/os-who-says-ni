@@ -1,0 +1,7 @@
+- `pkpt` prints the kernel/systems proctable
+- `pkft` prints the kernel/systems filetable
+- `ptlpt [addrspace]` prints the top level page table of an address space
+- `pllpt [paddrspace]` prints the low level page table of an address space
+- `ctlpt [addrspace1] [addrspace2]` compares the top level page table entries of two address spaces, shows only differeneces
+- `cllpt [addrspace1] [addrspace2]` compares the low level page table entries of two address space, shows only differences
+- `cptd [addrspace1] [addrspace2]` comapres if two address space have the same maping from virtual addresses to the same data
