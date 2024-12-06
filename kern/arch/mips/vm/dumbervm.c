@@ -141,7 +141,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 		// set the 'otherpages' field in the memlist node of the first page in the block
 
 		paddr_t pa;          // Physical address of the new block we created.
-		if (dumbervm.n_ppages_allocated >= dumbervm.n_ppages - 25) // in this case we should allocate memory from the swap space
+		if (dumbervm.n_ppages_allocated >= dumbervm.n_ppages - 40) // in this case we should allocate memory from the swap space
 		{
 			off_t swap_location = alloc_swap_page(); // find free area in swap space
 			pa = LLPTE_SET_SWAP_BIT(swap_location << 12);
