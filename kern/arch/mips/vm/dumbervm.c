@@ -509,7 +509,7 @@ invalidate_tlb(void)
 void 
 free_upages(struct addrspace* as, vaddr_t vaddr)
 {
-	int i = 0;
+	//int i = 0;
 
 
 	/**
@@ -521,12 +521,17 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 	// NOTE: for now no lastpage bit, it is unnessaery here because we only come here from sbrk or when we deallocate all the addrspace
 	// while(1)
 	// {
-	vaddr += (i * PAGE_SIZE);
 	paddr_t paddr = translate_vaddr_to_paddr(as, vaddr);
 	//vaddr_t llpte = get_lltpe(as, vaddr);
 
 	free_kpages(PADDR_TO_KSEG0_VADDR(paddr));
 
+	int vpn1 = VADDR_GET_VPN1(vaddr);
+	int vpn2 = VADDR_GET_VPN2(vaddr);
+
+	vaddr_t* llpt = (vaddr_t *)as->ptbase[vpn1];
+	llpt[vpn2] = 0;
+	as->n_kuseg_pages_allocated--;
 	// if (LLPTE_GET_LASTPAGE_BIT(llpte))
 	// {
 	// 	// last page. exit
