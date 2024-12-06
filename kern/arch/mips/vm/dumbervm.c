@@ -133,7 +133,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 		else
 		{
 			ll_pagetable_va = (vaddr_t *)TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]);
-			as->ptbase[vpn1] += 0b1;
+			//as->ptbase[vpn1] += 0b1; // NOTE: dont use these for now
 		}
 		vaddr_t kseg0_va;
 		
@@ -241,7 +241,7 @@ free_kpages(vaddr_t addr)
 	//memlist_remove(dumbervm.ppage_memlist, paddr);
 	if ((paddr) % PAGE_SIZE == 0)
 	{
-		unsigned int ppage_index = (paddr - dumbervm.ram_start) / PAGE_SIZE; // Should be page aligned
+		unsigned int ppage_index = ((paddr - dumbervm.ram_start) / PAGE_SIZE ); // Should be page aligned
 		spinlock_acquire(&dumbervm.ppage_bm_sl);
 
 		if (bitmap_isset(dumbervm.ppage_lastpage_bm, ppage_index)) // This is a single allocation
@@ -545,18 +545,17 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 	// NOTE: for now no lastpage bit, it is unnessaery here because we only come here from sbrk or when we deallocate all the addrspace
 	// while(1)
 	// {
-	paddr_t paddr = translate_vaddr_to_paddr(as, vaddr);
+	paddr_t paddr = translate_vaddr_to_paddr(as, vaddr); // to free stuff we have to do it from the bottom
 	vaddr_t llpte = get_lltpe(as, vaddr);
 
-	free_kpages(PADDR_TO_KSEG0_VADDR(paddr));
-		if (LLPTE_GET_SWAP_BIT(llpte))
-		{
-			free_swap_page(llpte);
-		}
-		else
-		{
-			free_kpages(PADDR_TO_KSEG0_VADDR(paddr));
-		}
+	if (LLPTE_GET_SWAP_BIT(llpte))
+	{
+		free_swap_page(llpte);
+	}
+	else
+	{
+		free_kpages(PADDR_TO_KSEG0_VADDR(paddr));
+	}
 
 	int vpn1 = VADDR_GET_VPN1(vaddr);
 	int vpn2 = VADDR_GET_VPN2(vaddr);
