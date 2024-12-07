@@ -141,7 +141,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, bool* in_swap, 
 		// set the 'otherpages' field in the memlist node of the first page in the block
 
 		paddr_t pa;          // Physical address of the new block we created.
-		if (dumbervm.n_ppages_allocated >= dumbervm.n_ppages - 10) // in this case we should allocate memory from the swap space
+		if (as->n_kuseg_pages_allocated >= 4) // in this case we should allocate memory from the swap space
 		{
 			*in_swap = true;
 			off_t swap_location = alloc_swap_page(); // find free area in swap space
@@ -384,7 +384,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
 		if (idx >= 0)
 		{
-			tlb_write(TLBHI_INVALID(idx),TLBLO_INVALID(),idx);
+			tlb_write(TLBHI_INVALID(idx),TLBLO_INVALID(), idx);
 		}
 
 	}
