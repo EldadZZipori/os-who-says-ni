@@ -92,7 +92,7 @@ void free_kpages(vaddr_t addr);
 int alloc_heap_upages(struct addrspace* as, int npages);
 int free_heap_upages(struct addrspace* as, int npages);
 
-int alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, int writeable, int executable);
+int alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, bool* in_swap,int readable, int writeable, int executable);
 void free_upages(struct addrspace* as, vaddr_t vaddr);
 
 paddr_t translate_vaddr_to_paddr(struct addrspace* as, vaddr_t vaddr);

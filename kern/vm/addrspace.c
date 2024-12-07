@@ -48,8 +48,9 @@
 int 
 as_create_stack(struct addrspace* as)
 {
+	bool in_swap;
 	vaddr_t stack_va = USERSPACETOP - (DUMBVMER_STACKPAGES * PAGE_SIZE);
-	int result = alloc_upages(as, &stack_va, DUMBVMER_STACKPAGES, 1,1,0); 
+	int result = alloc_upages(as, &stack_va, DUMBVMER_STACKPAGES, &in_swap, 1,1,0); 
 	if (result)
 	{
 		return result;
@@ -59,7 +60,20 @@ as_create_stack(struct addrspace* as)
 		return ENOMEM;
 	}
 	as->user_stackbase = USERSPACETOP - (DUMBVMER_STACKPAGES * PAGE_SIZE);
-	as_zero_region(as->user_stackbase, DUMBVMER_STACKPAGES);
+	if (in_swap)
+	{
+		for (int i = 0; i < DUMBVMER_STACKPAGES; i++)
+		{
+			off_t location = LLPTE_GET_SWAP_OFFSET(translate_vaddr_to_paddr(as, as->user_stackbase + (i * PAGE_SIZE)));
+			zero_swap_page(location);
+		}
+		
+	}
+	else
+	{
+		as_zero_region(as->user_stackbase, DUMBVMER_STACKPAGES);
+	}
+	
 
 	return 0;
 }
@@ -195,6 +209,8 @@ int
 as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 		 int readable, int writeable, int executable)
 {
+	bool in_swap;
+	(void)in_swap;
 	int npages;
 	vaddr_t va = vaddr; // just copy this locally for our own use in the function
 	/* Align the region. First, the base... */
@@ -209,7 +225,7 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 	// TODO: deallocate all memory from vaddr to vaddr + npages
 	int result;
 	// bit-shifting so that flags are all 0 or 1 (for PTE)
-	result = alloc_upages(as, &va, npages, readable >> 2, writeable >> 1, executable);
+	result = alloc_upages(as, &va, npages, &in_swap,readable >> 2, writeable >> 1, executable);
 	if (result)
 	{
 		return result;

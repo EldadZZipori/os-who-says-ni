@@ -90,7 +90,20 @@ free_swap_page(paddr_t llpte)
 	bitmap_unmark(dumbervm.swap_bm, index);
 	dumbervm.n_ppages_allocated--;
 	spinlock_release(&dumbervm.swap_bm_sl);
+}
 
+int 
+zero_swap_page(off_t location)
+{
+	struct uio uio;
+    struct iovec iov;
+	as_zero_region((vaddr_t)dumbervm.swap_buffer, 1);
+
+	uio_kinit(&iov, &uio, (void *)(dumbervm.swap_buffer), PAGE_SIZE, location, UIO_WRITE);
+
+	int result = VOP_WRITE(dumbervm.swap_space, &uio);
+	return result;
+	
 }
 
 vaddr_t

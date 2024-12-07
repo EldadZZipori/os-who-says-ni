@@ -92,7 +92,7 @@ getppages(unsigned long npages)
 
 
 int 
-alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, int writeable, int executable)
+alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, bool* in_swap,int readable, int writeable, int executable)
 {
 	(void) readable;
 	(void) writeable;
@@ -141,14 +141,16 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 		// set the 'otherpages' field in the memlist node of the first page in the block
 
 		paddr_t pa;          // Physical address of the new block we created.
-		if (dumbervm.n_ppages_allocated >= dumbervm.n_ppages - 30) // in this case we should allocate memory from the swap space
+		if (as->n_kuseg_pages_allocated >= 4) // in this case we should allocate memory from the swap space
 		{
+			*in_swap = true;
 			off_t swap_location = alloc_swap_page(); // find free area in swap space
 			KASSERT(swap_location % PAGE_SIZE == 0);
 			pa = LLPTE_SET_SWAP_BIT(swap_location << 12);
 		}
 		else
 		{
+			*in_swap = false;
 			kseg0_va = alloc_kpages(1);
 			pa = KSEG0_VADDR_TO_PADDR(kseg0_va);
 		}
@@ -179,8 +181,10 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 int 
 alloc_heap_upages(struct addrspace* as, int npages)
 {
+	bool in_swap;
+	(void)in_swap;
 	vaddr_t va = as->user_heap_end;
-	int result = alloc_upages(as, &va, npages, 1, 1, 0);
+	int result = alloc_upages(as, &va, npages, &in_swap,1, 1, 0);
 	if (result)
 	{
 		return result;
