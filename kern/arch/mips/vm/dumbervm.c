@@ -353,12 +353,12 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		int s_vpn1 = VADDR_GET_VPN1(swapable_page);
 		int s_vpn2 = VADDR_GET_VPN2(swapable_page);
 		vaddr_t* s_llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[s_vpn1]); // get the original llpte
-		paddr_t stolen_page = s_llpt[s_vpn2]; 
-		paddr_t stolen_ppn = LLPTE_MASK_PPN(stolen_page);
+		paddr_t stolen_page = s_llpt[s_vpn2];  // get the physical address of the page we are going to use to store our data
+		paddr_t stolen_ppn = LLPTE_MASK_PPN(stolen_page); 
 
-		s_llpt[s_vpn2] = LLPTE_SET_SWAP_BIT((location_in_swap << 12) | (stolen_page & 0xfff)); // mark the stolen page as swap space and space its location in the swap
+		s_llpt[s_vpn2] = LLPTE_SET_SWAP_BIT((location_in_swap << 12) | TLBLO_DIRTY | TLBLO_VALID); // mark that we are putting this data in the swap space
 
-		int result = read_from_swap(as, location_in_swap, dumbervm.swap_buffer); // copy data from swap to a buffer
+		int result = read_from_swap(as, location_in_swap, dumbervm.swap_buffer); // copy data from swap to a buffer before writing the stolen data to it
 		if (result)
 		{
 			kprintf("dumbervm: problem reading from swap space\n");
@@ -376,7 +376,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		memcpy((void *)PADDR_TO_KSEG0_VADDR(stolen_ppn), dumbervm.swap_buffer, PAGE_SIZE); // copy the data that was in swap into the ppn we just stole
 
 		as_zero_region((vaddr_t)dumbervm.swap_buffer, 1);
-		ll_pagetable_va[vpn2] = (stolen_ppn) | (ll_pagetable_entry & 0xfff) ;//mark the stolen ppn on the translation for the fault virtual address
+		ll_pagetable_va[vpn2] = (stolen_ppn) | TLBLO_DIRTY | TLBLO_VALID ;//mark the stolen ppn on the translation for the fault virtual address
 		ll_pagetable_entry = ll_pagetable_va[vpn2];
 
 		// Invalidate the stolen page
@@ -420,7 +420,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
 		// FOR DEBUGGING PURPOSES ONLY
 		// Entry should be valid after we are done with it
-		ll_pagetable_va[vpn2] |= (0b1 << 9); // set bit 9 (valid bit) to 1
+		//ll_pagetable_va[vpn2] |= (0b1 << 9); // set bit 9 (valid bit) to 1
 
 
 		case VM_FAULT_READONLY:
