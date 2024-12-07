@@ -69,7 +69,7 @@ long long alloc_swap_page(void)
 
 	if (!result)// this means there is space in the 
 	{
-		return index * 0x1000; // swap starts at 0 so should be simple
+		return index * PAGE_SIZE; // swap starts at 0 so should be simple
 	}
 
 	return ENOMEM;
@@ -84,7 +84,7 @@ free_swap_page(paddr_t llpte)
 	off_t swap_location = LLPTE_GET_SWAP_OFFSET(llpte);
 
 	KASSERT(swap_location%PAGE_SIZE == 0);
-	unsigned int index = swap_location;
+	unsigned int index = swap_location / PAGE_SIZE;
 
 	spinlock_acquire(&dumbervm.swap_bm_sl);
 	bitmap_unmark(dumbervm.swap_bm, index);

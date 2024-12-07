@@ -136,11 +136,18 @@ as_destroy(struct addrspace *as)
                     {
                         // Extract the physical address of the data page
                         vaddr_t llpte_entry = llpt[j];
-                        paddr_t data_paddr = LLPTE_MASK_PPN(llpte_entry);
-                        vaddr_t data_vaddr = PADDR_TO_KSEG0_VADDR(data_paddr);
+						if (LLPTE_GET_SWAP_BIT(llpte_entry))
+						{
+							free_swap_page(llpte_entry);
+						}
+						else
+						{
+							paddr_t data_paddr = LLPTE_MASK_PPN(llpte_entry);
+							vaddr_t data_vaddr = PADDR_TO_KSEG0_VADDR(data_paddr);
 
-                        // Free the data page
-                        free_kpages(data_vaddr);
+							// Free the data page
+							free_kpages(data_vaddr);
+						}
                     }
                 }
 

@@ -141,9 +141,10 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, i
 		// set the 'otherpages' field in the memlist node of the first page in the block
 
 		paddr_t pa;          // Physical address of the new block we created.
-		if (dumbervm.n_ppages_allocated >= dumbervm.n_ppages - 40) // in this case we should allocate memory from the swap space
+		if (dumbervm.n_ppages_allocated >= dumbervm.n_ppages - 30) // in this case we should allocate memory from the swap space
 		{
 			off_t swap_location = alloc_swap_page(); // find free area in swap space
+			KASSERT(swap_location % PAGE_SIZE == 0);
 			pa = LLPTE_SET_SWAP_BIT(swap_location << 12);
 		}
 		else
@@ -341,6 +342,10 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	{
 		off_t location_in_swap = LLPTE_GET_SWAP_OFFSET(ll_pagetable_entry);
 		vaddr_t swapable_page = find_swapable_page(as); // find a page that belongs to the user so we can steal it
+		if (swapable_page == 0)
+		{
+			return ENOMEM; // wasnt enough pages that we can swap.
+		}
 		int s_vpn1 = VADDR_GET_VPN1(swapable_page);
 		int s_vpn2 = VADDR_GET_VPN2(swapable_page);
 		vaddr_t* s_llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[s_vpn1]); // get the original llpte

@@ -11,7 +11,7 @@
  *  All functionality of the proctable assumes that the calling function aquires the correct lock BEFORE calling the functions
  *  of the proctable!!!
  */
-#define BASE_PROC_AMOUNT    32
+#define BASE_PROC_AMOUNT    22
 #define MAX_PID_REACHED     -1
 
 
