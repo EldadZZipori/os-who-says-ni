@@ -372,7 +372,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 			return ENOMEM;
 		}
 
-		result = write_stolen_page_to_swap(as, location_in_swap, stolen_page); // save the stolen data into the swap space
+		result = write_page_to_swap(as, location_in_swap, PADDR_TO_KSEG0_VADDR(stolen_page)); // save the stolen data into the swap space
 
 		if (result)
 		{

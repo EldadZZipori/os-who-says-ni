@@ -43,6 +43,7 @@
 #include <kern/stat.h>
 #include <vnode.h>
 #include <bitmap.h>
+#include <kern/swapspace.h>
 
 
 int 
@@ -317,18 +318,32 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 			{
 				if (old_as_llpt[j] != 0)
 				{
-					// allocate page, copy data into it, and update llpte
-					vaddr_t* old_as_datapage = (vaddr_t *) PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(old_as_llpt[j])); // only PPN
-					vaddr_t* new_as_datapage = (vaddr_t *) alloc_kpages(1);
-					if (new_as_datapage == 0)
+					if (LLPTE_GET_DIRTY_BIT(old_as_llpt[j]))
 					{
-						lock_release(old->address_lk);
-						return ENOMEM;
+						off_t old_location_in_swap = LLPTE_GET_SWAP_OFFSET(old_as_llpt[j]);
+						off_t new_location_in_swap = alloc_swap_page(); // add a check here
+
+						read_from_swap(old, old_location_in_swap, dumbervm.swap_buffer);
+						write_stolen_page_to_swap(new, new_location_in_swap, dumbervm.swap_buffer);
+						new_as_llpt[j] =  LLPTE_SET_SWAP_BIT(new_location_in_swap << 12);
+
+					}
+					else
+					{
+						// allocate page, copy data into it, and update llpte
+						vaddr_t* old_as_datapage = (vaddr_t *) PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(old_as_llpt[j])); // only PPN
+						vaddr_t* new_as_datapage = (vaddr_t *) alloc_kpages(1);
+						if (new_as_datapage == 0)
+						{
+							lock_release(old->address_lk);
+							return ENOMEM;
+						}
+						memcpy(new_as_datapage, old_as_datapage, PAGE_SIZE);	
+						paddr_t new_llpte = (paddr_t)(KSEG0_VADDR_TO_PADDR((paddr_t)new_as_datapage) | (old_as_llpt[j] & 0x00000fff)); // NVDG flags
+						new_as_llpt[j] = new_llpte;
 					}
 					new->n_kuseg_pages_allocated++;
-					memcpy(new_as_datapage, old_as_datapage, PAGE_SIZE);	
-					paddr_t new_llpte = (paddr_t)(KSEG0_VADDR_TO_PADDR((paddr_t)new_as_datapage) | (old_as_llpt[j] & 0x00000fff)); // NVDG flags
-					new_as_llpt[j] = new_llpte;
+
 				}	
 			}
 		}

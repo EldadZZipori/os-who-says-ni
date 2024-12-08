@@ -67,8 +67,9 @@ swap_space_bootstrap(void)
 	}
 }
 
-long long alloc_swap_page(void)
+off_t alloc_swap_page(void)
 {
+	// TODO: this is a bad return. we need to be able to find errors
 	unsigned int index;
 	spinlock_acquire(&dumbervm.swap_bm_sl);
 	int result = bitmap_alloc(dumbervm.swap_bm, &index);
@@ -148,13 +149,13 @@ find_swapable_page(struct addrspace* as, bool* did_find)
 }
 
 int 
-write_stolen_page_to_swap(struct addrspace* as, off_t swap_location, paddr_t stolen_ppn)
+write_page_to_swap(struct addrspace* as, off_t swap_location, void *buf)
 {
 	(void)as;
 	struct uio uio;
     struct iovec iov;
 	
-	uio_kinit(&iov, &uio, (void *)PADDR_TO_KSEG0_VADDR(stolen_ppn), PAGE_SIZE, swap_location, UIO_WRITE);
+	uio_kinit(&iov, &uio, buf, PAGE_SIZE, swap_location, UIO_WRITE);
 
 	int result = VOP_WRITE(dumbervm.swap_space, &uio);
 	return result;
