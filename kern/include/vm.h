@@ -97,20 +97,11 @@ void free_upages(struct addrspace* as, vaddr_t vaddr);
 
 paddr_t translate_vaddr_to_paddr(struct addrspace* as, vaddr_t vaddr);
 vaddr_t get_lltpe(struct addrspace* as,vaddr_t vaddr);
-int 
-read_from_swap(struct addrspace* as, off_t swap_location, void * buf);
-int 
-write_stolen_page_to_swap(struct addrspace* as, off_t swap_location, paddr_t stolen_ppn);
-vaddr_t
-find_swapable_page(struct addrspace* as, bool* did_find);
-void 
-free_swap_page(paddr_t llpte);
 
 /* TLB shootdown handling called from interprocessor_interrupt */
 void vm_tlbshootdown_all(void);
 void vm_tlbshootdown(const struct tlbshootdown *);
 void invalidate_tlb(void);
 
-long long alloc_swap_page(void);
 
 #endif /* _VM_H_ */

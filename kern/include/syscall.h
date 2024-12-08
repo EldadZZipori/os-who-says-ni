@@ -334,6 +334,19 @@ sys_waitpid(int pid, userptr_t status, int options, int* retval);
 int
 __waitpid(int pid, int* status, int options);
 
+/**
+ * @brief system call to allocate head space for a user program (i.e. a user address space)
+ * 
+ * @param amount amount by which to change the head, can be negative, positive, or zero to get the current last address of the heap.
+ * @param retval return the pid of the process that exited, on error -1
+ * 
+ * @warning currently we are only accepting page aligned allocations.
+ * 
+ * @return 0 on success, otherwise one of the following errors - 
+ * 
+ * ENOMEM	Sufficient virtual memory to satisfy the request was not available, or the process has reached the limit of the memory it is allowed to allocate.
+ * EINVAL	The request would move the "break" below its initial value.
+ */
 int
 sys_sbrk (int amount, int* retval);
 #endif /* _SYSCALL_H_ */

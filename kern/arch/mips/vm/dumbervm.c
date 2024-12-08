@@ -15,6 +15,7 @@
 #include <vnode.h>
 #include <bitmap.h>
 #include <uio.h>
+#include <kern/swapspace.h>
 
 
 
@@ -204,6 +205,7 @@ free_heap_upages(struct addrspace* as, int npages)
 	vaddr_t va = as->user_heap_end;
 	for (int i = 0; i < npages; i++)
 	{
+		// deallocating happens by zeroing from the bottom up so we need to decrease the address
 		va -= 0x1000;
 		free_upages(as, va);
 		
@@ -361,7 +363,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		paddr_t stolen_page = s_llpt[s_vpn2];  // get the physical address of the page we are going to use to store our data
 		paddr_t stolen_ppn = LLPTE_MASK_PPN(stolen_page); 
 
-		s_llpt[s_vpn2] = LLPTE_SET_SWAP_BIT((location_in_swap << 12) | TLBLO_DIRTY | TLBLO_VALID); // mark that we are putting this data in the swap space
+		s_llpt[s_vpn2] = LLPTE_SET_SWAP_BIT((location_in_swap << 12)); // mark that we are putting this data in the swap space
 
 		int result = read_from_swap(as, location_in_swap, dumbervm.swap_buffer); // copy data from swap to a buffer before writing the stolen data to it
 		if (result)

@@ -59,6 +59,15 @@ All systemcalls are implmented in their own .c file and declered in syscall.h
 
 ## Assignment 6: Implementing Virtual Memory 
 
+### Virtual Machine
+The code implemented for this assignment can be found in the following files:
+- `kern/arch/mips/vm/`  directory for machine depended code for the virutal machine
+    - `dumbervm.c`      our main implementation of pagetables for the mips architecure 
+    - `swapspace.c`     implementation of swap space
+- `kern/include`
+    - `vm.h`            declerations of required functionality for our virtual machine
+    - `swapspace.h`     declerations of required functionality for our swap space 
+
 ### Page table entry design 
 
 ![pagetable entries](docs/ptes.png)
