@@ -93,6 +93,11 @@ load_segment(struct addrspace *as, struct vnode *v,
 	DEBUG(DB_EXEC, "ELF: Loading %lu bytes to 0x%lx\n",
 	      (unsigned long) filesize, (unsigned long) vaddr);
 
+	int vpn1 = VADDR_GET_VPN1(vaddr);
+	int vpn2 = VADDR_GET_VPN2(vaddr);
+	(void)vpn1;
+	(void)vpn2;
+
 	iov.iov_ubase = (userptr_t)vaddr;
 	iov.iov_len = memsize;		 // length of the memory space
 	u.uio_iov = &iov;
@@ -287,6 +292,7 @@ load_elf(struct vnode *v, vaddr_t *entrypoint)
 				ph.p_type);
 			return ENOEXEC;
 		}
+		kprintf("Loading segment: vaddr=0x%x, memsize=0x%x, filesz=0x%x\n", ph.p_vaddr, ph.p_memsz, ph.p_filesz);
 
 		result = load_segment(as, v, ph.p_offset, ph.p_vaddr,
 				      ph.p_memsz, ph.p_filesz,
