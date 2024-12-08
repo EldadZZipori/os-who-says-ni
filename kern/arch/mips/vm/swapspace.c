@@ -15,6 +15,8 @@
 #include <vnode.h>
 #include <bitmap.h>
 #include <uio.h>
+#include <kern/swapspace.h>
+
 
 void
 swap_space_bootstrap(void)

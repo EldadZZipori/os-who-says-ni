@@ -372,7 +372,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 			return ENOMEM;
 		}
 
-		result = write_page_to_swap(as, location_in_swap, PADDR_TO_KSEG0_VADDR(stolen_page)); // save the stolen data into the swap space
+		result = write_page_to_swap(as, location_in_swap, (void *)PADDR_TO_KSEG0_VADDR(stolen_page)); // save the stolen data into the swap space
 
 		if (result)
 		{
@@ -394,6 +394,11 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 			tlb_write(TLBHI_INVALID(idx),TLBLO_INVALID(), idx);
 		}
 
+	}
+
+	if ((ll_pagetable_entry & TLBLO_VALID) == 0)
+	{
+		return EFAULT;
 	}
 	
 	/** 
@@ -561,21 +566,24 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 	paddr_t paddr = translate_vaddr_to_paddr(as, vaddr); // to free stuff we have to do it from the bottom
 	vaddr_t llpte = get_lltpe(as, vaddr);
 
+	int vpn1 = VADDR_GET_VPN1(vaddr);
+	int vpn2 = VADDR_GET_VPN2(vaddr);
+	vaddr_t* llpt = (vaddr_t *)as->ptbase[vpn1];
+
+
 	if (LLPTE_GET_SWAP_BIT(llpte))
 	{
 		free_swap_page(llpte);
+		llpt[vpn2] = 0;
+		as->n_kuseg_pages_allocated--;
 	}
 	else
 	{
-		free_kpages(PADDR_TO_KSEG0_VADDR(paddr));
+		// basiclly just make the entry not valid so we dont free the physical page which we need
+		// free_kpages(PADDR_TO_KSEG0_VADDR(paddr));
+		paddr = paddr & !TLBLO_VALID;
+		llpt[vpn2] = paddr;
 	}
-
-	int vpn1 = VADDR_GET_VPN1(vaddr);
-	int vpn2 = VADDR_GET_VPN2(vaddr);
-
-	vaddr_t* llpt = (vaddr_t *)as->ptbase[vpn1];
-	llpt[vpn2] = 0;
-	as->n_kuseg_pages_allocated--;
 	// if (LLPTE_GET_LASTPAGE_BIT(llpte))
 	// {
 	// 	// last page. exit

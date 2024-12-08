@@ -324,7 +324,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 						off_t new_location_in_swap = alloc_swap_page(); // add a check here
 
 						read_from_swap(old, old_location_in_swap, dumbervm.swap_buffer);
-						write_stolen_page_to_swap(new, new_location_in_swap, dumbervm.swap_buffer);
+						write_page_to_swap(new, new_location_in_swap, dumbervm.swap_buffer);
 						new_as_llpt[j] =  LLPTE_SET_SWAP_BIT(new_location_in_swap << 12);
 
 					}
