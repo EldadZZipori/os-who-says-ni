@@ -152,6 +152,10 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, bool* in_swap, 
 		{
 			*in_swap = false;
 			kseg0_va = alloc_kpages(1);
+			if (kseg0_va == 0)
+			{
+				return ENOMEM;
+			}
 			pa = KSEG0_VADDR_TO_PADDR(kseg0_va);
 		}
 
@@ -345,8 +349,9 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	if (LLPTE_GET_SWAP_BIT(ll_pagetable_entry))
 	{
 		off_t location_in_swap = LLPTE_GET_SWAP_OFFSET(ll_pagetable_entry);
-		vaddr_t swapable_page = find_swapable_page(as); // find a page that belongs to the user so we can steal it
-		if (swapable_page == 0)
+		bool did_find = true;
+		vaddr_t swapable_page = find_swapable_page(as, &did_find); // find a page that belongs to the user so we can steal it
+		if (!did_find)
 		{
 			return ENOMEM; // wasnt enough pages that we can swap.
 		}

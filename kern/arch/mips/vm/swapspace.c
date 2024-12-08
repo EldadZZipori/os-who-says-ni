@@ -48,7 +48,9 @@ swap_space_bootstrap(void)
 		return;
 	}
 
-	dumbervm.swap_bm = bitmap_create((swap_space_stat.st_size)/PAGE_SIZE);
+	int swap_pages = (swap_space_stat.st_size)/PAGE_SIZE;
+
+	dumbervm.swap_bm = bitmap_create(swap_pages);
 	if (dumbervm.swap_bm == NULL)
 	{
 		vfs_close(swap_space);
@@ -57,6 +59,12 @@ swap_space_bootstrap(void)
 	}
 
 	dumbervm.swap_sz = swap_space_stat.st_size;
+
+	// Zero out the swap space just in case
+	for (int i = 0; i < swap_pages; i++)
+	{
+		zero_swap_page(i);
+	}
 }
 
 long long alloc_swap_page(void)
@@ -97,7 +105,10 @@ zero_swap_page(off_t location)
 {
 	struct uio uio;
     struct iovec iov;
-	as_zero_region((vaddr_t)dumbervm.swap_buffer, 1);
+	if (*((int *)dumbervm.swap_buffer ) != 0)
+	{
+		as_zero_region((vaddr_t)dumbervm.swap_buffer, 1);
+	}
 
 	uio_kinit(&iov, &uio, (void *)(dumbervm.swap_buffer), PAGE_SIZE, location, UIO_WRITE);
 
@@ -107,7 +118,7 @@ zero_swap_page(off_t location)
 }
 
 vaddr_t
-find_swapable_page(struct addrspace* as)
+find_swapable_page(struct addrspace* as, bool* did_find)
 {
     if (as == NULL) {
         return 0;
@@ -123,6 +134,7 @@ find_swapable_page(struct addrspace* as)
             int j = start_j;
             do {
                 if (llpt[j] != 0 && !LLPTE_GET_SWAP_BIT(llpt[j])) {
+					*did_find = true;
                     return (i << 22) | (j << 12);
                 }
                 j = (j + 1) % 1024;
@@ -131,6 +143,7 @@ find_swapable_page(struct addrspace* as)
         i = (i + 1) % 1024;
     } while (i != start_i);
 
+	*did_find = false;
     return 0; /* No swapable page found */
 }
 

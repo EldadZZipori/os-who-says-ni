@@ -102,7 +102,7 @@ read_from_swap(struct addrspace* as, off_t swap_location, void * buf);
 int 
 write_stolen_page_to_swap(struct addrspace* as, off_t swap_location, paddr_t stolen_ppn);
 vaddr_t
-find_swapable_page(struct addrspace* as);
+find_swapable_page(struct addrspace* as, bool* did_find);
 void 
 free_swap_page(paddr_t llpte);
 
