@@ -30,13 +30,36 @@
 #ifndef _SWAPSPACE_H_
 #define _SWAPSPACE_H_
 
-
+/**
+ * @brief bootstrap the swap space system
+ * 
+ * @warning this function does not return as the swap space is not required for the system.
+ * a warning will be given that bootstrap failed and the reason for it. 
+ */
 void 
 swap_space_bootstrap(void);
 
+/**
+ * @brief reads one page from the swap space into a buffer
+ * 
+ * @param as address space making the call to the swap space
+ * @param swap_location the offset of the data in swap space, needs to be page aligned
+ * @param buf buffer to move the data read from the swap space into, must be 1 page in size
+ * 
+ * @return 0 on success, aligned with errno
+ */
 int 
 read_from_swap(struct addrspace* as, off_t swap_location, void * buf);
 
+/**
+ * @brief writes one page from the swap space into a buffer
+ * 
+ * @param as address space making the call to the swap space
+ * @param swap_location the offset of the data in swap space, needs to be page aligned
+ * @param buf buffer containing the data to be written into the swap space, must be 1 page in size
+ * 
+ * @return 0 on success, aligned with errno
+ */
 int 
 write_page_to_swap(struct addrspace* as, off_t swap_location, void* stolen_ppn);
 

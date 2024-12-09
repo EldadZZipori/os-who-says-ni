@@ -67,6 +67,8 @@ The code implemented for this assignment can be found in the following files:
 - `kern/include`
     - `vm.h`            declerations of required functionality for our virtual machine
     - `swapspace.h`     declerations of required functionality for our swap space 
+- `kern/syscall/sbrk.c` sbrk systemcall to manage user heap, allowing user programs to call malloc and free
+
 
 ### Page table entry design 
 

@@ -18,7 +18,9 @@
 #include <kern/swapspace.h>
 
 
-
+static
+void
+fill_deadbeef(void *vptr, int npages);
 
 /* General VM stuff */
 
@@ -142,7 +144,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, bool* in_swap, 
 		// set the 'otherpages' field in the memlist node of the first page in the block
 
 		paddr_t pa;          // Physical address of the new block we created.
-		if (as->n_kuseg_pages_allocated >= 4) // in this case we should allocate memory from the swap space
+		if (as->n_kuseg_pages_allocated >= 6) // in this case we should allocate memory from the swap space
 		{
 			*in_swap = true;
 			off_t swap_location = alloc_swap_page(); // find free area in swap space
@@ -233,6 +235,8 @@ alloc_kpages(unsigned npages)
 	/* No memlist required */
 	vaddr_t va = PADDR_TO_KSEG0_VADDR(pa);
 
+	as_zero_region(va, 1);
+
 	KASSERT(va >= MIPS_KSEG0);
 	KASSERT(va < MIPS_KSEG0_RAM_END);
 
@@ -275,9 +279,10 @@ free_kpages(vaddr_t addr)
 		dumbervm.n_ppages_allocated--;
 		bitmap_unmark(dumbervm.ppage_lastpage_bm, ppage_index);
 		
-		
-
 		spinlock_release(&dumbervm.ppage_bm_sl);
+
+		fill_deadbeef((void * )addr, 1);
+
 	}
 	
 }
@@ -651,4 +656,17 @@ get_lltpe(struct addrspace* as,vaddr_t vaddr)
 	vaddr_t* ll_pagetable_va = (vaddr_t *) TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]);
 
 	return ll_pagetable_va[vpn2];
+}
+
+
+static
+void
+fill_deadbeef(void *vptr, int npages)
+{
+	uint32_t *ptr = vptr;
+	size_t i;
+
+	for (i=0; i<(npages * PAGE_SIZE)/sizeof(uint32_t); i++) {
+		ptr[i] = 0xdeadbeef;
+	}
 }
