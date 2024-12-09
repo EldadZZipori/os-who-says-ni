@@ -76,7 +76,6 @@ getppages(unsigned long npages)
 		{
 			return dumbervm.ram_start + (0x1000 * index);
 		}
-		// If we get here go check the swap space for more space
 
 		return 0;
 	}
@@ -147,9 +146,8 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, bool* in_swap, 
 		if (as->n_kuseg_pages_allocated >= 6) // in this case we should allocate memory from the swap space
 		{
 			*in_swap = true;
-			off_t swap_location = alloc_swap_page(); // find free area in swap space
-			KASSERT(swap_location % PAGE_SIZE == 0);
-			pa = LLPTE_SET_SWAP_BIT(swap_location << 12);
+			int swap_idx = alloc_swap_page(); // find free area in swap space
+			pa = LLPTE_SET_SWAP_BIT(swap_idx << 12);
 		}
 		else
 		{
@@ -160,6 +158,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, bool* in_swap, 
 				return ENOMEM;
 			}
 			pa = KSEG0_VADDR_TO_PADDR(kseg0_va);
+			pa |= TLBLO_DIRTY | TLBLO_VALID;
 		}
 
 		// write valid bit
@@ -171,7 +170,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, bool* in_swap, 
 		//ll_pagetable_va[vpn2] |= (0x1 << 10) |(readable << 2) | (writeable << 1) ; // for now everything is readable and writeable
 
 		// NOTE: for now just let everything be read/write
-		ll_pagetable_va[vpn2] = pa | TLBLO_DIRTY | TLBLO_VALID; 
+		ll_pagetable_va[vpn2] = pa ; 
 		
 		//ll_pagetable_va[vpn2] |= (0x1 << 10) | (0b1 << 2) | (0b1 << 1); // for now everything is readable and writeable
 
@@ -355,7 +354,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
 	if (LLPTE_GET_SWAP_BIT(ll_pagetable_entry))
 	{
-		off_t location_in_swap = LLPTE_GET_SWAP_OFFSET(ll_pagetable_entry);
+		int indx_in_swap = LLPTE_GET_SWAP_OFFSET(ll_pagetable_entry);
 		bool did_find = true;
 		vaddr_t swapable_page = find_swapable_page(as, &did_find); // find a page that belongs to the user so we can steal it
 		if (!did_find)
@@ -368,16 +367,16 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		paddr_t stolen_page = s_llpt[s_vpn2];  // get the physical address of the page we are going to use to store our data
 		paddr_t stolen_ppn = LLPTE_MASK_PPN(stolen_page); 
 
-		s_llpt[s_vpn2] = LLPTE_SET_SWAP_BIT((location_in_swap << 12)); // mark that we are putting this data in the swap space
+		s_llpt[s_vpn2] = LLPTE_SET_SWAP_BIT(indx_in_swap << 12); // mark that we are putting this data in the swap space
 
-		int result = read_from_swap(as, location_in_swap, dumbervm.swap_buffer); // copy data from swap to a buffer before writing the stolen data to it
+		int result = read_from_swap(as, indx_in_swap, dumbervm.swap_buffer); // copy data from swap to a buffer before writing the stolen data to it
 		if (result)
 		{
 			kprintf("dumbervm: problem reading from swap space\n");
 			return ENOMEM;
 		}
 
-		result = write_page_to_swap(as, location_in_swap, (void *)PADDR_TO_KSEG0_VADDR(stolen_page)); // save the stolen data into the swap space
+		result = write_page_to_swap(as, indx_in_swap, (void *)PADDR_TO_KSEG0_VADDR(stolen_page)); // save the stolen data into the swap space
 
 		if (result)
 		{
@@ -586,7 +585,7 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 	{
 		// basiclly just make the entry not valid so we dont free the physical page which we need
 		// free_kpages(PADDR_TO_KSEG0_VADDR(paddr));
-		paddr = paddr & !TLBLO_VALID;
+		paddr = paddr & ~TLBLO_VALID;
 		llpt[vpn2] = paddr;
 	}
 	// if (LLPTE_GET_LASTPAGE_BIT(llpte))

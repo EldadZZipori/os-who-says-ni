@@ -167,7 +167,7 @@ int               as_define_stack(struct addrspace *as, vaddr_t *initstackptr);
 void as_zero_region(vaddr_t va, unsigned npages);
 int as_create_stack(struct addrspace* as);
 int 
-zero_swap_page(off_t location);
+zero_swap_page(int swap_idx);
 /*
  * Functions in loadelf.c
  *    load_elf - load an ELF user program executable into the current

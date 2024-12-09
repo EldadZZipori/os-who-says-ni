@@ -49,7 +49,7 @@ swap_space_bootstrap(void);
  * @return 0 on success, aligned with errno
  */
 int 
-read_from_swap(struct addrspace* as, off_t swap_location, void * buf);
+read_from_swap(struct addrspace* as, int swap_idx, void * buf);
 
 /**
  * @brief writes one page from the swap space into a buffer
@@ -61,12 +61,12 @@ read_from_swap(struct addrspace* as, off_t swap_location, void * buf);
  * @return 0 on success, aligned with errno
  */
 int 
-write_page_to_swap(struct addrspace* as, off_t swap_location, void* stolen_ppn);
+write_page_to_swap(struct addrspace* as, int swap_idx, void* stolen_ppn);
 
 vaddr_t
 find_swapable_page(struct addrspace* as, bool* did_find);
 
-off_t
+int
 alloc_swap_page(void);
 
 void 

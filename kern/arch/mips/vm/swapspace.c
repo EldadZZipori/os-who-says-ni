@@ -61,26 +61,21 @@ swap_space_bootstrap(void)
 	}
 
 	dumbervm.swap_sz = swap_space_stat.st_size;
-
-	// Zero out the swap space just in case
-	for (int i = 0; i < swap_pages; i++)
-	{
-		zero_swap_page(i);
-	}
 }
 
-off_t alloc_swap_page(void)
+int alloc_swap_page(void)
 {
 	// TODO: this is a bad return. we need to be able to find errors
 	unsigned int index;
 	spinlock_acquire(&dumbervm.swap_bm_sl);
 	int result = bitmap_alloc(dumbervm.swap_bm, &index);
+	dumbervm.n_ppages_allocated++;
 	spinlock_release(&dumbervm.swap_bm_sl);
 
 
 	if (!result)// this means there is space in the 
 	{
-		return index * PAGE_SIZE; // swap starts at 0 so should be simple
+		return index; // swap starts at 0 so should be simple
 	}
 
 	return ENOMEM;
@@ -91,29 +86,31 @@ off_t alloc_swap_page(void)
 void 
 free_swap_page(paddr_t llpte)
 {
-	
-	off_t swap_location = LLPTE_GET_SWAP_OFFSET(llpte);
+	unsigned int index = LLPTE_GET_SWAP_OFFSET(llpte);	
+	off_t swap_location = index * PAGE_SIZE;
 
-	KASSERT(swap_location%PAGE_SIZE == 0);
-	unsigned int index = swap_location / PAGE_SIZE;
+	KASSERT(swap_location%PAGE_SIZE == 0 || swap_location == 0);
+	
 
 	spinlock_acquire(&dumbervm.swap_bm_sl);
 	bitmap_unmark(dumbervm.swap_bm, index);
 	dumbervm.n_ppages_allocated--;
 	spinlock_release(&dumbervm.swap_bm_sl);
+
+	zero_swap_page(index);
 }
 
 int 
-zero_swap_page(off_t location)
+zero_swap_page(int swap_idx)
 {
 	struct uio uio;
     struct iovec iov;
-	if (*((int *)dumbervm.swap_buffer ) != 0)
-	{
-		as_zero_region((vaddr_t)dumbervm.swap_buffer, 1);
-	}
 
-	uio_kinit(&iov, &uio, (void *)(dumbervm.swap_buffer), PAGE_SIZE, location, UIO_WRITE);
+	off_t offset_in_swap = swap_idx * PAGE_SIZE;
+
+	memset(dumbervm.swap_buffer, 0, PAGE_SIZE);
+
+	uio_kinit(&iov, &uio, (void *)(dumbervm.swap_buffer), PAGE_SIZE, offset_in_swap, UIO_WRITE);
 
 	int result = VOP_WRITE(dumbervm.swap_space, &uio);
 	return result;
@@ -127,8 +124,8 @@ find_swapable_page(struct addrspace* as, bool* did_find)
         return 0;
     }
 
-    int start_i = random() % 1024; 
-    int start_j = random() % 1024;
+    int start_i = 0;//random() % 1024; 
+    int start_j = 0;//random() % 1024;
 
     int i = start_i;
     do {
@@ -140,10 +137,10 @@ find_swapable_page(struct addrspace* as, bool* did_find)
 					*did_find = true;
                     return (i << 22) | (j << 12);
                 }
-                j = (j + 1) % 1024;
+                j = (j + 1) ;//% 1024;
             } while (j != start_j);
         }
-        i = (i + 1) % 1024;
+        i = (i + 1) ;//% 1024;
     } while (i != start_i);
 
 	*did_find = false;
@@ -151,13 +148,15 @@ find_swapable_page(struct addrspace* as, bool* did_find)
 }
 
 int 
-write_page_to_swap(struct addrspace* as, off_t swap_location, void *buf)
+write_page_to_swap(struct addrspace* as, int swap_idx, void *buf)
 {
 	(void)as;
 	struct uio uio;
     struct iovec iov;
 	
-	uio_kinit(&iov, &uio, buf, PAGE_SIZE, swap_location, UIO_WRITE);
+	off_t swap_offset = swap_idx * PAGE_SIZE;
+
+	uio_kinit(&iov, &uio, buf, PAGE_SIZE, swap_offset, UIO_WRITE);
 
 	int result = VOP_WRITE(dumbervm.swap_space, &uio);
 	return result;
@@ -165,12 +164,14 @@ write_page_to_swap(struct addrspace* as, off_t swap_location, void *buf)
 }
 
 int 
-read_from_swap(struct addrspace* as, off_t swap_location, void * buf)
+read_from_swap(struct addrspace* as, int swap_idx, void * buf)
 {
 	(void)as;
 	struct uio uio;
     struct iovec iov;
-	uio_kinit(&iov, &uio, buf, PAGE_SIZE, swap_location, UIO_READ);
+
+	off_t swap_offset = swap_idx * PAGE_SIZE;
+	uio_kinit(&iov, &uio, buf, PAGE_SIZE, swap_offset, UIO_READ);
 
     // read from the file
     int result = VOP_READ(dumbervm.swap_space, &uio);

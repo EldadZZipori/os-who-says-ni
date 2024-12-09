@@ -65,8 +65,8 @@ as_create_stack(struct addrspace* as)
 	{
 		for (int i = 0; i < DUMBVMER_STACKPAGES; i++)
 		{
-			off_t location = LLPTE_GET_SWAP_OFFSET(translate_vaddr_to_paddr(as, as->user_stackbase + (i * PAGE_SIZE)));
-			zero_swap_page(location);
+			int swap_idx = LLPTE_GET_SWAP_OFFSET(translate_vaddr_to_paddr(as, as->user_stackbase + (i * PAGE_SIZE)));
+			zero_swap_page(swap_idx);
 		}
 		
 	}
@@ -318,14 +318,14 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 			{
 				if (old_as_llpt[j] != 0)
 				{
-					if (LLPTE_GET_DIRTY_BIT(old_as_llpt[j]))
+					if (LLPTE_GET_SWAP_BIT(old_as_llpt[j]))
 					{
-						off_t old_location_in_swap = LLPTE_GET_SWAP_OFFSET(old_as_llpt[j]);
-						off_t new_location_in_swap = alloc_swap_page(); // add a check here
+						int old_swap_idx = LLPTE_GET_SWAP_OFFSET(old_as_llpt[j]);
+						int new_swap_idx = alloc_swap_page(); // add a check here
 
-						read_from_swap(old, old_location_in_swap, dumbervm.swap_buffer);
-						write_page_to_swap(new, new_location_in_swap, dumbervm.swap_buffer);
-						new_as_llpt[j] =  LLPTE_SET_SWAP_BIT(new_location_in_swap << 12);
+						read_from_swap(old, old_swap_idx, dumbervm.swap_buffer);
+						write_page_to_swap(new, new_swap_idx, dumbervm.swap_buffer);
+						new_as_llpt[j] =  LLPTE_SET_SWAP_BIT(new_swap_idx << 12);
 
 					}
 					else
