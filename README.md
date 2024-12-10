@@ -70,6 +70,10 @@ The code implemented for this assignment can be found in the following files:
 - `kern/syscall/sbrk.c` sbrk systemcall to manage user heap, allowing user programs to call malloc and free
 
 
+### MIPS Translation Lookaside Buffer (TLB)
+The translation lookaside buffer is a cache used by the MIPS MMU to translate virtual addresses to physical address.
+![Translation Lookaside Buffer](docs/tlb.png)
+
 ### Page table entry design 
 
 ![pagetable entries](docs/ptes.png)

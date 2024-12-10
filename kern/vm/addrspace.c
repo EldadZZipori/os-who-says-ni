@@ -51,7 +51,7 @@ as_create_stack(struct addrspace* as)
 {
 	bool in_swap;
 	vaddr_t stack_va = USERSPACETOP - (DUMBVMER_STACKPAGES * PAGE_SIZE);
-	int result = alloc_upages(as, &stack_va, DUMBVMER_STACKPAGES, &in_swap, false,1,1,0); 
+	int result = alloc_upages(as, &stack_va, DUMBVMER_STACKPAGES, &in_swap,1,1,0); 
 	if (result)
 	{
 		return result;
@@ -226,7 +226,7 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 	// TODO: deallocate all memory from vaddr to vaddr + npages
 	int result;
 	// bit-shifting so that flags are all 0 or 1 (for PTE)
-	result = alloc_upages(as, &va, npages, &in_swap, executable, readable >> 2, writeable >> 1, executable);
+	result = alloc_upages(as, &va, npages, &in_swap, readable >> 2, writeable >> 1, executable);
 	if (result)
 	{
 		return result;

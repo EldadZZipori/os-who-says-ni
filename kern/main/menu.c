@@ -599,7 +599,7 @@ swap_test(int n, char **a)
 	for (int i = 0; i < 8;i++)
 	{
 		va = (vaddr_t )(0x1000 * (i+1));
-		alloc_upages(as, &va, 1, &in_swap, !i,0,0,0);
+		alloc_upages(as, &va, 1, &in_swap, !i, 0,0,0);
 		//va = (vaddr_t)va; // write the address as the data 
 		va-=0x1000;
 		*((vaddr_t *)va) = i;

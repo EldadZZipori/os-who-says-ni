@@ -72,4 +72,7 @@ alloc_swap_page(void);
 void 
 free_swap_page(paddr_t llpte);
 
+paddr_t
+swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2);
+
 #endif

@@ -94,7 +94,7 @@ getppages(unsigned long npages)
 
 
 int 
-alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages ,bool* in_swap, bool force_physical, int readable, int writeable, int executable)
+alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages ,bool* in_swap, int readable, int writeable, int executable)
 {
 	(void) readable;
 	(void) writeable;
@@ -143,7 +143,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages ,bool* in_swap, 
 		// set the 'otherpages' field in the memlist node of the first page in the block
 
 		paddr_t pa;          // Physical address of the new block we created.
-		if (as->n_kuseg_pages_allocated >= 7 && !force_physical) // in this case we should allocate memory from the swap space
+		if (as->n_kuseg_pages_allocated >= 7 && !executable) // in this case we should allocate memory from the swap space
 		{
 			*in_swap = true;
 			int swap_idx = alloc_swap_page(); // find free area in swap space
@@ -158,7 +158,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages ,bool* in_swap, 
 				return ENOMEM;
 			}
 			pa = KSEG0_VADDR_TO_PADDR(kseg0_va);
-			pa |= TLBLO_DIRTY | TLBLO_VALID | force_physical;
+			pa |= TLBLO_DIRTY | TLBLO_VALID | executable;
 		}
 
 		// write valid bit
@@ -190,7 +190,7 @@ alloc_heap_upages(struct addrspace* as, int npages)
 	bool in_swap;
 	(void)in_swap;
 	vaddr_t va = as->user_heap_end;
-	int result = alloc_upages(as, &va, npages, &in_swap, false,1, 1, 0);
+	int result = alloc_upages(as, &va, npages, &in_swap,1, 1, 0);
 	if (result)
 	{
 		return result;
@@ -354,44 +354,11 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
 	if (LLPTE_GET_SWAP_BIT(ll_pagetable_entry))
 	{
-		int indx_in_swap = LLPTE_GET_SWAP_OFFSET(ll_pagetable_entry);
-		bool did_find = true;
-		vaddr_t swapable_page = find_swapable_page(as, &did_find); // find a page that belongs to the user so we can steal it
-		if (!did_find)
-		{
-			return ENOMEM; // wasnt enough pages that we can swap.
-		}
-		int s_vpn1 = VADDR_GET_VPN1(swapable_page);
-		int s_vpn2 = VADDR_GET_VPN2(swapable_page);
-		vaddr_t* s_llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[s_vpn1]); // get the original llpte
-		paddr_t stolen_page = s_llpt[s_vpn2];  // get the physical address of the page we are going to use to store our data
-		paddr_t stolen_ppn = LLPTE_MASK_PPN(stolen_page); 
+		vaddr_t swapped_page = swap_page(as, (vaddr_t*) ll_pagetable_va, vpn2);
 
-		s_llpt[s_vpn2] = LLPTE_SET_SWAP_BIT(indx_in_swap << 12); // mark that we are putting this data in the swap space
-
-		int result = read_from_swap(as, indx_in_swap, dumbervm.swap_buffer); // copy data from swap to a buffer before writing the stolen data to it
-		if (result)
-		{
-			kprintf("dumbervm: problem reading from swap space\n");
-			return ENOMEM;
-		}
-
-		result = write_page_to_swap(as, indx_in_swap, (void *)PADDR_TO_KSEG0_VADDR(stolen_ppn)); // save the stolen data into the swap space
-
-		if (result)
-		{
-			kprintf("dumbervm: problem writing to swap space\n");
-			return ENOMEM;
-		}
-
-		memcpy((void *)PADDR_TO_KSEG0_VADDR(stolen_ppn), dumbervm.swap_buffer, PAGE_SIZE); // copy the data that was in swap into the ppn we just stole
-
-		as_zero_region((vaddr_t)dumbervm.swap_buffer, 1);
-		ll_pagetable_va[vpn2] = (stolen_ppn) | TLBLO_DIRTY | TLBLO_VALID ;//mark the stolen ppn on the translation for the fault virtual address
 		ll_pagetable_entry = ll_pagetable_va[vpn2];
-
 		// Invalidate the stolen page
-		int idx = tlb_probe(swapable_page, 0);
+		int idx = tlb_probe(swapped_page, 0);
 
 		if (idx >= 0)
 		{
