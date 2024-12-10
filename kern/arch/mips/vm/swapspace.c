@@ -92,10 +92,10 @@ free_swap_page(paddr_t llpte)
 	KASSERT(swap_location%PAGE_SIZE == 0 || swap_location == 0);
 	
 
-	//spinlock_acquire(&dumbervm.swap_bm_sl);
+	spinlock_acquire(&dumbervm.swap_bm_sl);
 	bitmap_unmark(dumbervm.swap_bm, index);
 	dumbervm.n_ppages_allocated--;
-	//spinlock_release(&dumbervm.swap_bm_sl);
+	spinlock_release(&dumbervm.swap_bm_sl);
 
 	zero_swap_page(index);
 }

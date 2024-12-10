@@ -76,8 +76,11 @@ sys_sbrk (int amount, int* retval)
 
     // deallocate if if amount was negative
     if (is_negative)
-    {
+    {   
+        spinlock_release(&curproc->p_lock);
         free_heap_upages(as, npages);
+        lock_release(as->address_lk);
+        return 0;
 
     }
     // allocate if possitive.
