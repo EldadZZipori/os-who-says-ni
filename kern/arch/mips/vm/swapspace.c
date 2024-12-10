@@ -133,7 +133,7 @@ find_swapable_page(struct addrspace* as, bool* did_find)
             vaddr_t* llpt = (vaddr_t*) TLPTE_MASK_VADDR(as->ptbase[i]);
             int j = start_j;
             do {
-                if (llpt[j] != 0 && !LLPTE_GET_SWAP_BIT(llpt[j])) {
+                if (llpt[j] != 0 && !LLPTE_GET_SWAP_BIT(llpt[j]) && ((llpt[j] & 0b1)) == 0) {
 					*did_find = true;
                     return (i << 22) | (j << 12);
                 }

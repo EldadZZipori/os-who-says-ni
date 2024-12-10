@@ -44,7 +44,8 @@
 #include "opt-synchprobs.h"
 #include "opt-sfs.h"
 #include "opt-net.h"
-
+#include <vm.h>
+#include <current.h>
 
 /*
  * In-kernel menu and command dispatcher.
@@ -575,6 +576,49 @@ print_knight(int n, char **a)
 
 }
 
+static
+int 
+swap_test(int n, char **a)
+{
+	(void)n;
+	(void)a;
+	struct addrspace *as;
+	
+	/* Create a new address space. */
+	as = as_create();
+	if (as == NULL) {
+		return ENOMEM;
+	}
+
+	/* Switch to it and activate it. */
+	proc_setas(as);
+	as_activate();
+
+	bool in_swap;
+	vaddr_t va;
+	for (int i = 0; i < 8;i++)
+	{
+		va = (vaddr_t )(0x1000 * (i+1));
+		alloc_upages(as, &va, 1, &in_swap, !i,0,0,0);
+		//va = (vaddr_t)va; // write the address as the data 
+		va-=0x1000;
+		*((vaddr_t *)va) = i;
+		kprintf("vaddr: %d, in_swap: %d\n", (unsigned)va, in_swap);
+	}
+
+	for (int i = 0; i < 8; i++)
+	{
+		va = (vaddr_t )(0x1000 * (i+1));
+		kprintf("vaddr: %d, data: %d\n", (unsigned)va, *((vaddr_t *)va));
+	}
+	
+	as_deactivate();
+	as_destroy(as);
+	curproc->p_addrspace = NULL;
+
+	return 0;
+
+}
 ////////////////////////////////////////
 //
 // Command table.
@@ -645,6 +689,7 @@ static struct {
 	{ "fs5",	longstress },
 	{ "fs6",	createstress },
 	{ "pn", 	print_knight }, //Just for use not really important
+	{ "st", 	swap_test},
 	{ NULL, NULL }
 };
 
