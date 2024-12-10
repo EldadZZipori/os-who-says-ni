@@ -92,10 +92,10 @@ free_swap_page(paddr_t llpte)
 	KASSERT(swap_location%PAGE_SIZE == 0 || swap_location == 0);
 	
 
-	spinlock_acquire(&dumbervm.swap_bm_sl);
+	//spinlock_acquire(&dumbervm.swap_bm_sl);
 	bitmap_unmark(dumbervm.swap_bm, index);
 	dumbervm.n_ppages_allocated--;
-	spinlock_release(&dumbervm.swap_bm_sl);
+	//spinlock_release(&dumbervm.swap_bm_sl);
 
 	zero_swap_page(index);
 }
@@ -133,15 +133,15 @@ find_swapable_page(struct addrspace* as, bool* did_find)
             vaddr_t* llpt = (vaddr_t*) TLPTE_MASK_VADDR(as->ptbase[i]);
             int j = start_j;
             do {
-                if (llpt[j] != 0 && !LLPTE_GET_SWAP_BIT(llpt[j]) && ((llpt[j] & 0b1)) == 0) {
+                if (llpt[j] != 0 && !LLPTE_GET_SWAP_BIT(llpt[j]) && ((llpt[j] & 0b1) == 0)) {
 					*did_find = true;
                     return (i << 22) | (j << 12);
                 }
                 j = (j + 1) ;//% 1024;
-            } while (j != start_j);
+            } while (j != 1024);
         }
         i = (i + 1) ;//% 1024;
-    } while (i != start_i);
+    } while (i != 1024);
 
 	*did_find = false;
     return 0; /* No swapable page found */

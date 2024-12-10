@@ -143,7 +143,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages ,bool* in_swap, 
 		// set the 'otherpages' field in the memlist node of the first page in the block
 
 		paddr_t pa;          // Physical address of the new block we created.
-		if (as->n_kuseg_pages_allocated >= 4 && !force_physical) // in this case we should allocate memory from the swap space
+		if (as->n_kuseg_pages_allocated >= 7 && !force_physical) // in this case we should allocate memory from the swap space
 		{
 			*in_swap = true;
 			int swap_idx = alloc_swap_page(); // find free area in swap space

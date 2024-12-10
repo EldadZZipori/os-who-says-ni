@@ -226,7 +226,7 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 	// TODO: deallocate all memory from vaddr to vaddr + npages
 	int result;
 	// bit-shifting so that flags are all 0 or 1 (for PTE)
-	result = alloc_upages(as, &va, npages, &in_swap, true, readable >> 2, writeable >> 1, executable);
+	result = alloc_upages(as, &va, npages, &in_swap, executable, readable >> 2, writeable >> 1, executable);
 	if (result)
 	{
 		return result;
