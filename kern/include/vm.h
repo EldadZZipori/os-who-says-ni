@@ -42,6 +42,9 @@
 #include <addrspace.h>
 #include <spinlock.h>
 
+/*
+ * Struct for managing the background opperation of the virtual machine.
+ */
 struct vm
 {
     struct bitmap *ppage_bm;
@@ -73,35 +76,73 @@ struct vm dumbervm;
 #define VM_FAULT_WRITE       1    /* A write was attempted */
 #define VM_FAULT_READONLY    2    /* A write to a readonly page was attempted*/
 
+/* Static constants for address spaces */
 #define DUMBVMER_STACKPAGES    8
 #define DUMB_HEAP_START	0x1000000
 
+/**
+ * @brief bootstrap the virtual machine of the system
+ * 
+ * @warning this function does not return. If this cannot be done the system will panic.
+ */
+void 
+vm_bootstrap(void);
 
-
-/* Initialization function */
-void vm_bootstrap(void);
-void swap_space_bootstrap(void);
 
 /* Fault handling function called by trap code */
-int vm_fault(int faulttype, vaddr_t faultaddress);
+int 
+vm_fault(int faulttype, vaddr_t faultaddress);
 
-/* Allocate/free kernel heap pages (called by kmalloc/kfree) */
-vaddr_t alloc_kpages(unsigned npages);
-void free_kpages(vaddr_t addr);
+/**
+ * @brief Allocates a page for the kernel. This allocates continuous pages. 
+ * 
+ * @param npages number of pages to be allocated
+ * 
+ * @return the virtual address (KSEG0) of the first allocated page.
+ */
+vaddr_t 
+alloc_kpages(unsigned npages);
 
-int alloc_heap_upages(struct addrspace* as, int npages);
-int free_heap_upages(struct addrspace* as, int npages);
+/**
+ * @brief Allocates a page for the kernel. This allocates continuous pages. 
+ * 
+ * @param npages number of pages to be allocated
+ * 
+ * @return the virtual address (KSEG0) of the first allocated page.
+ */
+void 
+free_kpages(vaddr_t addr);
 
-int alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, bool* in_swap, bool force_physical,int readable, int writeable, int executable);
-void free_upages(struct addrspace* as, vaddr_t vaddr);
+int 
+alloc_heap_upages(struct addrspace* as, int npages);
 
-paddr_t translate_vaddr_to_paddr(struct addrspace* as, vaddr_t vaddr);
-vaddr_t get_lltpe(struct addrspace* as,vaddr_t vaddr);
+int 
+free_heap_upages(struct addrspace* as, int npages);
+
+int
+alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, bool* in_swap,int readable, int writeable, int executable);
+
+void 
+free_upages(struct addrspace* as, vaddr_t vaddr);
+
+paddr_t 
+translate_vaddr_to_paddr(struct addrspace* as, vaddr_t vaddr);
+
+
+vaddr_t 
+get_lltpe(struct addrspace* as,vaddr_t vaddr);
 
 /* TLB shootdown handling called from interprocessor_interrupt */
-void vm_tlbshootdown_all(void);
-void vm_tlbshootdown(const struct tlbshootdown *);
-void invalidate_tlb(void);
+void 
+vm_tlbshootdown_all(void);
+
+
+void 
+vm_tlbshootdown(const struct tlbshootdown *);
+
+
+void 
+invalidate_tlb(void);
 
 
 #endif /* _VM_H_ */

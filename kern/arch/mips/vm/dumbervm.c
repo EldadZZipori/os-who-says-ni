@@ -22,7 +22,7 @@ static
 void
 fill_deadbeef(void *vptr, int npages);
 
-/* General VM stuff */
+/* Virtual Machine */
 
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
 void
@@ -56,251 +56,6 @@ vm_bootstrap(void)
 
 	dumbervm.vm_ready = true;
 	
-}
-
-static
-paddr_t
-getppages(unsigned long npages)
-{
-	KASSERT(npages > 0);
-	if (dumbervm.vm_ready)
-	{
-		// get first free physical page 
-		// no mem left
-		unsigned int index;
-		spinlock_acquire(&dumbervm.ppage_bm_sl);
-		int result = bitmap_alloc_nbits(dumbervm.ppage_bm, dumbervm.ppage_lastpage_bm ,npages, &index);
-		spinlock_release(&dumbervm.ppage_bm_sl);
-
-		if (!result)
-		{
-			return dumbervm.ram_start + (0x1000 * index);
-		}
-
-		return 0;
-	}
-	else
-	{
-		spinlock_acquire(&stealmem_lock);
-
-		paddr_t pa = ram_stealmem(npages);
-
-		spinlock_release(&stealmem_lock);
-
-		return pa;
-	}
-
-}
-
-
-int 
-alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages ,bool* in_swap, int readable, int writeable, int executable)
-{
-	(void) readable;
-	(void) writeable;
-	(void) executable;
-
-	// Allocate memory here
-	/*
-	* our as_create allocates one page for the top level page table itself.
-	*/
-
-	// NOTE: Since we are allocating one block at a time we are not going to have a problem with low level page table getting full 
-	// while we are allocating
-	uint32_t i;
-	for (i = 0; i < npages; i++)
-	{
-		int vpn1 = VADDR_GET_VPN1(*va);
-    	int vpn2 = VADDR_GET_VPN2(*va);
-		//bool lastpage = true; // for 
-
-
-		//vaddr_t kseg0_va = alloc_kpages(1);
-
-		// set the 'otherpages' field in the memlist node of the first page in the block
-
-		//paddr_t pa = KSEG0_VADDR_TO_PADDR(kseg0_va);          // Physical address of the new block we created.   
-		//bool lastpage = true; // for 
-   
-
-		vaddr_t* ll_pagetable_va;
-		if (as->ptbase[vpn1] == 0)  // This means the low level page table for this top level page entery was not created yet
-		{
-			ll_pagetable_va = (vaddr_t *)alloc_kpages(1); // allocate a single page for a low lever page table
-			as_zero_region((vaddr_t)ll_pagetable_va, 1); // zero all entries in the new low level page table.
-
-			//as->ptbase[vpn1] = (vaddr_t)((ll_pagetable_va) + 0b1); // Update the count of this low level page table to be 1
-			as->ptbase[vpn1] = (vaddr_t)((ll_pagetable_va)); // NOTE: for now no counts too complicated
-		} 
-		else
-		{
-			ll_pagetable_va = (vaddr_t *)TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]);
-			//as->ptbase[vpn1] += 0b1; // NOTE: dont use these for now
-		}
-		vaddr_t kseg0_va;
-		
-
-		// set the 'otherpages' field in the memlist node of the first page in the block
-
-		paddr_t pa;          // Physical address of the new block we created.
-		if (as->n_kuseg_pages_allocated >= 7 && !executable) // in this case we should allocate memory from the swap space
-		{
-			*in_swap = true;
-			int swap_idx = alloc_swap_page(); // find free area in swap space
-			pa = LLPTE_SET_SWAP_BIT(swap_idx << 12);
-		}
-		else
-		{
-			*in_swap = false;
-			kseg0_va = alloc_kpages(1);
-			if (kseg0_va == 0)
-			{
-				return ENOMEM;
-			}
-			pa = KSEG0_VADDR_TO_PADDR(kseg0_va);
-			pa |= TLBLO_DIRTY | TLBLO_VALID | executable;
-		}
-
-		// write valid bit
-		
-		//ll_pagetable_va[vpn2] = pa | (writeable << 10) | (0x1 << 9) | (lastpage << 4) | ((readable << 2) | (writeable << 1) | (executable)); // this will be page aligned
-
-		// temporarily write dirty bit 
-
-		//ll_pagetable_va[vpn2] |= (0x1 << 10) |(readable << 2) | (writeable << 1) ; // for now everything is readable and writeable
-
-		// NOTE: for now just let everything be read/write
-		ll_pagetable_va[vpn2] = pa ; 
-		
-		//ll_pagetable_va[vpn2] |= (0x1 << 10) | (0b1 << 2) | (0b1 << 1); // for now everything is readable and writeable
-
-		*va += (vaddr_t)0x1000;
-		as->n_kuseg_pages_allocated++;	
-	}
-
-
-	return 0;
-}
-
-
-
-int 
-alloc_heap_upages(struct addrspace* as, int npages)
-{
-	bool in_swap;
-	(void)in_swap;
-	vaddr_t va = as->user_heap_end;
-	int result = alloc_upages(as, &va, npages, &in_swap,1, 1, 0);
-	if (result)
-	{
-		return result;
-	}
-
-	as->user_heap_end = (vaddr_t) va;
-
-	return 0;
-}
-int 
-free_heap_upages(struct addrspace* as, int npages)
-{
-	vaddr_t va = as->user_heap_end;
-	for (int i = 0; i < npages; i++)
-	{
-		// deallocating happens by zeroing from the bottom up so we need to decrease the address
-		va -= 0x1000;
-		free_upages(as, va);
-		
-	}
-	as->user_heap_end = va;
-	return 0;
-}
-/* Allocate/free some kernel-space virtual pages */
-vaddr_t
-alloc_kpages(unsigned npages)
-{
-	KASSERT(npages > 0);
-
-	paddr_t pa = getppages(npages);
-
-	if (pa == 0) {
-		return 0;
-	}
-
-	if (pa % PAGE_SIZE != 0)
-	{
-		return pa;
-	}
-
-	/* No memlist required */
-	vaddr_t va = PADDR_TO_KSEG0_VADDR(pa);
-
-	as_zero_region(va, 1);
-
-	KASSERT(va >= MIPS_KSEG0);
-	KASSERT(va < MIPS_KSEG0_RAM_END);
-
-	return va;
-
-}
-
-void
-free_kpages(vaddr_t addr)
-{
-	KASSERT(addr >= MIPS_KSEG0);
-	KASSERT(addr < MIPS_KSEG0_RAM_END);
-
-	paddr_t paddr = addr - MIPS_KSEG0;
-
-	// For now, just remove a single page.
-	//memlist_remove(dumbervm.ppage_memlist, paddr);
-	if ((paddr) % PAGE_SIZE == 0)
-	{
-		unsigned int ppage_index = ((paddr - dumbervm.ram_start) / PAGE_SIZE ); // Should be page aligned
-		spinlock_acquire(&dumbervm.ppage_bm_sl);
-
-		if (bitmap_isset(dumbervm.ppage_lastpage_bm, ppage_index)) // This is a single allocation
-		{
-			bitmap_unmark(dumbervm.ppage_bm, ppage_index);
-			dumbervm.n_ppages_allocated--;
-			bitmap_unmark(dumbervm.ppage_lastpage_bm, ppage_index);
-			spinlock_release(&dumbervm.ppage_bm_sl);
-			return;
-
-		}
-		while (!bitmap_isset(dumbervm.ppage_lastpage_bm, ppage_index)) // Deallocate untill seeing a 1
-		{
-			bitmap_unmark(dumbervm.ppage_bm, ppage_index);
-			dumbervm.n_ppages_allocated--;
-			ppage_index++;
-		}
-
-		bitmap_unmark(dumbervm.ppage_bm, ppage_index);	// deallocate the 1
-		dumbervm.n_ppages_allocated--;
-		bitmap_unmark(dumbervm.ppage_lastpage_bm, ppage_index);
-		
-		spinlock_release(&dumbervm.ppage_bm_sl);
-
-		fill_deadbeef((void * )addr, 1);
-
-	}
-	
-}
-
-void
-vm_tlbshootdown_all(void)
-{
-	invalidate_tlb();
-    return;
-}
-
-void
-vm_tlbshootdown(const struct tlbshootdown *ts)
-{
-	(void)ts;
-	invalidate_tlb();
-    // if (ts == NULL || ts->ts_vaddr == 0) {
-    //     return;
-    // }
 }
 
 int
@@ -497,6 +252,22 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	return 0;
 }
 
+void
+vm_tlbshootdown_all(void)
+{
+	invalidate_tlb();
+    return;
+}
+
+void
+vm_tlbshootdown(const struct tlbshootdown *ts)
+{
+	(void)ts;
+	invalidate_tlb();
+    // if (ts == NULL || ts->ts_vaddr == 0) {
+    //     return;
+    // }
+}
 
 void 
 invalidate_tlb(void)
@@ -518,6 +289,234 @@ invalidate_tlb(void)
 	splx(spl);
 }
 
+static
+paddr_t
+getppages(unsigned long npages)
+{
+	KASSERT(npages > 0);
+	if (dumbervm.vm_ready)
+	{
+		// get first free physical page 
+		// no mem left
+		unsigned int index;
+		spinlock_acquire(&dumbervm.ppage_bm_sl);
+		int result = bitmap_alloc_nbits(dumbervm.ppage_bm, dumbervm.ppage_lastpage_bm ,npages, &index);
+		spinlock_release(&dumbervm.ppage_bm_sl);
+
+		if (!result)
+		{
+			return dumbervm.ram_start + (0x1000 * index);
+		}
+
+		return 0;
+	}
+	else
+	{
+		spinlock_acquire(&stealmem_lock);
+
+		paddr_t pa = ram_stealmem(npages);
+
+		spinlock_release(&stealmem_lock);
+
+		return pa;
+	}
+
+}
+
+/* Kernel Pages Managment */
+vaddr_t
+alloc_kpages(unsigned npages)
+{
+	KASSERT(npages > 0);
+
+	paddr_t pa = getppages(npages);
+
+	if (pa == 0) {
+		return 0;
+	}
+
+	if (pa % PAGE_SIZE != 0)
+	{
+		return pa;
+	}
+
+	/* No memlist required */
+	vaddr_t va = PADDR_TO_KSEG0_VADDR(pa);
+
+	as_zero_region(va, 1);
+
+	KASSERT(va >= MIPS_KSEG0);
+	KASSERT(va < MIPS_KSEG0_RAM_END);
+
+	return va;
+
+}
+
+void
+free_kpages(vaddr_t addr)
+{
+	KASSERT(addr >= MIPS_KSEG0);
+	KASSERT(addr < MIPS_KSEG0_RAM_END);
+
+	paddr_t paddr = addr - MIPS_KSEG0;
+
+	// For now, just remove a single page.
+	//memlist_remove(dumbervm.ppage_memlist, paddr);
+	if ((paddr) % PAGE_SIZE == 0)
+	{
+		unsigned int ppage_index = ((paddr - dumbervm.ram_start) / PAGE_SIZE ); // Should be page aligned
+		spinlock_acquire(&dumbervm.ppage_bm_sl);
+
+		if (bitmap_isset(dumbervm.ppage_lastpage_bm, ppage_index)) // This is a single allocation
+		{
+			bitmap_unmark(dumbervm.ppage_bm, ppage_index);
+			dumbervm.n_ppages_allocated--;
+			bitmap_unmark(dumbervm.ppage_lastpage_bm, ppage_index);
+			spinlock_release(&dumbervm.ppage_bm_sl);
+			return;
+
+		}
+		while (!bitmap_isset(dumbervm.ppage_lastpage_bm, ppage_index)) // Deallocate untill seeing a 1
+		{
+			bitmap_unmark(dumbervm.ppage_bm, ppage_index);
+			dumbervm.n_ppages_allocated--;
+			ppage_index++;
+		}
+
+		bitmap_unmark(dumbervm.ppage_bm, ppage_index);	// deallocate the 1
+		dumbervm.n_ppages_allocated--;
+		bitmap_unmark(dumbervm.ppage_lastpage_bm, ppage_index);
+		
+		spinlock_release(&dumbervm.ppage_bm_sl);
+
+		fill_deadbeef((void * )addr, 1);
+
+	}
+	
+}
+
+/* User Page Managment */
+int 
+alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages ,bool* in_swap, int readable, int writeable, int executable)
+{
+	(void) readable;
+	(void) writeable;
+	(void) executable;
+
+	// Allocate memory here
+	/*
+	* our as_create allocates one page for the top level page table itself.
+	*/
+
+	// NOTE: Since we are allocating one block at a time we are not going to have a problem with low level page table getting full 
+	// while we are allocating
+	uint32_t i;
+	for (i = 0; i < npages; i++)
+	{
+		int vpn1 = VADDR_GET_VPN1(*va);
+    	int vpn2 = VADDR_GET_VPN2(*va);
+		//bool lastpage = true; // for 
+
+
+		//vaddr_t kseg0_va = alloc_kpages(1);
+
+		// set the 'otherpages' field in the memlist node of the first page in the block
+
+		//paddr_t pa = KSEG0_VADDR_TO_PADDR(kseg0_va);          // Physical address of the new block we created.   
+		//bool lastpage = true; // for 
+   
+
+		vaddr_t* ll_pagetable_va;
+		if (as->ptbase[vpn1] == 0)  // This means the low level page table for this top level page entery was not created yet
+		{
+			ll_pagetable_va = (vaddr_t *)alloc_kpages(1); // allocate a single page for a low lever page table
+			as_zero_region((vaddr_t)ll_pagetable_va, 1); // zero all entries in the new low level page table.
+
+			//as->ptbase[vpn1] = (vaddr_t)((ll_pagetable_va) + 0b1); // Update the count of this low level page table to be 1
+			as->ptbase[vpn1] = (vaddr_t)((ll_pagetable_va)); // NOTE: for now no counts too complicated
+		} 
+		else
+		{
+			ll_pagetable_va = (vaddr_t *)TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]);
+			//as->ptbase[vpn1] += 0b1; // NOTE: dont use these for now
+		}
+		vaddr_t kseg0_va;
+		
+
+		// set the 'otherpages' field in the memlist node of the first page in the block
+
+		paddr_t pa;          // Physical address of the new block we created.
+		if (as->n_kuseg_pages_allocated >= 7 && !executable) // in this case we should allocate memory from the swap space
+		{
+			*in_swap = true;
+			int swap_idx = alloc_swap_page(); // find free area in swap space
+			pa = LLPTE_SET_SWAP_BIT(swap_idx << 12);
+		}
+		else
+		{
+			*in_swap = false;
+			kseg0_va = alloc_kpages(1);
+			if (kseg0_va == 0)
+			{
+				return ENOMEM;
+			}
+			pa = KSEG0_VADDR_TO_PADDR(kseg0_va);
+			pa |= TLBLO_DIRTY | TLBLO_VALID | executable;
+		}
+
+		// write valid bit
+		
+		//ll_pagetable_va[vpn2] = pa | (writeable << 10) | (0x1 << 9) | (lastpage << 4) | ((readable << 2) | (writeable << 1) | (executable)); // this will be page aligned
+
+		// temporarily write dirty bit 
+
+		//ll_pagetable_va[vpn2] |= (0x1 << 10) |(readable << 2) | (writeable << 1) ; // for now everything is readable and writeable
+
+		// NOTE: for now just let everything be read/write
+		ll_pagetable_va[vpn2] = pa ; 
+		
+		//ll_pagetable_va[vpn2] |= (0x1 << 10) | (0b1 << 2) | (0b1 << 1); // for now everything is readable and writeable
+
+		*va += (vaddr_t)0x1000;
+		as->n_kuseg_pages_allocated++;	
+	}
+
+
+	return 0;
+}
+
+
+
+int 
+alloc_heap_upages(struct addrspace* as, int npages)
+{
+	bool in_swap;
+	(void)in_swap;
+	vaddr_t va = as->user_heap_end;
+	int result = alloc_upages(as, &va, npages, &in_swap,1, 1, 0);
+	if (result)
+	{
+		return result;
+	}
+
+	as->user_heap_end = (vaddr_t) va;
+
+	return 0;
+}
+int 
+free_heap_upages(struct addrspace* as, int npages)
+{
+	vaddr_t va = as->user_heap_end;
+	for (int i = 0; i < npages; i++)
+	{
+		// deallocating happens by zeroing from the bottom up so we need to decrease the address
+		va -= 0x1000;
+		free_upages(as, va);
+		
+	}
+	as->user_heap_end = va;
+	return 0;
+}
 
 void 
 free_upages(struct addrspace* as, vaddr_t vaddr)
@@ -572,7 +571,7 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 }
 
 	
-
+/* Helper Functions */
 		
 paddr_t
 translate_vaddr_to_paddr(struct addrspace* as, paddr_t vaddr)
