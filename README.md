@@ -35,7 +35,7 @@ All systemcalls are implmented in their own .c file and declered in syscall.h
     - `chdir.c`     change directory
 
 ## Assignment 5: Implementing processes
-Status: In progress
+Status: Done
 
 ### [Logbook](docs/asst5_logbook.md)
 
@@ -58,6 +58,7 @@ All systemcalls are implmented in their own .c file and declered in syscall.h
 
 
 ## Assignment 6: Implementing Virtual Memory 
+Status: In progress
 
 ### Virtual Machine
 The code implemented for this assignment can be found in the following files:
@@ -74,6 +75,10 @@ The code implemented for this assignment can be found in the following files:
 The translation lookaside buffer is a cache used by the MIPS MMU to translate virtual addresses to physical address.
 ![Translation Lookaside Buffer](docs/tlb.png)
 
+### OS 161/MIPS Memory Map
+In this assignment we implemented the user of virtual addresses by both the kernel and user programs.
+
+![Memory Map](docs/mem_map.png)
 ### Page table entry design 
 
 ![pagetable entries](docs/ptes.png)
