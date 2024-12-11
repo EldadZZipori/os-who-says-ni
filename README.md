@@ -85,6 +85,13 @@ In this assignment we implemented the user of virtual addresses by both the kern
 
 ![pagetable entries](docs/ptes.png)
 
+### TLB Fault and Page Allocation
+
+![Naive Allocation](docs/naive_alloc.png)
+
+![Better Allocation](docs/better_alloc.png)
+
+![Fault Logic](docs/vm_fault.png)
 
 ## Resources
 [OS161 Source Code Layout - os161.org](http://www.os161.org/resources/layout.html)
