@@ -84,7 +84,7 @@ as_zero_region(vaddr_t va, unsigned npages)
 {
 	(void) va;
 	(void) npages;
-	for (unsigned int i = 0; i < npages; i++)
+	//for (unsigned int i = 0; i < npages; i++)
 	// {
 	// 	paddr_t pa = translate_vaddr(va + (i * PAGE_SIZE));
 	// 	//KASSERT(pa != 0);

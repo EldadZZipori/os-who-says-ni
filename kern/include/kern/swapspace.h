@@ -66,12 +66,34 @@ write_page_to_swap(struct addrspace* as, int swap_idx, void* stolen_ppn);
 vaddr_t
 find_swapable_page(struct addrspace* as, bool* did_find);
 
+/**
+ * @brief allocates a single swap space page.
+ * 
+ * @return on success returns the index of the page aligned location in swap of the allocated page.
+ * location 1 is at offset PAGE_SIZE, 2 is a 2*PAGE_SIZE, etc
+ */
 int
 alloc_swap_page(void);
 
+/**
+ * @brief frees a single swap space
+ * 
+ * @param llpte the llpte that holds the offset index in the swap space
+ * 
+ */
 void 
 free_swap_page(paddr_t llpte);
 
+/**
+ * @brief frees a single swap space
+ * 
+ * @param as usaully the current address space for which you require a ram page
+ * @param llpt the llpt of the page that is in swap space
+ * @param vpn2 the index into the llpt 
+ * 
+ * @return returns the old virtual address of the page that was taken from ram
+ * 
+ */
 paddr_t
 swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2);
 

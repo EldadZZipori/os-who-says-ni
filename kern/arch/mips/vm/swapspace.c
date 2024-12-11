@@ -63,7 +63,8 @@ swap_space_bootstrap(void)
 	dumbervm.swap_sz = swap_space_stat.st_size;
 }
 
-int alloc_swap_page(void)
+int 
+alloc_swap_page(void)
 {
 	// TODO: this is a bad return. we need to be able to find errors
 	unsigned int index;
