@@ -57,6 +57,11 @@ All systemcalls are implmented in their own .c file and declered in syscall.h
     - `_exit.c`     exits a process
 
 
+### Important Note
+
+During assignment 6 we also added more logic to the processes cleanup flow. If the caller to the internal waitpit is the kernel
+it will cleanup whoever was returned.
+
 ## Assignment 6: Implementing Virtual Memory 
 Status: In progress
 
