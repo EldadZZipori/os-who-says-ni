@@ -79,7 +79,9 @@ The translation lookaside buffer is a cache used by the MIPS MMU to translate vi
 In this assignment we implemented the user of virtual addresses by both the kernel and user programs.
 
 ![Memory Map](docs/mem_map.png)
-### Page table entry design 
+### Page Table Design
+
+![Pagetables](docs/pt.png)
 
 ![pagetable entries](docs/ptes.png)
 
