@@ -106,7 +106,7 @@ swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2)
 {
 		int indx_in_swap = LLPTE_GET_SWAP_OFFSET(llpt[vpn2]);
 		bool did_find = true;
-		vaddr_t swapable_page = find_swapable_page(as, &did_find); // find a page that belongs to the user so we can steal it
+		vaddr_t swapable_page = find_swapable_page(as, &did_find, false); // find a page that belongs to the user so we can steal it
 		if (!did_find)
 		{
 			return ENOMEM; // wasnt enough pages that we can swap.
@@ -159,7 +159,7 @@ zero_swap_page(int swap_idx)
 }
 
 vaddr_t
-find_swapable_page(struct addrspace* as, bool* did_find)
+find_swapable_page(struct addrspace* as, bool* did_find, bool can_be_exec)
 {
     if (as == NULL) {
         return 0;
@@ -168,15 +168,31 @@ find_swapable_page(struct addrspace* as, bool* did_find)
     int start_i = 0;//random() % 1024; 
     int start_j = 0;//random() % 1024;
 
+	bool is_executable = false;
+
     int i = start_i;
     do {
         if (as->ptbase[i] != 0) {
             vaddr_t* llpt = (vaddr_t*) TLPTE_MASK_VADDR(as->ptbase[i]);
             int j = start_j;
             do {
-                if (llpt[j] != 0 && !LLPTE_GET_SWAP_BIT(llpt[j]) && ((llpt[j] & 0b1) == 0)) {
-					*did_find = true;
-                    return (i << 22) | (j << 12);
+				is_executable =  LLPTE_GET_EXECUTABLE(llpt[j]);
+				/* 
+				 * If is_executable & can_be_executable - can be returned - 1
+				 * If is_executable & !can_be_executable - cannot returned - 0
+				 * If !is_executable & can_be_executable - can return - 1
+				 * If !is _executable & !can_be_executable  - can return - 1
+				 */
+                if (llpt[j] != 0 && !LLPTE_GET_SWAP_BIT(llpt[j])) {
+					if (is_executable && (can_be_exec == false))
+					{
+						continue;
+					}
+					else
+					{
+						*did_find = true;
+						return (i << 22) | (j << 12);
+					}
                 }
                 j = (j + 1) ;//% 1024;
             } while (j != 1024);

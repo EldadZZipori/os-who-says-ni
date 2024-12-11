@@ -64,7 +64,7 @@ int
 write_page_to_swap(struct addrspace* as, int swap_idx, void* stolen_ppn);
 
 vaddr_t
-find_swapable_page(struct addrspace* as, bool* did_find);
+find_swapable_page(struct addrspace* as, bool* did_find, bool can_be_exec);
 
 /**
  * @brief allocates a single swap space page.
