@@ -186,6 +186,7 @@ find_swapable_page(struct addrspace* as, bool* did_find, bool can_be_exec)
                 if (llpt[j] != 0 && !LLPTE_GET_SWAP_BIT(llpt[j])) {
 					if (is_executable && (can_be_exec == false))
 					{
+						j = (j + 1) ;//% 1024;
 						continue;
 					}
 					else

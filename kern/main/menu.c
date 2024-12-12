@@ -603,7 +603,7 @@ swap_test(int n, char **a)
 		//va = (vaddr_t)va; // write the address as the data 
 		va-=0x1000;
 		*((vaddr_t *)va) = i;
-		kprintf("vaddr: %d, in_swap: %d\n", (unsigned)va, in_swap);
+		kprintf("vaddr: %d, in_swap: %d\n", (unsigned)va, !i);
 	}
 
 	for (int i = 0; i < 8; i++)
