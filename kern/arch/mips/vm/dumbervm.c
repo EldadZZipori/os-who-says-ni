@@ -122,10 +122,10 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
 	}
 
-	if ((ll_pagetable_entry & TLBLO_VALID) == 0)
-	{
-		return EFAULT;
-	}
+	// if ((ll_pagetable_entry & TLBLO_VALID) == 0)
+	// {
+	// 	return EFAULT;
+	// }
 	
 	/** 
 	 * VM_FAULT_READONLY: Attempted to write to a TLB entry whose dirty bit is not set
@@ -545,15 +545,16 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 	{
 		free_swap_page(llpte);
 		llpt[vpn2] = 0;
-		as->n_kuseg_pages_allocated--;
 	}
 	else
 	{
 		// basiclly just make the entry not valid so we dont free the physical page which we need
-		// free_kpages(PADDR_TO_KSEG0_VADDR(paddr));
-		paddr = paddr & ~TLBLO_VALID;
-		llpt[vpn2] = paddr;
+		 free_kpages(PADDR_TO_KSEG0_VADDR(paddr));
+		//paddr = paddr & ~TLBLO_VALID;
+		//llpt[vpn2] = paddr;
+		llpt[vpn2] = 0;
 	}
+	as->n_kuseg_pages_allocated--;
 	// if (LLPTE_GET_LASTPAGE_BIT(llpte))
 	// {
 	// 	// last page. exit
