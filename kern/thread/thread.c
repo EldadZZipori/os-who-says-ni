@@ -1230,6 +1230,12 @@ interprocessor_interrupt(void)
 		}
 		curcpu->c_numshootdown = 0;
 	}
+	if (bits & (1U << IPI_WAIT)) {
+		/*
+		 * Wait until we get the IPI_UNIDLE signal.
+		 */
+		cpu_idle();
+	}
 
 	curcpu->c_ipi_pending = 0;
 	spinlock_release(&curcpu->c_ipi_lock);

@@ -63,6 +63,15 @@ read_from_swap(struct addrspace* as, int swap_idx, void * buf);
 int 
 write_page_to_swap(struct addrspace* as, int swap_idx, void* stolen_ppn);
 
+/**
+ * @brief find a page currently in RAM that we can move to swap 
+ * 
+ * @param as address space to do the search on
+ * @param did_find indicated if a page in RAM was found
+ * @param can_be_exec indicated if we can return an executable page
+ * 
+ * @return the virtual address of page that is in RAM
+ */
 vaddr_t
 find_swapable_page(struct addrspace* as, bool* did_find, bool can_be_exec);
 
@@ -85,7 +94,7 @@ void
 free_swap_page(paddr_t llpte);
 
 /**
- * @brief frees a single swap space
+ * @brief bring a given page from disk (swap space) into RAM, and return the vaddr of the RAM page we just moved to swap.
  * 
  * @param as usaully the current address space for which you require a ram page
  * @param llpt the llpt of the page that is in swap space

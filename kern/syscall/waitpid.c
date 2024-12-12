@@ -89,6 +89,7 @@ __waitpid(int pid, int* status, int options)
     lock_acquire(child->children_lk);
     if (child->state != ZOMBIE)
     {
+        curproc->state = SLEEPING;
         cv_wait(child->waiting_on_me, child->children_lk);
     }
     if(status != NULL)
@@ -96,6 +97,8 @@ __waitpid(int pid, int* status, int options)
         *status = child->exit_status;
     }
     lock_release(child->children_lk);
+
+    curproc->state = RUNNING;
 
     int og_size = curproc->children_size;
     if (strcmp(curproc->p_name, "[kernel]") == 0) // if we are the kernel, clean our children when we return

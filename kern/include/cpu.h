@@ -88,6 +88,7 @@ struct cpu {
 	struct tlbshootdown c_shootdown[TLBSHOOTDOWN_MAX];
 	int c_numshootdown;
 	struct spinlock c_ipi_lock;
+
 };
 
 #define TLBSHOOTDOWN_ALL  (-1)
@@ -163,6 +164,7 @@ void cpu_halt(void);
 #define IPI_OFFLINE		1	/* CPU is requested to go offline */
 #define IPI_UNIDLE		2	/* Runnable threads are available */
 #define IPI_TLBSHOOTDOWN	3	/* MMU mapping(s) need invalidation */
+#define IPI_WAIT			4 /* Request CPU to idle */
 
 void ipi_send(struct cpu *target, int code);
 void ipi_broadcast(int code);
