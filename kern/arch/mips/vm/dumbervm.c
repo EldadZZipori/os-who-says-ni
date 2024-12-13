@@ -62,6 +62,9 @@ int
 vm_fault(int faulttype, vaddr_t faultaddress)
 {
 	int spl;
+	if (dumbervm.ram_lk != NULL) lock_acquire(dumbervm.ram_lk);
+
+	
 
 	if (curproc == NULL) {
 		/*
@@ -69,6 +72,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		 * in boot. Return EFAULT so as to panic instead of
 		 * getting into an infinite faulting loop.
 		 */
+		if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
 		return EFAULT;
 	}
 
@@ -78,6 +82,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		 * No address space set up. This is probably also a
 		 * kernel fault early in boot.
 		 */
+		if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
 		return EFAULT;
 	}
 	spl = splhigh();
@@ -85,6 +90,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	if (faultaddress >= MIPS_KSEG0)
 	{
 		splx(spl);
+		if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
 		return EFAULT;
 	}
 
@@ -94,6 +100,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	if(as->ptbase[vpn1] ==  0)	// top level page table was never created, no mapping
 	{
 		splx(spl);
+		if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
 		return EFAULT;
 	}
 
@@ -104,6 +111,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	if (ll_pagetable_entry == 0) // there is no entry in the low level page table entry
 	{
 		splx(spl);
+		if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
 		return EFAULT;
 	}
 
@@ -241,6 +249,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	}
 
 	splx(spl);
+	if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
 	
 	// why do we need to set the valid bit here?
 	// why not set valid bit into PTE when we allocate the page?

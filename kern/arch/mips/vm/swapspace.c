@@ -61,6 +61,8 @@ swap_space_bootstrap(void)
 	}
 
 	dumbervm.swap_sz = swap_space_stat.st_size;
+
+	dumbervm.ram_lk = lock_create("ram lock");
 }
 
 int 
@@ -79,7 +81,7 @@ alloc_swap_page(void)
 		return index; // swap starts at 0 so should be simple
 	}
 
-	return ENOMEM;
+	return -1;
 
 
 }

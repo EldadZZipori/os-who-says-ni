@@ -177,5 +177,9 @@ zero_swap_page(int swap_idx);
 
 int load_elf(struct vnode *v, vaddr_t *entrypoint);
 
+int
+as_move_to_swap(struct addrspace* as, int *num_pages_swapped);
+
+
 
 #endif /* _ADDRSPACE_H_ */

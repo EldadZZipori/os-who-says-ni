@@ -322,6 +322,10 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 					{
 						int old_swap_idx = LLPTE_GET_SWAP_OFFSET(old_as_llpt[j]);
 						int new_swap_idx = alloc_swap_page(); // add a check here
+						if (new_swap_idx == -1)
+						{
+							return ENOMEM;
+						}
 
 						read_from_swap(old, old_swap_idx, dumbervm.swap_buffer);
 						write_page_to_swap(new, new_swap_idx, dumbervm.swap_buffer);
@@ -358,3 +362,56 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	return 0;
 }
 
+int 
+as_move_to_swap(struct addrspace* as, int *num_pages_swapped) 
+{ 
+	KASSERT(as != NULL);
+
+	int result;
+	*num_pages_swapped = 0; // reset
+
+	// Move all pages in the address space to swap space
+	// This is used when we are about to run out of memory
+	// We will move all pages to swap space 
+
+	// iterate through tlpt 
+	for (int i = 0; i < 1024; i++) 
+	{ 
+		if (as->ptbase[i] != 0) 
+		{ 
+			vaddr_t *llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[i]); 
+			for (int j = 0; j < 1024; j++) 
+			{ 
+				if (llpt[j] != 0) 
+				{ 
+					if (!LLPTE_GET_SWAP_BIT(llpt[j])) 
+					{ 
+						// page is not in swap space 
+						// move it to swap space 
+						int swap_idx = -1; 
+						result = alloc_swap_page(); 
+						if (result == -1) 
+						{ 
+							return result; 
+						}
+						write_page_to_swap(as, swap_idx, (void *)PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(llpt[j]))); 
+
+						int32_t kseg0_vaddr = PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(llpt[j]));
+
+						llpt[j] = LLPTE_SET_SWAP_BIT(swap_idx << 12); 
+
+						free_kpages(kseg0_vaddr);
+						/**
+						 * Invalidate the TLB entry for this page on other CPUs
+						 * if this is not the current address space
+						*/
+
+						(*num_pages_swapped)++;
+					} 
+				}
+			} 
+		} 
+	}
+
+	return 0; 
+}

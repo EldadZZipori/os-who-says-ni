@@ -61,6 +61,8 @@ struct vm
 
     paddr_t ram_start;
 
+    struct lock* ram_lk;
+
     struct spinlock ppage_bm_sl;
     struct spinlock swap_bm_sl;
 
