@@ -389,10 +389,10 @@ as_move_to_swap(struct addrspace* as, int *num_pages_swapped)
 						// page is not in swap space 
 						// move it to swap space 
 						int swap_idx = -1; 
-						result = alloc_swap_page(); 
-						if (result == -1) 
+						swap_idx = alloc_swap_page(); 
+						if (swap_idx == -1) 
 						{ 
-							return result; 
+							return swap_idx; 
 						}
 						write_page_to_swap(as, swap_idx, (void *)PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(llpt[j]))); 
 

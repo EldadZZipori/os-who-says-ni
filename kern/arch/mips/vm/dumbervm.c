@@ -16,6 +16,7 @@
 #include <bitmap.h>
 #include <uio.h>
 #include <kern/swapspace.h>
+#include <proctable.h>
 
 
 static
@@ -117,8 +118,51 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
 	if (LLPTE_GET_SWAP_BIT(ll_pagetable_entry))
 	{
-		vaddr_t swapped_page = swap_page(as, (vaddr_t*) ll_pagetable_va, vpn2);
+		//vaddr_t swapped_page = swap_page(as, (vaddr_t*) ll_pagetable_va, vpn2, );
+		vaddr_t swapped_page;
+		if (as->n_kuseg_pages_allocated >= 7)
+		{
+			swapped_page = swap_page(as, (vaddr_t*) ll_pagetable_va, vpn2);
+		}
 
+		int num_swapped_pages;
+
+		if (swapped_page == ENOMEM || as->n_kuseg_pages_allocated < 7)
+		{
+			if (dumbervm.n_ppages_allocated >= dumbervm.n_ppages - 10)
+			{
+				for (unsigned i = 0; i < kproc_table->process_counter; i++)
+				{
+					if (i >= 2)
+					{
+						as_move_to_swap(kproc_table->processes[i]->p_addrspace, &num_swapped_pages);
+						break;
+					}
+				}
+			}
+		
+			vaddr_t kseg0_va = alloc_kpages(1);
+			if (kseg0_va == 0)
+			{
+				return ENOMEM;
+			}
+			read_from_swap(as, LLPTE_GET_SWAP_OFFSET(ll_pagetable_entry), dumbervm.swap_buffer);
+			memcpy((void *)kseg0_va, dumbervm.swap_buffer, PAGE_SIZE);
+			paddr_t pa = KSEG0_VADDR_TO_PADDR(kseg0_va);
+			ll_pagetable_va[vpn2] = pa | TLBLO_DIRTY | TLBLO_VALID;
+			ll_pagetable_entry = ll_pagetable_va[vpn2];
+		}
+		else
+		{
+			ll_pagetable_entry = ll_pagetable_va[vpn2];
+			// Invalidate the stolen page
+			int idx = tlb_probe(swapped_page, 0);
+
+			if (idx >= 0)
+			{
+				tlb_write(TLBHI_INVALID(idx),TLBLO_INVALID(), idx);
+			}
+		}
 		ll_pagetable_entry = ll_pagetable_va[vpn2];
 		// Invalidate the stolen page
 		int idx = tlb_probe(swapped_page, 0);
