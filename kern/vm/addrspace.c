@@ -367,7 +367,6 @@ as_move_to_swap(struct addrspace* as, int *num_pages_swapped)
 { 
 	KASSERT(as != NULL);
 
-	int result;
 	*num_pages_swapped = 0; // reset
 
 	// Move all pages in the address space to swap space
