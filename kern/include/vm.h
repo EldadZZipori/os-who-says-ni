@@ -61,7 +61,8 @@ struct vm
 
     paddr_t ram_start;
 
-    struct lock* ram_lk;
+    struct lock* fault_lk;
+    struct lock* kern_lk;
 
     struct spinlock ppage_bm_sl;
     struct spinlock swap_bm_sl;
@@ -145,6 +146,12 @@ vm_tlbshootdown(const struct tlbshootdown *);
 
 void 
 invalidate_tlb(void);
+
+int
+as_move_pagetable_to_swap(struct addrspace* as, vaddr_t* llpt);
+
+int
+as_load_pagetable_from_swap(struct addrspace *as, int swap_idx, int vpn1);
 
 
 #endif /* _VM_H_ */

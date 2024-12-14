@@ -62,7 +62,16 @@ swap_space_bootstrap(void)
 
 	dumbervm.swap_sz = swap_space_stat.st_size;
 
-	dumbervm.ram_lk = lock_create("ram lock");
+	dumbervm.fault_lk = lock_create("fault lock");
+	if (dumbervm.fault_lk == NULL)
+	{
+		panic("dummervm: can't really survive without the fault lock and swap");
+	}
+	dumbervm.kern_lk = lock_create("kern lock");
+	if (dumbervm.kern_lk == NULL)
+	{
+		panic("dumbervm: can't survive without a kern lock and swap space");
+	}
 }
 
 int 
@@ -102,9 +111,9 @@ free_swap_page(paddr_t llpte)
 }
 
 paddr_t
-swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2)
+replace_ram_page_with_swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2)
 {
-		int indx_in_swap = LLPTE_GET_SWAP_OFFSET(llpt[vpn2]);
+		int swap_idx = LLPTE_GET_SWAP_OFFSET(llpt[vpn2]);
 		bool did_find = true;
 		vaddr_t ram_page_vaddr = find_swapable_page(as, &did_find, false); // find a page that belongs to the user so we can steal it
 		if (!did_find)
@@ -117,16 +126,16 @@ swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2)
 		paddr_t ram_page = ram_page_llpt[ram_page_vpn2];  // get the physical address of the page we are going to use to store our data
 		paddr_t ram_ppn = LLPTE_MASK_PPN(ram_page); 
 
-		ram_page_llpt[ram_page_vpn2] = LLPTE_SET_SWAP_BIT(indx_in_swap << 12); // mark that we are putting this data in the swap space
+		ram_page_llpt[ram_page_vpn2] = LLPTE_SET_SWAP_BIT(swap_idx << 12); // mark that we are putting this data in the swap space
 
-		int result = read_from_swap(as, indx_in_swap, dumbervm.swap_buffer); // copy data from swap to a buffer before writing the stolen data to it
+		int result = read_from_swap(as, swap_idx, dumbervm.swap_buffer); // copy data from swap to a buffer before writing the stolen data to it
 		if (result)
 		{
 			kprintf("dumbervm: problem reading from swap space\n");
 			return ENOMEM;
 		}
 
-		result = write_page_to_swap(as, indx_in_swap, (void *)PADDR_TO_KSEG0_VADDR(ram_ppn)); // save the stolen data into the swap space
+		result = write_page_to_swap(as, swap_idx, (void *)PADDR_TO_KSEG0_VADDR(ram_ppn)); // save the stolen data into the swap space
 
 		if (result)
 		{

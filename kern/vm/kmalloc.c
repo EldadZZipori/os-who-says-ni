@@ -31,6 +31,7 @@
 #include <lib.h>
 #include <spinlock.h>
 #include <vm.h>
+#include <synch.h>
 
 /*
  * Kernel malloc.
@@ -228,9 +229,11 @@ allocpagerefpage(struct kheap_root *root)
 	 * avoids deadlock if alloc_kpages needs to come back here.
 	 * Note that this means things can change behind our back...
 	 */
+	lock_acquire(dumbervm.kern_lk);
 	spinlock_release(&kmalloc_spinlock);
 	va = alloc_kpages(1);
 	spinlock_acquire(&kmalloc_spinlock);
+	lock_release(dumbervm.kern_lk);
 	if (va == 0) {
 		kprintf("kmalloc: Couldn't get a pageref page\n");
 		return;
@@ -962,7 +965,9 @@ subpage_kmalloc(size_t sz
 	 */
 
 	spinlock_release(&kmalloc_spinlock);
+	lock_acquire(dumbervm.kern_lk);
 	prpage = alloc_kpages(1);
+	lock_release(dumbervm.kern_lk);
 	if (prpage==0) {
 		/* Out of memory. */
 		kprintf("kmalloc: Subpage allocator couldn't get a page\n");
@@ -1183,7 +1188,9 @@ kmalloc(size_t sz)
 
 		/* Round up to a whole number of pages. */
 		npages = (sz + PAGE_SIZE - 1)/PAGE_SIZE;
-		address = alloc_kpages(npages);
+		lock_aquire(dumbervm.kern_lk);
+ 		address = alloc_kpages(npages);
+		lock_release(dumbervm.kern_lk);
 		if (address==0) {
 			return NULL;
 		}

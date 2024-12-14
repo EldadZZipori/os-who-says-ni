@@ -66,7 +66,8 @@
 /* TLPTE MACROS */
 #define TLPTE_MASK_SWAP_BIT(x)                ((x) & 0x00000001)
 #define TLPTE_MASK_VADDR(x)                     ((x) & 0xfffff000)
-
+#define TLPTE_GET_SWAP_BIT(x)                    ((x) &0b1)
+#define TLPTE_GET_SWAP_IDX(x)                    ((x>>12) & 0xfffff)
 
 
 struct vnode;
@@ -98,7 +99,8 @@ struct addrspace {
         vaddr_t user_heap_end;
 
         vaddr_t user_first_free_vaddr;
-        int n_kuseg_pages_allocated;
+        int n_kuseg_pages_swap;
+        int n_kuseg_pages_ram;
         struct lock *address_lk;
 
         /* User stack */
@@ -178,17 +180,7 @@ zero_swap_page(int swap_idx);
 int load_elf(struct vnode *v, vaddr_t *entrypoint);
 
 int
-as_move_to_swap(struct addrspace* as, int *num_pages_swapped);
-
-/**
- * @brief move a lower-level page table to swap space
- * 
- * @param llpt lower-level page table (ptbase[i] suffices)
- * 
- * Replaces the llpt address (kseg0 vaddr) with the swap space index
- */
-*/
-int as_move_pagetable_to_swap(vaddr_t* llpt);
+as_move_to_swap(struct addrspace* as, int as_move_to_swap,int *num_pages_swapped);
 
 
 #endif /* _ADDRSPACE_H_ */

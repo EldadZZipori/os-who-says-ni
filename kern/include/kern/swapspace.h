@@ -97,13 +97,12 @@ free_swap_page(paddr_t llpte);
  * @brief bring a given page from disk (swap space) into RAM, and return the vaddr of the RAM page we just moved to swap.
  * 
  * @param as usaully the current address space for which you require a ram page
- * @param llpt the llpt of the page that is in swap space
- * @param vpn2 the index into the llpt 
+ * @param swap_idx swap page number.
  * 
  * @return returns the old virtual address of the page that was taken from ram
  * 
  */
 paddr_t
-swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2);
+replace_ram_page_with_swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2)
 
 #endif

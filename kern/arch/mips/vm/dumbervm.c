@@ -17,7 +17,7 @@
 #include <uio.h>
 #include <kern/swapspace.h>
 #include <proctable.h>
-#include <swapspace.h>
+#include <kern/swapspace.h>
 
 
 static
@@ -64,7 +64,7 @@ int
 vm_fault(int faulttype, vaddr_t faultaddress)
 {
 	int spl;
-	if (dumbervm.ram_lk != NULL) lock_acquire(dumbervm.ram_lk);
+	lock_acquire(dumbervm.fault_lk);
 
 	
 
@@ -74,7 +74,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		 * in boot. Return EFAULT so as to panic instead of
 		 * getting into an infinite faulting loop.
 		 */
-		if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
+		lock_release(dumbervm.fault_lk);
 		return EFAULT;
 	}
 
@@ -84,7 +84,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		 * No address space set up. This is probably also a
 		 * kernel fault early in boot.
 		 */
-		if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
+		lock_release(dumbervm.fault_lk);
 		return EFAULT;
 	}
 	spl = splhigh();
@@ -92,18 +92,24 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	if (faultaddress >= MIPS_KSEG0)
 	{
 		splx(spl);
-		if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
+		lock_release(dumbervm.fault_lk);
 		return EFAULT;
 	}
 
-
+	/* Check top-level page table*/
 	int vpn1 = VADDR_GET_VPN1(faultaddress);
 
-	if(as->ptbase[vpn1] ==  0)	// top level page table was never created, no mapping
+	/* Case: This translation does not exist. Fail. */
+	if(as->ptbase[vpn1] ==  0)
 	{
 		splx(spl);
-		if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
+		lock_release(dumbervm.fault_lk);
 		return EFAULT;
+	}
+	/* Case: TLPT is in swap space. Load it in and continue */
+	else if (TLPTE_GET_SWAP_BIT(as->ptbase[vpn1]))
+	{
+		as_load_pagetable_from_swap(as, TLPTE_GET_SWAP_IDX(as->ptbase[vpn1]) , vpn1);
 	}
 
 	int vpn2 = VADDR_GET_VPN2(faultaddress);
@@ -113,7 +119,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	if (ll_pagetable_entry == 0) // there is no entry in the low level page table entry
 	{
 		splx(spl);
-		if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
+		lock_release(dumbervm.fault_lk);
 		return EFAULT;
 	}
 
@@ -123,6 +129,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
 		const int n_proc_allowable_ram_pages = 7;
 		const int n_min_free_ram_pages_global = 10;
+		lock_acquire(dumbervm.kern_lk);
 
 		// Case 1: This address space already hit its max RAM pages (around 7)
 		// What we should do: 
@@ -132,53 +139,126 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		// 3. Move the page already in swap (faultaddress) into RAM
 		// 4. Free that swap page 
 		// 5. Update low level page table entries for both pages
-		if (as->n_kuseg_pages_allocated < n_proc_allowable_ram_pages)
-		{
-			vaddr_t swappable_ram_page = find_swapable_page(as, NULL, false);
-			if (swappable_ram_page == 0)
-			{
-				splx(spl);
-				if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
-				return ENOMEM; // should have passed this since we have free RAM pages
-			}
+		// if (as->n_kuseg_pages_ram >= n_proc_allowable_ram_pages)
+		// {
+		// 	bool *did_find;
+		// 	vaddr_t swappable_ram_page = find_swapable_page(as, &did_find, false);
+		// 	if (!did_find)
+		// 	{
+		// 		lock_release(dumbervm.kern_lk);
+		// 		splx(spl);
+		// 		lock_release(dumbervm.fault_lk);
+		// 		return ENOMEM; // should have passed this since we have free RAM pages
+		// 	}
+		// 	int swap_idx = LLPTE_GET_SWAP_OFFSET(ll_pagetable_entry);
+		// 	read_from_swap(as, swap_idx, dumbervm.swap_buffer);
 
-			// move swapable ram page to swap
-			int swap_idx = alloc_swap_page();
-			if (swap_idx == -1)
-			{
-				splx(spl);
-				if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
-				return ENOMEM; // should have passed this since we have free swap pages
-			}
-			// write the data in the ram page to the swap page
-			// NOTE: Not sure if this vaddr is the correct format
-			write_page_to_swap(as, swap_idx, (void *)swappable_ram_page);
+		// 	// write the data in the ram page to the swap page
+		// 	// NOTE: Not sure if this vaddr is the correct format
+		// 	write_page_to_swap(as, swap_idx, (void *)swappable_ram_page);
 
-			// move the swap page into RAM
-			read_from_swap(as, LLPTE_GET_SWAP_OFFSET(ll_pagetable_entry), (void *)swappable_ram_page);
+		// 	memcpy((void *)swappable_ram_page, dumbervm.swap_buffer, PAGE_SIZE);
 
-			// free the swap page
-			free_swap_page(ll_pagetable_entry);
-
-			// update the low level page table entries, not sure if this is right
-			ll_pagetable_va[vpn2] = LLPTE_UNSET_SWAP_BIT(ll_pagetable_entry); // remove the swap bit
-			ll_pagetable_va[vpn2] = LLPTE_MASK_PPN(swappable_ram_page); // set the physical page number
+		// 	// update the low level page table entries, not sure if this is right
+		// 	ll_pagetable_va[vpn2] = LLPTE_UNSET_SWAP_BIT(ll_pagetable_entry); // remove the swap bit
+		// 	ll_pagetable_va[vpn2] = LLPTE_MASK_PPN(swappable_ram_page); // set the physical page number
 	
-		}
+		// }
 
-		// Case 2: Dumbervm has > 10 (or whatever the amount is) free pages left in RAM 
-		// What we should do: 
-		// Allocate a ppage and map this vaddr to it
-		else if (dumbervm.n_ppages_allocated < n_min_free_ram_pages_global)
+		// // Case 2: Dumbervm has > 10 (or whatever the amount is) free pages left in RAM 
+		// // What we should do: 
+		// // Allocate a ppage and map this vaddr to it
+		// else if (dumbervm.n_ppages_allocated < n_min_free_ram_pages_global)
+		// {
+		// 	// Allocate a page
+		// 	vaddr_t kpage = alloc_kpages(1);
+		// 	if (kpage == 0)
+		// 	{
+		// 		lock_release(dumbervm.kern_lk);
+		// 		splx(spl);
+		// 		lock_release(dumbervm.fault_lk);
+		// 		return ENOMEM; // should have passed this since we have free RAM pages
+		// 	}
+
+		// 	// update the page table entries 
+		// 	// Before: [   SWAP_IDX    | NVDL and other bits ]
+		// 	// After:  [   PPN         | NVLD adn other bits (swap is now 0)]
+		// 	ll_pagetable_entry = (kpage)
+		// }
+
+		if (as->n_kuseg_pages_ram >= n_proc_allowable_ram_pages)
 		{
-			// Allocate a page
-			vaddr_t kpage = alloc_kpages(1);
-			if (kpage == 0)
+			// just swap page
+			vaddr_t old_ram_va = replace_ram_page_with_swap_page(as, ll_pagetable_va, vpn2);
+			int idx = tlb_probe(old_ram_va, 0);
+
+			if (idx >= 0)
 			{
-				splx(spl);
-				if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
-				return ENOMEM; // should have passed this since we have free RAM pages
+				tlb_write(TLBHI_INVALID(idx),TLBLO_INVALID(), idx);
 			}
+			ll_pagetable_entry = ll_pagetable_va[vpn2];
+
+		}
+		else if (dumbervm.n_ppages_allocated < dumbervm.n_ppages-n_min_free_ram_pages_global)
+		{
+			vaddr_t new_ram_page = alloc_kpages(1);
+			if (new_ram_page == 0)
+			{
+				lock_release(dumbervm.kern_lk);
+				splx(spl);
+				lock_release(dumbervm.fault_lk);
+				return ENOMEM;
+			}
+			paddr_t new_ram_page_pa = KSEG0_VADDR_TO_PADDR(new_ram_page);
+
+			int swap_idx = LLPTE_GET_SWAP_OFFSET(ll_pagetable_entry);
+
+			read_from_swap(as, swap_idx, dumbervm.swap_buffer);
+			memcpy((void *)new_ram_page, dumbervm.swap_buffer, PAGE_SIZE);
+			ll_pagetable_va[vpn2] = new_ram_page_pa | TLBLO_DIRTY | TLBLO_VALID;
+			ll_pagetable_entry = ll_pagetable_va[vpn2];
+
+		}
+		else
+		{
+			int npages_swapped = 0;
+			int temp_swapped = 0;
+			unsigned pid_counter = 1; 
+			//while (npages_swapped < 3 && (pid_counter < kproc_table->process_counter))
+			while (npages_swapped < 3 )
+			{
+				if ((unsigned)curproc->p_pid != pid_counter)
+				{
+					as_move_to_swap(kproc_table->processes[pid_counter]->p_addrspace, 3, &temp_swapped);
+					npages_swapped+= temp_swapped;
+				}
+
+				pid_counter++;
+				if (pid_counter >= kproc_table->process_counter) pid_counter = 1;
+			}
+			if (npages_swapped < 1) {
+				lock_release(dumbervm.kern_lk);
+				splx(spl);
+				lock_release(dumbervm.fault_lk);
+				return ENOMEM;
+			}
+
+			vaddr_t new_ram_page = alloc_kpages(1);
+			if (new_ram_page == 0)
+			{
+				lock_release(dumbervm.kern_lk);
+				splx(spl);
+				lock_release(dumbervm.fault_lk);
+				return ENOMEM;
+			}
+			paddr_t new_ram_page_pa = KSEG0_VADDR_TO_PADDR(new_ram_page);
+
+			int swap_idx = LLPTE_GET_SWAP_OFFSET(ll_pagetable_entry);
+
+			read_from_swap(as, swap_idx, dumbervm.swap_buffer);
+			memcpy((void *)new_ram_page, dumbervm.swap_buffer, PAGE_SIZE);
+			ll_pagetable_va[vpn2] = new_ram_page_pa | TLBLO_DIRTY | TLBLO_VALID;
+			ll_pagetable_entry = ll_pagetable_va[vpn2];
 		}
 
 		// Case 3: Address space not at its max RAM pages but dumbervm has < 10 free pages left in RAM
@@ -187,8 +267,8 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		// => While we haven't allocated 7 (or whatever the amount is) RAM pages, 
 		//    walk the proctable and move them to swap space
 
-
-
+		lock_release(dumbervm.kern_lk);
+	}
 	
 	/** 
 	 * VM_FAULT_READONLY: Attempted to write to a TLB entry whose dirty bit is not set
@@ -304,7 +384,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	}
 
 	splx(spl);
-	if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
+	lock_release(dumbervm.fault_lk);
 	
 	// why do we need to set the valid bit here?
 	// why not set valid bit into PTE when we allocate the page?
@@ -327,11 +407,19 @@ void
 vm_tlbshootdown(const struct tlbshootdown *ts)
 {
 	(void)ts;
-	invalidate_tlb();
-    // if (ts == NULL || ts->ts_vaddr == 0) {
-    //     return;
-    // }
+	//invalidate_tlb();
+    if (ts == NULL || ts->va == 0) {
+        return;
+    }
+
+	int idx = tlb_probe(ts->va, 0);
+	if (idx >= 0)
+	{
+		tlb_write(TLBHI_INVALID(idx), TLBLO_INVALID(), idx);
+	}
+
 }
+
 
 void 
 invalidate_tlb(void)
@@ -387,7 +475,13 @@ getppages(unsigned long npages)
 
 }
 
-/* Kernel Pages Managment */
+/**
+ * @brief Allocates a page for the kernel. This allocates continuous pages. 
+ * 
+ * @param npages number of pages to be allocated
+ * 
+ * @return the virtual address (KSEG0) of the first allocated page.
+ */
 vaddr_t
 alloc_kpages(unsigned npages)
 {
@@ -471,6 +565,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages ,bool* in_swap, 
 	/*
 	* our as_create allocates one page for the top level page table itself.
 	*/
+	lock_acquire(dumbervm.kern_lk);
 
 	// NOTE: Since we are allocating one block at a time we are not going to have a problem with low level page table getting full 
 	// while we are allocating
@@ -498,9 +593,13 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages ,bool* in_swap, 
 
 			//as->ptbase[vpn1] = (vaddr_t)((ll_pagetable_va) + 0b1); // Update the count of this low level page table to be 1
 			as->ptbase[vpn1] = (vaddr_t)((ll_pagetable_va)); // NOTE: for now no counts too complicated
-		} 
+		}  
 		else
 		{
+			if(TLPTE_GET_SWAP_BIT(as->ptbase[vpn1]))
+			{
+				as_load_pagetable_from_swap(as, TLPTE_GET_SWAP_IDX(as->ptbase[vpn1]),vpn1);
+			}
 			ll_pagetable_va = (vaddr_t *)TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]);
 			//as->ptbase[vpn1] += 0b1; // NOTE: dont use these for now
 		}
@@ -510,11 +609,12 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages ,bool* in_swap, 
 		// set the 'otherpages' field in the memlist node of the first page in the block
 
 		paddr_t pa;          // Physical address of the new block we created.
-		if (as->n_kuseg_pages_allocated >= 7 && !executable) // in this case we should allocate memory from the swap space
+		if (as->n_kuseg_pages_ram >= 7 && !executable) // in this case we should allocate memory from the swap space
 		{
 			*in_swap = true;
 			int swap_idx = alloc_swap_page(); // find free area in swap space
 			pa = LLPTE_SET_SWAP_BIT(swap_idx << 12);
+			as->n_kuseg_pages_swap++;
 		}
 		else
 		{
@@ -522,10 +622,12 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages ,bool* in_swap, 
 			kseg0_va = alloc_kpages(1);
 			if (kseg0_va == 0)
 			{
+				lock_release(dumbervm.kern_lk);
 				return ENOMEM;
 			}
 			pa = KSEG0_VADDR_TO_PADDR(kseg0_va);
 			pa |= TLBLO_DIRTY | TLBLO_VALID | executable;
+			as->n_kuseg_pages_ram++;
 		}
 
 		// write valid bit
@@ -542,9 +644,8 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages ,bool* in_swap, 
 		//ll_pagetable_va[vpn2] |= (0x1 << 10) | (0b1 << 2) | (0b1 << 1); // for now everything is readable and writeable
 
 		*va += (vaddr_t)0x1000;
-		as->n_kuseg_pages_allocated++;	
 	}
-
+	lock_release(dumbervm.kern_lk);
 
 	return 0;
 }
@@ -586,7 +687,7 @@ void
 free_upages(struct addrspace* as, vaddr_t vaddr)
 {
 	//int i = 0;
-
+	lock_acquire(dumbervm.kern_lk);
 
 	/**
 	 * Free each page by getting each paddr from vaddr to vaddr + nppages * PAGE_SIZE
@@ -601,6 +702,10 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 	vaddr_t llpte = get_lltpe(as, vaddr);
 
 	int vpn1 = VADDR_GET_VPN1(vaddr);
+	if(TLPTE_GET_SWAP_BIT(as->ptbase[vpn1]))
+	{
+		as_load_pagetable_from_swap(as, TLPTE_GET_SWAP_IDX(as->ptbase[vpn1]),vpn1);
+	}
 	int vpn2 = VADDR_GET_VPN2(vaddr);
 	vaddr_t* llpt = (vaddr_t *)as->ptbase[vpn1];
 
@@ -609,6 +714,7 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 	{
 		free_swap_page(llpte);
 		llpt[vpn2] = 0;
+		as->n_kuseg_pages_swap++;
 	}
 	else
 	{
@@ -617,8 +723,8 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 		//paddr = paddr & ~TLBLO_VALID;
 		//llpt[vpn2] = paddr;
 		llpt[vpn2] = 0;
+		as->n_kuseg_pages_ram--;
 	}
-	as->n_kuseg_pages_allocated--;
 	// if (LLPTE_GET_LASTPAGE_BIT(llpte))
 	// {
 	// 	// last page. exit
@@ -633,6 +739,7 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 	//}
 
 	// TODO: we need to remove the pagetable entries
+	lock_release(dumbervm.kern_lk);
 }
 
 	
@@ -654,7 +761,10 @@ translate_vaddr_to_paddr(struct addrspace* as, paddr_t vaddr)
 	{
 		return 0;
 	}
-
+	if(TLPTE_GET_SWAP_BIT(as->ptbase[vpn1]))
+	{
+		as_load_pagetable_from_swap(as, TLPTE_GET_SWAP_IDX(as->ptbase[vpn1]),vpn1);
+	}
 	vaddr_t* ll_pagetable_va = (vaddr_t *) TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]);
 
 	if (ll_pagetable_va[vpn2] == 0) // there is no entry in the low level page table entry
@@ -682,6 +792,10 @@ get_lltpe(struct addrspace* as,vaddr_t vaddr)
 	{
 		return 0;
 	}
+	if(TLPTE_GET_SWAP_BIT(as->ptbase[vpn1]))
+	{
+		as_load_pagetable_from_swap(as, TLPTE_GET_SWAP_IDX(as->ptbase[vpn1]),vpn1);
+	}
 
 	vaddr_t* ll_pagetable_va = (vaddr_t *) TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]);
 
@@ -699,4 +813,78 @@ fill_deadbeef(void *vptr, int npages)
 	for (i=0; i<(npages * PAGE_SIZE)/sizeof(uint32_t); i++) {
 		ptr[i] = 0xdeadbeef;
 	}
+}
+
+/**
+ * @brief move a lower-level page table to swap space
+ * 
+ * @param llpt lower-level page table (ptbase[i] suffices)
+ * 
+ * Replaces the llpt address (kseg0 vaddr) with the swap space index
+ */
+ */
+/**
+ * @brief move a lower-level page table to swap space
+ * 
+ * @param llpt lower-level page table (ptbase[i] suffices)
+ * 
+ * Replaces the llpt address (kseg0 vaddr) with the swap space index
+ */
+*/
+int
+as_move_pagetable_to_swap(struct addrspace* as, vaddr_t* llpt)
+{
+	// Move the lower-level page table to swap space
+	// This is used when we are about to run out of memory
+	// We will move the lower-level page table to swap space 
+
+	// move it to swap space 
+	int swap_idx = alloc_swap_page(); 
+	if (swap_idx == -1) 
+	{ 
+		return swap_idx; 
+	}
+	write_page_to_swap(as, swap_idx, (void *)llpt); 
+
+	// Update the top-level page table entry to point to the swap space
+	llpt = swap_idx << 12 | 0b1; // set the swap bit	 
+
+	/**
+	 * In as_move_to_swap, we will invalidate the TLB entry for this page on other CPUs
+	*/
+
+	return 0; 
+}
+
+/** 
+ * @brief 
+ * 
+ * @param swap_idx swap page number 
+ * @param vpn1 index into top-level page table to move this into
+ * 
+ * Allocates a kpage to move the swap data into RAM 
+ * 
+ * updates the tlpte with the new paddr. 
+ * 
+ **/
+ 
+int
+as_load_pagetable_from_swap(struct addrspace *as, int swap_idx, int vpn1)
+{
+	// not grabbing kern lock because we should already have it. 
+	
+	vaddr_t new_ram_page = alloc_kpages(1);
+	if (new_ram_page == 0)
+	{
+		lock_release(dumbervm.kern_lk);
+		return ENOMEM;
+	}
+	paddr_t new_ram_page_pa = KSEG0_VADDR_TO_PADDR(new_ram_page);
+
+	read_from_swap(as, swap_idx, dumbervm.swap_buffer);
+	memcpy((void *)new_ram_page, dumbervm.swap_buffer, PAGE_SIZE);
+	// tlpte is now [  kseg0 vaddr of llpt | swap bit (zero in this case) ]
+	as->ptbase[vpn1] = new_ram_page; 
+
+	return 0;
 }
