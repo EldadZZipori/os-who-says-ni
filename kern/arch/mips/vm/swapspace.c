@@ -72,7 +72,6 @@ alloc_swap_page(void)
 	unsigned int index;
 	spinlock_acquire(&dumbervm.swap_bm_sl);
 	int result = bitmap_alloc(dumbervm.swap_bm, &index);
-	dumbervm.n_ppages_allocated++;
 	spinlock_release(&dumbervm.swap_bm_sl);
 
 
@@ -97,7 +96,6 @@ free_swap_page(paddr_t llpte)
 
 	spinlock_acquire(&dumbervm.swap_bm_sl);
 	bitmap_unmark(dumbervm.swap_bm, index);
-	dumbervm.n_ppages_allocated--;
 	spinlock_release(&dumbervm.swap_bm_sl);
 
 	zero_swap_page(index);
