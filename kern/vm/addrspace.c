@@ -170,18 +170,18 @@ as_destroy(struct addrspace *as)
 							vaddr_t data_vaddr = PADDR_TO_KSEG0_VADDR(data_paddr);
 
 							// Free the data page
-							free_kpages(data_vaddr);
+							free_kpages(data_vaddr, false);
 						}
                     }
                 }
 
                 // Free the low-level page table itself
-                free_kpages(llpt_vaddr);
+                free_kpages(llpt_vaddr, false);
             }
         }
 
         // Free the top-level page table
-        free_kpages((vaddr_t)as->ptbase);
+        free_kpages((vaddr_t)as->ptbase, false);
     }
 
     // Destroy the heap lock if it exists
@@ -433,7 +433,7 @@ as_move_to_swap(struct addrspace* as, int npages_to_swap,int *num_pages_swapped)
 
 							llpt[j] = LLPTE_SET_SWAP_BIT(swap_idx << 12); 
 
-							free_kpages(kseg0_vaddr);
+							free_kpages(kseg0_vaddr, false);
 							/**
 							 * Invalidate the TLB entry for this page on other CPUs
 							 * if this is not the current address space

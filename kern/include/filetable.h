@@ -21,7 +21,7 @@ filetable
 
     unsigned int files_counter;
 
-    struct lock** files_lk;
+    //struct lock** files_lk;
 
     struct lock* location_lk; // This will only be used by open 
 };

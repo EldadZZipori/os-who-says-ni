@@ -499,31 +499,31 @@ vaddr_t
 alloc_kpages(unsigned npages, bool kmalloc)
 {
 	KASSERT(npages > 0);
-	if (kmalloc && dumbervm.swap_buffer != NULL)
+	if (kmalloc && dumbervm.swap_buffer!=NULL)
 	{
-		//kprintf("\nkmalloc\n");
+		lock_acquire(dumbervm.kern_lk);
 	}
 	if (dumbervm.n_ppages_allocated >= dumbervm.n_ppages -5)
 	{
-		if (kmalloc && dumbervm.swap_buffer!=NULL)
-		{
-			lock_acquire(dumbervm.kern_lk);
-		}
 		vm_make_space();
-		if (kmalloc && dumbervm.swap_buffer!=NULL)
-		{
-			lock_release(dumbervm.kern_lk);
-		}
 	}
 
 	paddr_t pa = getppages(npages);
 
 	if (pa == 0) {
+		if (kmalloc && dumbervm.swap_buffer!=NULL)
+		{
+			lock_release(dumbervm.kern_lk);
+		}
 		return 0;
 	}
 
 	if (pa % PAGE_SIZE != 0)
 	{
+		if (kmalloc && dumbervm.swap_buffer!=NULL)
+		{
+			lock_release(dumbervm.kern_lk);
+		}
 		return pa;
 	}
 
@@ -535,16 +535,23 @@ alloc_kpages(unsigned npages, bool kmalloc)
 	KASSERT(va >= MIPS_KSEG0);
 	KASSERT(va < MIPS_KSEG0_RAM_END);
 
+	if (kmalloc && dumbervm.swap_buffer!=NULL)
+	{
+		lock_release(dumbervm.kern_lk);
+	}
 	return va;
 
 }
 
 void
-free_kpages(vaddr_t addr)
+free_kpages(vaddr_t addr, bool is_kfree)
 {
 	KASSERT(addr >= MIPS_KSEG0);
 	KASSERT(addr < MIPS_KSEG0_RAM_END);
-
+	if (is_kfree && dumbervm.swap_buffer!=NULL)
+	{
+		lock_acquire(dumbervm.kern_lk);
+	}
 	paddr_t paddr = addr - MIPS_KSEG0;
 
 	// For now, just remove a single page.
@@ -560,6 +567,10 @@ free_kpages(vaddr_t addr)
 			dumbervm.n_ppages_allocated--;
 			bitmap_unmark(dumbervm.ppage_lastpage_bm, ppage_index);
 			//spinlock_release(&dumbervm.ppage_bm_sl);
+			if (is_kfree && dumbervm.swap_buffer!=NULL)
+			{
+				lock_release(dumbervm.kern_lk);
+			}
 			return;
 
 		}
@@ -579,7 +590,10 @@ free_kpages(vaddr_t addr)
 		fill_deadbeef((void * )addr, 1);
 
 	}
-	
+	if (is_kfree && dumbervm.swap_buffer!=NULL)
+	{
+		lock_release(dumbervm.kern_lk);
+	}
 }
 
 /* User Page Managment */
@@ -748,7 +762,7 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 	else
 	{
 		// basiclly just make the entry not valid so we dont free the physical page which we need
-		 free_kpages(PADDR_TO_KSEG0_VADDR(paddr));
+		 free_kpages(PADDR_TO_KSEG0_VADDR(paddr),false);
 		//paddr = paddr & ~TLBLO_VALID;
 		//llpt[vpn2] = paddr;
 		llpt[vpn2] = 0;
@@ -877,7 +891,7 @@ as_move_pagetable_to_swap(struct addrspace* as, int vpn1)
 	}
 	// buf should be a kseg0 vaddr?
 	write_page_to_swap(as, swap_idx, (void *)TLPTE_MASK_VADDR(as->ptbase[vpn1])); 
-	free_kpages(as->ptbase[vpn1]);
+	free_kpages(as->ptbase[vpn1],false);
 	// Update the top-level page table entry to point to the swap space
 	as->ptbase[vpn1] = (vaddr_t)(swap_idx << 12 | 0b1); // set the swap bit	 
 	

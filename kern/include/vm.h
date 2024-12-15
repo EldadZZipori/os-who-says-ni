@@ -114,7 +114,7 @@ alloc_kpages(unsigned npages, bool kmalloc);
  * @return the virtual address (KSEG0) of the first allocated page.
  */
 void 
-free_kpages(vaddr_t addr);
+free_kpages(vaddr_t addr, bool is_kfree);
 
 int 
 alloc_heap_upages(struct addrspace* as, int npages);
