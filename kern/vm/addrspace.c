@@ -401,9 +401,15 @@ as_move_to_swap(struct addrspace* as, int npages_to_swap,int *num_pages_swapped)
 			if (!TLPTE_GET_SWAP_BIT(as->ptbase[i]))
 			{
 				vaddr_t *llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[i]);
+				vaddr_t llpt_2 = (vaddr_t )TLPTE_MASK_VADDR(as->ptbase[i]);
+				if (llpt_2 < MIPS_KSEG0)
+				{
+					kprintf("\nhere\n");
+					i = 0;
+				}
 				for (int j = 1023; j >= 0; j--) 
 				{ 
-
+						
 					if (llpt[j] != 0) 
 					{ 
 						if (!LLPTE_GET_SWAP_BIT(llpt[j])) 

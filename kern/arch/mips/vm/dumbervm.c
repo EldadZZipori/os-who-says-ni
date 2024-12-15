@@ -31,7 +31,7 @@ void vm_make_space()
 	int temp_swapped = 0;
 	unsigned pid_counter = 1; 
 	//while (npages_swapped < 3 && (pid_counter < kproc_table->process_counter))
-	while (npages_swapped < 1 )
+	while (npages_swapped < 3 )
 	{
 		if ((unsigned)curproc->p_pid != pid_counter)
 		{
@@ -247,6 +247,8 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 			memcpy((void *)new_ram_page, dumbervm.swap_buffer, PAGE_SIZE);
 			ll_pagetable_va[vpn2] = new_ram_page_pa | TLBLO_DIRTY | TLBLO_VALID;
 			ll_pagetable_entry = ll_pagetable_va[vpn2];
+			as->n_kuseg_pages_ram++;
+			as->n_kuseg_pages_swap--;
 
 		//}
 		// else
