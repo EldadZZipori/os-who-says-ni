@@ -156,8 +156,8 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	{
 		// Move the swap page into RAM. 
 
-		const int n_proc_allowable_ram_pages = 7;
-		const int n_min_free_ram_pages_global = 10;
+		//const int n_proc_allowable_ram_pages = 7;
+		//const int n_min_free_ram_pages_global = 10;
 		lock_acquire(dumbervm.kern_lk);
 
 		// Case 1: This address space already hit its max RAM pages (around 7)
@@ -215,21 +215,21 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		// 	ll_pagetable_entry = (kpage)
 		// }
 
-		if (as->n_kuseg_pages_ram >= n_proc_allowable_ram_pages)
-		{
-			// just swap page
-			vaddr_t old_ram_va = replace_ram_page_with_swap_page(as, ll_pagetable_va, vpn2);
-			int idx = tlb_probe(old_ram_va, 0);
+		// if (as->n_kuseg_pages_ram >= n_proc_allowable_ram_pages)
+		// {
+		// 	// just swap page
+		// 	vaddr_t old_ram_va = replace_ram_page_with_swap_page(as, ll_pagetable_va, vpn2);
+		// 	int idx = tlb_probe(old_ram_va, 0);
 
-			if (idx >= 0)
-			{
-				tlb_write(TLBHI_INVALID(idx),TLBLO_INVALID(), idx);
-			}
-			ll_pagetable_entry = ll_pagetable_va[vpn2];
+		// 	if (idx >= 0)
+		// 	{
+		// 		tlb_write(TLBHI_INVALID(idx),TLBLO_INVALID(), idx);
+		// 	}
+		// 	ll_pagetable_entry = ll_pagetable_va[vpn2];
 
-		}
-		else if (dumbervm.n_ppages_allocated < dumbervm.n_ppages-n_min_free_ram_pages_global)
-		{
+		// }
+		// else if (dumbervm.n_ppages_allocated < dumbervm.n_ppages-n_min_free_ram_pages_global)
+		// {
 			vaddr_t new_ram_page = alloc_kpages(1);
 			if (new_ram_page == 0)
 			{
@@ -248,29 +248,29 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 			ll_pagetable_va[vpn2] = new_ram_page_pa | TLBLO_DIRTY | TLBLO_VALID;
 			ll_pagetable_entry = ll_pagetable_va[vpn2];
 
-		}
-		else
-		{
-			vm_make_space();
+		//}
+		// else
+		// {
+		// 	vm_make_space();
 
-			vaddr_t new_ram_page = alloc_kpages(1);
-			if (new_ram_page == 0)
-			{
-				panic("\n11\n");
-				lock_release(dumbervm.kern_lk);
-				splx(spl);
-				lock_release(dumbervm.fault_lk);
-				return ENOMEM;
-			}
-			paddr_t new_ram_page_pa = KSEG0_VADDR_TO_PADDR(new_ram_page);
+		// 	vaddr_t new_ram_page = alloc_kpages(1);
+		// 	if (new_ram_page == 0)
+		// 	{
+		// 		panic("\n11\n");
+		// 		lock_release(dumbervm.kern_lk);
+		// 		splx(spl);
+		// 		lock_release(dumbervm.fault_lk);
+		// 		return ENOMEM;
+		// 	}
+		// 	paddr_t new_ram_page_pa = KSEG0_VADDR_TO_PADDR(new_ram_page);
 
-			int swap_idx = LLPTE_GET_SWAP_OFFSET(ll_pagetable_entry);
+		// 	int swap_idx = LLPTE_GET_SWAP_OFFSET(ll_pagetable_entry);
 
-			read_from_swap(as, swap_idx, dumbervm.swap_buffer);
-			memcpy((void *)new_ram_page, dumbervm.swap_buffer, PAGE_SIZE);
-			ll_pagetable_va[vpn2] = new_ram_page_pa | TLBLO_DIRTY | TLBLO_VALID;
-			ll_pagetable_entry = ll_pagetable_va[vpn2];
-		}
+		// 	read_from_swap(as, swap_idx, dumbervm.swap_buffer);
+		// 	memcpy((void *)new_ram_page, dumbervm.swap_buffer, PAGE_SIZE);
+		// 	ll_pagetable_va[vpn2] = new_ram_page_pa | TLBLO_DIRTY | TLBLO_VALID;
+		// 	ll_pagetable_entry = ll_pagetable_va[vpn2];
+		// }
 
 		// Case 3: Address space not at its max RAM pages but dumbervm has < 10 free pages left in RAM
 		// What we should do: 
@@ -618,32 +618,32 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages ,bool* in_swap, 
 			ll_pagetable_va = (vaddr_t *)TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]);
 			//as->ptbase[vpn1] += 0b1; // NOTE: dont use these for now
 		}
-		vaddr_t kseg0_va;
+		//vaddr_t kseg0_va;
 		
 
 		// set the 'otherpages' field in the memlist node of the first page in the block
 
 		paddr_t pa;          // Physical address of the new block we created.
-		if (as->n_kuseg_pages_ram >= 7 && !executable) // in this case we should allocate memory from the swap space
-		{
+		// if (as->n_kuseg_pages_ram >= 7 && !executable) // in this case we should allocate memory from the swap space
+		// {
 			*in_swap = true;
 			int swap_idx = alloc_swap_page(); // find free area in swap space
 			pa = LLPTE_SET_SWAP_BIT(swap_idx << 12);
 			as->n_kuseg_pages_swap++;
-		}
-		else
-		{
-			*in_swap = false;
-			kseg0_va = alloc_kpages(1);
-			if (kseg0_va == 0)
-			{
-				lock_release(dumbervm.kern_lk);
-				return ENOMEM;
-			}
-			pa = KSEG0_VADDR_TO_PADDR(kseg0_va);
-			pa |= TLBLO_DIRTY | TLBLO_VALID | executable;
-			as->n_kuseg_pages_ram++;
-		}
+		// }
+		// else
+		// {
+		// 	*in_swap = false;
+		// 	kseg0_va = alloc_kpages(1);
+		// 	if (kseg0_va == 0)
+		// 	{
+		// 		lock_release(dumbervm.kern_lk);
+		// 		return ENOMEM;
+		// 	}
+		// 	pa = KSEG0_VADDR_TO_PADDR(kseg0_va);
+		// 	pa |= TLBLO_DIRTY | TLBLO_VALID | executable;
+		// 	as->n_kuseg_pages_ram++;
+		// }
 
 		// write valid bit
 		

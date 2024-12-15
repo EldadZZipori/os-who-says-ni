@@ -351,8 +351,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 					}
 					else
 					{
-						if (dumbervm.n_ppages_allocated >= dumbervm.n_ppages - 10)
-						{
+
 							// allocate page, copy data into it, and update llpte
 							vaddr_t* old_as_datapage = (vaddr_t *) PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(old_as_llpt[j])); // only PPN
 							int new_swap_idx = alloc_swap_page(); // add a check here
@@ -367,24 +366,6 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 							write_page_to_swap(new, new_swap_idx, dumbervm.swap_buffer);
 							new_as_llpt[j] =  LLPTE_SET_SWAP_BIT(new_swap_idx << 12);
 							new->n_kuseg_pages_swap++;
-						}
-						else
-						{
-							// allocate page, copy data into it, and update llpte
-							vaddr_t* old_as_datapage = (vaddr_t *) PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(old_as_llpt[j])); // only PPN
-							vaddr_t* new_as_datapage = (vaddr_t *) alloc_kpages(1);
-							if (new_as_datapage == 0)
-							{
-								//lock_release(old->address_lk);
-								lock_release(dumbervm.kern_lk);
-								//spinlock_release(&curproc->p_lock);
-								return ENOMEM;
-							}
-							memcpy(new_as_datapage, old_as_datapage, PAGE_SIZE);	
-							paddr_t new_llpte = (paddr_t)(KSEG0_VADDR_TO_PADDR((paddr_t)new_as_datapage) | (old_as_llpt[j] & 0x00000fff)); // NVDG flags
-							new_as_llpt[j] = new_llpte;
-							new->n_kuseg_pages_ram++;
-						}
 
 					}
 			}	}
