@@ -449,10 +449,11 @@ free_kpages(vaddr_t addr, bool is_kfree)
 {
 	KASSERT(addr >= MIPS_KSEG0);
 	KASSERT(addr < MIPS_KSEG0_RAM_END);
-	if (is_kfree && dumbervm.swap_buffer!=NULL)
-	{
-		lock_acquire(dumbervm.kern_lk);
-	}
+	(void)is_kfree;
+	// if (is_kfree && dumbervm.swap_buffer!=NULL)
+	// {
+	// 	lock_acquire(dumbervm.kern_lk);
+	// }
 	paddr_t paddr = addr - MIPS_KSEG0;
 
 	// For now, just remove a single page.
@@ -468,10 +469,10 @@ free_kpages(vaddr_t addr, bool is_kfree)
 			dumbervm.n_ppages_allocated--;
 			bitmap_unmark(dumbervm.ppage_lastpage_bm, ppage_index);
 			//spinlock_release(&dumbervm.ppage_bm_sl);
-			if (is_kfree && dumbervm.swap_buffer!=NULL)
-			{
-				lock_release(dumbervm.kern_lk);
-			}
+			// if (is_kfree && dumbervm.swap_buffer!=NULL)
+			// {
+			// 	lock_release(dumbervm.kern_lk);
+			// }
 			return;
 
 		}
@@ -491,10 +492,10 @@ free_kpages(vaddr_t addr, bool is_kfree)
 		fill_deadbeef((void * )addr, 1);
 
 	}
-	if (is_kfree && dumbervm.swap_buffer!=NULL)
-	{
-		lock_release(dumbervm.kern_lk);
-	}
+	// if (is_kfree && dumbervm.swap_buffer!=NULL)
+	// {
+	// 	lock_release(dumbervm.kern_lk);
+	// }
 }
 
 /* User Page Managment */
