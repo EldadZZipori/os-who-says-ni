@@ -58,7 +58,7 @@ void vm_make_space()
 }
 /* Virtual Machine */
 
-static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
+//static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
 void
 vm_bootstrap(void)
 {
@@ -385,11 +385,11 @@ getppages(unsigned long npages)
 	}
 	else
 	{
-		spinlock_acquire(&stealmem_lock);
+	//	spinlock_acquire(&stealmem_lock);
 
 		paddr_t pa = ram_stealmem(npages);
 
-		spinlock_release(&stealmem_lock);
+	//	spinlock_release(&stealmem_lock);
 
 		return pa;
 	}
