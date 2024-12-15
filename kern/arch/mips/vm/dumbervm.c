@@ -847,9 +847,10 @@ as_move_pagetable_to_swap(struct addrspace* as, int vpn1)
 	}
 	// buf should be a kseg0 vaddr?
 	write_page_to_swap(as, swap_idx, (void *)TLPTE_MASK_VADDR(as->ptbase[vpn1])); 
-
+	free_kpages(as->ptbase[vpn1]);
 	// Update the top-level page table entry to point to the swap space
 	as->ptbase[vpn1] = (vaddr_t)(swap_idx << 12 | 0b1); // set the swap bit	 
+	
 
 	/**
 	 * In as_move_to_swap, we will invalidate the TLB entry for this page on other CPUs
