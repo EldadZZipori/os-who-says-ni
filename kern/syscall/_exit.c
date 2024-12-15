@@ -57,6 +57,7 @@ __exit(int exitcode)
             calling_proc->children[i]->parent = NULL;
         }
     }
+    as_destroy(calling_proc->p_addrspace);
 
     // if we are an orphan we can just destroy ourself cause no one cares for us
     if (calling_proc->parent == NULL )//|| calling_proc->parent->state == ZOMBIE) 
