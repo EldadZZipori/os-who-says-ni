@@ -287,8 +287,7 @@ int
 as_copy(struct addrspace *old, struct addrspace **ret)
 {
 
-	lock_acquire(dumbervm.kern_lk);
-
+	
 	/* 
 	 * as_create already creates the first page for for the top level table itself.
 	 */
@@ -298,6 +297,8 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 		lock_release(dumbervm.kern_lk);
 		return ENOMEM; // This might not be the most idicative 
 	}
+	lock_acquire(dumbervm.kern_lk);
+
 
 	new->user_heap_start = old->user_heap_start;
 	new->user_heap_end = old->user_heap_end;
