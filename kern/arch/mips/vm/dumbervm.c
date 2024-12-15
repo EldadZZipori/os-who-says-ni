@@ -46,6 +46,11 @@ void vm_make_space()
 		if (pid_counter >= kproc_table->process_counter) pid_counter = 1;
 	}
 
+	// if (kproc_table->process_counter == 2)// there are only one process
+	// {
+	// 	as_move_to_swap(kproc_table->processes[pid_counter]->p_addrspace, 20, &temp_swapped);
+	// }
+
 }
 /* Virtual Machine */
 

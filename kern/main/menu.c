@@ -592,7 +592,7 @@ swap_test(int n, char **a)
 
 	/* Switch to it and activate it. */
 	proc_setas(as);
-	as_activate();
+	as_activate(true);
 
 	bool in_swap;
 	vaddr_t va;

@@ -105,7 +105,7 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
 
     // switch to new addrspace
     proc_setas(as2);
-    as_activate();
+    as_activate(true);
 
     // open executable 
     result = vfs_open(kprogname, O_RDONLY, 0, &v);
@@ -173,7 +173,7 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
 
         // switch to as1 to get arg ptr and size
         proc_setas(as1);
-        as_activate();
+        as_activate(true);
 
         // copyin ptr to arg, will be updated as we copy in the arg 1 chunk at a time
         result = copyin(args + i * sizeof(char*), &argp, sizeof(char*));
@@ -198,7 +198,7 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
 
             // switch to as1
             proc_setas(as1);
-            as_activate();
+            as_activate(true);
 
             // copyin up to 1KB of the string argument into karg, on the stack so it gets deallocated after each chunk
             result = copyinstrupto(argp, karg, ARG_LOAD_CHUNK_SIZE, &copied_bytes);
@@ -209,7 +209,7 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
 
             // switch to as2
             proc_setas(as2);
-            as_activate();
+            as_activate(true);
 
             /**
              * Copy the chunk of the arg from the kernel stack to the new address space stack.
@@ -218,7 +218,7 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
             result = copyout(karg, (userptr_t)stackptr, copied_bytes);
             if (result) {
                 proc_setas(as1);
-                as_activate();
+                as_activate(true);
                 as_destroy(as2);
                 return result;
             }
@@ -239,7 +239,7 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
         result = copyout((userptr_t)&stackptr, (userptr_t)argvp + i * sizeof(char*), sizeof(char*));
         if (result) {
             proc_setas(as1);
-            as_activate();
+            as_activate(true);
             as_destroy(as2);
             return result;
         }

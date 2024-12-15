@@ -719,7 +719,7 @@ thread_switch(threadstate_t newstate, struct wchan *wc, struct spinlock *lk)
 	spinlock_release(&curcpu->c_runqueue_lock);
 
 	/* Activate our address space in the MMU. */
-	as_activate();
+	as_activate(cur->t_proc != next->t_proc);
 
 	/* Clean up dead threads. */
 	exorcise();
@@ -752,7 +752,7 @@ thread_startup(void (*entrypoint)(void *data1, unsigned long data2),
 	spinlock_release(&curcpu->c_runqueue_lock);
 
 	/* Activate our address space in the MMU. */
-	as_activate();
+	as_activate(true);
 
 	/* Clean up dead threads. */
 	exorcise();

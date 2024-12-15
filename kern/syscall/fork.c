@@ -125,7 +125,7 @@ child_return(void* data1, unsigned long data2)
     child_tf = *((struct trapframe*)data1); // copy parent trapframe to user stack
 
     proc_setas(curproc->p_addrspace); // Set the new address space for the child process
-    as_activate();  // Activates the new address space for the process
+    as_activate(true);  // Activates the new address space for the process
 
     curproc->state = RUNNING;
     enter_forked_process(&child_tf);

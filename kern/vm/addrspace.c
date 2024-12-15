@@ -198,7 +198,7 @@ as_destroy(struct addrspace *as)
 
 
 void
-as_activate(void)
+as_activate(bool invalidate)
 {
 	struct addrspace *as;
 
@@ -208,7 +208,10 @@ as_activate(void)
 	}
 
 	/* Disable interrupts on this CPU while frobbing the TLB. */
-	invalidate_tlb();
+	if(invalidate)
+	{
+		invalidate_tlb();
+	}	
 }
 void
 as_deactivate(void)
