@@ -104,7 +104,7 @@ vm_fault(int faulttype, vaddr_t faultaddress);
  * @return the virtual address (KSEG0) of the first allocated page.
  */
 vaddr_t 
-alloc_kpages(unsigned npages);
+alloc_kpages(unsigned npages, bool kmalloc);
 
 /**
  * @brief Allocates a page for the kernel. This allocates continuous pages. 

@@ -114,7 +114,7 @@ as_create(void)
 
 	as->user_heap_start = 0;
 	as->user_heap_end = 0;
-	as->ptbase = (vaddr_t *)alloc_kpages(1);	// Allocate physical page for the top level page table.
+	as->ptbase = (vaddr_t *)alloc_kpages(1,false);	// Allocate physical page for the top level page table.
 	as_zero_region((vaddr_t)as->ptbase, 1); // Fill the top level page table with zeros
 	as->n_kuseg_pages_ram = 0;
 	as->n_kuseg_pages_swap = 0;
@@ -319,7 +319,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 			}		
 			// non-zero value in tlpt. copy llpt then go through it
 			vaddr_t *old_as_llpt = (vaddr_t *)TLPTE_MASK_VADDR(old->ptbase[i]);
-			vaddr_t *new_as_llpt = (vaddr_t *)alloc_kpages(1); // make it a pointer so we can treat as array
+			vaddr_t *new_as_llpt = (vaddr_t *)alloc_kpages(1,false); // make it a pointer so we can treat as array
 			if (new_as_llpt == 0)
 			{
 				lock_release(dumbervm.kern_lk);

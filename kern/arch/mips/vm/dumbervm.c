@@ -230,7 +230,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		// }
 		// else if (dumbervm.n_ppages_allocated < dumbervm.n_ppages-n_min_free_ram_pages_global)
 		// {
-			vaddr_t new_ram_page = alloc_kpages(1);
+			vaddr_t new_ram_page = alloc_kpages(1,false);
 			if (new_ram_page == 0)
 			{
 				panic("\n8\n");
@@ -494,12 +494,24 @@ getppages(unsigned long npages)
  * @return the virtual address (KSEG0) of the first allocated page.
  */
 vaddr_t
-alloc_kpages(unsigned npages)
+alloc_kpages(unsigned npages, bool kmalloc)
 {
 	KASSERT(npages > 0);
-	if (dumbervm.n_ppages_allocated >= dumbervm.n_ppages -10)
+	if (kmalloc && dumbervm.swap_buffer != NULL)
 	{
+		//kprintf("\nkmalloc\n");
+	}
+	if (dumbervm.n_ppages_allocated >= dumbervm.n_ppages -5)
+	{
+		if (kmalloc && dumbervm.swap_buffer!=NULL)
+		{
+			lock_acquire(dumbervm.kern_lk);
+		}
 		vm_make_space();
+		if (kmalloc && dumbervm.swap_buffer!=NULL)
+		{
+			lock_release(dumbervm.kern_lk);
+		}
 	}
 
 	paddr_t pa = getppages(npages);
@@ -603,7 +615,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages ,bool* in_swap, 
 		vaddr_t* ll_pagetable_va;
 		if (as->ptbase[vpn1] == 0)  // This means the low level page table for this top level page entery was not created yet
 		{
-			ll_pagetable_va = (vaddr_t *)alloc_kpages(1); // allocate a single page for a low lever page table
+			ll_pagetable_va = (vaddr_t *)alloc_kpages(1,false); // allocate a single page for a low lever page table
 			as_zero_region((vaddr_t)ll_pagetable_va, 1); // zero all entries in the new low level page table.
 
 			//as->ptbase[vpn1] = (vaddr_t)((ll_pagetable_va) + 0b1); // Update the count of this low level page table to be 1
@@ -890,7 +902,7 @@ as_load_pagetable_from_swap(struct addrspace *as, int swap_idx, int vpn1)
 
 	// not grabbing kern lock because we should already have it. 
 	
-	vaddr_t new_ram_page = alloc_kpages(1);
+	vaddr_t new_ram_page = alloc_kpages(1,false);
 	if (new_ram_page == 0)
 	{
 		panic("\n5\n");
