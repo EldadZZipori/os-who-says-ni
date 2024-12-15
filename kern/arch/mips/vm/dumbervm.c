@@ -35,7 +35,7 @@ void vm_make_space()
 	{
 		if ((unsigned)curproc->p_pid != pid_counter)
 		{
-			if (kproc_table->processes[pid_counter]->p_addrspace != NULL)
+			if (kproc_table->processes[pid_counter] != NULL && kproc_table->processes[pid_counter]->p_addrspace != NULL)
 			{
 				as_move_to_swap(kproc_table->processes[pid_counter]->p_addrspace, 50, &temp_swapped);
 				npages_swapped+= temp_swapped;
@@ -89,8 +89,6 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	int spl;
 	lock_acquire(dumbervm.fault_lk);
 
-	
-
 	if (curproc == NULL) {
 		/*
 		 * No process. This is probably a kernel fault early
@@ -137,7 +135,9 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	/* Case: TLPT is in swap space. Load it in and continue */
 	else if (TLPTE_GET_SWAP_BIT(as->ptbase[vpn1]))
 	{
+		lock_acquire(dumbervm.kern_lk);
 		as_load_pagetable_from_swap(as, TLPTE_GET_SWAP_IDX(as->ptbase[vpn1]) , vpn1);
+		lock_release(dumbervm.kern_lk);
 	}
 
 	int vpn2 = VADDR_GET_VPN2(faultaddress);

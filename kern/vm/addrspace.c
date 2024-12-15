@@ -104,12 +104,12 @@ as_create(void)
 		return NULL;
 	}
 
-	as->address_lk = lock_create("address lock");
-	if (as->address_lk == NULL)
-	{
-		kfree(as);
-		return NULL;
-	}
+	// as->address_lk = lock_create("address lock");
+	// if (as->address_lk == NULL)
+	// {
+	// 	kfree(as);
+	// 	return NULL;
+	// }
 	lock_acquire(dumbervm.kern_lk);
 
 	as->user_heap_start = 0;
@@ -185,9 +185,9 @@ as_destroy(struct addrspace *as)
     }
 
     // Destroy the heap lock if it exists
-    if (as->address_lk != NULL) {
-        lock_destroy(as->address_lk);
-    }
+    // if (as->address_lk != NULL) {
+    //     lock_destroy(as->address_lk);
+    // }
 
     // Free the address space structure
     kfree(as);

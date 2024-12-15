@@ -101,7 +101,7 @@ struct addrspace {
         vaddr_t user_first_free_vaddr;
         int n_kuseg_pages_swap;
         int n_kuseg_pages_ram;
-        struct lock *address_lk;
+        //struct lock *address_lk;
 
         /* User stack */
         vaddr_t user_stackbase; // User stack is part of KUSEG so it is translated in the tlb
