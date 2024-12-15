@@ -118,66 +118,75 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
 	if (LLPTE_GET_SWAP_BIT(ll_pagetable_entry))
 	{
-		//vaddr_t swapped_page = swap_page(as, (vaddr_t*) ll_pagetable_va, vpn2, );
-		vaddr_t swapped_page;
-		if (as->n_kuseg_pages_allocated >= 7)
-		{
-			swapped_page = swap_page(as, (vaddr_t*) ll_pagetable_va, vpn2);
-		}
+		// Move the swap page into RAM. 
 
-		int num_swapped_pages;
+		const int n_proc_allowable_ram_pages = 7;
+		const int n_min_free_ram_pages_global = 10;
 
-		if (swapped_page == ENOMEM || as->n_kuseg_pages_allocated < 7)
+		// Case 1: This address space already hit its max RAM pages (around 7)
+		// What we should do: 
+		// Swap this new page into RAM and put another page in this AS into swap
+		// 1. Find a page in RAM that we can swap
+		// 2. Write that RAM page to a swap page
+		// 3. Move the page already in swap (faultaddress) into RAM
+		// 4. Free that swap page 
+		// 5. Update low level page table entries for both pages
+		if (as->n_kuseg_pages_allocated < n_proc_allowable_ram_pages)
 		{
-			if (dumbervm.n_ppages_allocated >= dumbervm.n_ppages - 10)
+			vaddr_t swappable_ram_page = find_swapable_page(as, NULL, false);
+			if (swappable_ram_page == 0)
 			{
-				for (unsigned i = 0; i < kproc_table->process_counter; i++)
-				{
-					if (i >= 2)
-					{
-						as_move_to_swap(kproc_table->processes[i]->p_addrspace, &num_swapped_pages);
-						break;
-					}
-				}
+				splx(spl);
+				if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
+				return ENOMEM; // should have passed this since we have free RAM pages
 			}
-		
-			vaddr_t kseg0_va = alloc_kpages(1);
-			if (kseg0_va == 0)
+			// move swapable ram page to swap
+			int swap_idx;
+			int err = write_page_to_swap(as, &swap_idx, (void *)LLPTE_MASK_PPN(ll_pagetable_entry));
+			if (err)
 			{
-				return ENOMEM;
+				splx(spl);
+				if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
+				return err;
 			}
-			read_from_swap(as, LLPTE_GET_SWAP_OFFSET(ll_pagetable_entry), dumbervm.swap_buffer);
-			memcpy((void *)kseg0_va, dumbervm.swap_buffer, PAGE_SIZE);
-			paddr_t pa = KSEG0_VADDR_TO_PADDR(kseg0_va);
-			ll_pagetable_va[vpn2] = pa | TLBLO_DIRTY | TLBLO_VALID;
-			ll_pagetable_entry = ll_pagetable_va[vpn2];
+			// move the page we want to swap into RAM
+			err = move_page_from_swap(as, vpn2, swap_idx);
 		}
-		else
-		{
-			ll_pagetable_entry = ll_pagetable_va[vpn2];
-			// Invalidate the stolen page
-			int idx = tlb_probe(swapped_page, 0);
 
-			if (idx >= 0)
+		// Case 2: Dumbervm has > 10 (or whatever the amount is) free pages left in RAM 
+		// What we should do: 
+		// Allocate a ppage and map this vaddr to it
+		else if (dumbervm.n_ppages_allocated < n_min_free_ram_pages_global)
+		{
+			// Allocate a page
+			vaddr_t kpage = alloc_kpages(1);
+			if (kpage == 0)
 			{
-				tlb_write(TLBHI_INVALID(idx),TLBLO_INVALID(), idx);
+				splx(spl);
+				if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
+				return ENOMEM; // should have passed this since we have free RAM pages
 			}
+			// Fill the page with zeros
+			as_zero_region(kpage, 1);
+
+			// Update the bitmap
+			spinlock_acquire(&dumbervm.ppage_bm_sl);
+			bitmap_mark(dumbervm.ppage_bm, kpage / PAGE_SIZE);
+			spinlock_release(&dumbervm.ppage_bm_sl);
+			dumbervm.n_ppages_allocated++;
+
+			// add the mapping in the low level page table
+
 		}
-		ll_pagetable_entry = ll_pagetable_va[vpn2];
-		// Invalidate the stolen page
-		int idx = tlb_probe(swapped_page, 0);
 
-		if (idx >= 0)
-		{
-			tlb_write(TLBHI_INVALID(idx),TLBLO_INVALID(), idx);
-		}
+		// Case 3: Address space not at its max RAM pages but dumbervm has < 10 free pages left in RAM
+		// What we should do: 
+		// There is no space in RAM to put this, so steal a RAM page from another process
+		// => While we haven't allocated 7 (or whatever the amount is) RAM pages, 
+		//    walk the proctable and move them to swap space
 
-	}
 
-	// if ((ll_pagetable_entry & TLBLO_VALID) == 0)
-	// {
-	// 	return EFAULT;
-	// }
+
 	
 	/** 
 	 * VM_FAULT_READONLY: Attempted to write to a TLB entry whose dirty bit is not set
