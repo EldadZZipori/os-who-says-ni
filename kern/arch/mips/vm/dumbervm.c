@@ -886,6 +886,7 @@ as_load_pagetable_from_swap(struct addrspace *as, int swap_idx, int vpn1)
 	read_from_swap(as, swap_idx, dumbervm.swap_buffer);
 	memcpy((void *)new_ram_page, dumbervm.swap_buffer, PAGE_SIZE);
 	// tlpte is now [  kseg0 vaddr of llpt | swap bit (zero in this case) ]
+	free_swap_page(as->ptbase[vpn1]);
 	as->ptbase[vpn1] = new_ram_page; 
 
 	return 0;
