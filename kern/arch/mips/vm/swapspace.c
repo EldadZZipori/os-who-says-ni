@@ -119,6 +119,11 @@ replace_ram_page_with_swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2)
 	int swap_idx = LLPTE_GET_SWAP_OFFSET(llpt[vpn2]);
 	bool did_find = true;
 	vaddr_t ram_page_vaddr = find_swapable_page(as, &did_find, false); // find a page that belongs to the user so we can steal it
+	struct tlbshootdown ts;
+	ts.va = ram_page_vaddr; 
+	//ipi_tlbshootdown_all(&ts);
+	vm_tlbshootdown(&ts);
+	
 	if (!did_find)
 	{
 		panic("\n7\n");
@@ -126,6 +131,7 @@ replace_ram_page_with_swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2)
 	}
 	int ram_page_vpn1 = VADDR_GET_VPN1(ram_page_vaddr);
 	int ram_page_vpn2 = VADDR_GET_VPN2(ram_page_vaddr);
+	
 	vaddr_t* ram_page_llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[ram_page_vpn1]); // get the original llpte
 	paddr_t ram_page = ram_page_llpt[ram_page_vpn2];  // get the physical address of the page we are going to use to store our data
 	paddr_t ram_ppn = LLPTE_MASK_PPN(ram_page); 
@@ -190,34 +196,28 @@ find_swapable_page(struct addrspace* as, bool* did_find, bool can_be_exec)
     int i = start_i;
     do {
         if (as->ptbase[i] != 0) {
-			if (TLPTE_GET_SWAP_BIT(as->ptbase[i]))
+			if (!TLPTE_GET_SWAP_BIT(as->ptbase[i]))
 			{
-				as_load_pagetable_from_swap(as, TLPTE_GET_SWAP_IDX(as->ptbase[i]) , i);
+				vaddr_t* llpt = (vaddr_t*) TLPTE_MASK_VADDR(as->ptbase[i]);
+				int j = start_j;
+				do {
+					is_executable =  LLPTE_GET_EXECUTABLE(llpt[j]);
+					/* 
+					* If is_executable & can_be_executable - can be returned - 1
+					* If is_executable & !can_be_executable - cannot returned - 0
+					* If !is_executable & can_be_executable - can return - 1
+					* If !is _executable & !can_be_executable  - can return - 1
+					*/
+					if (llpt[j] != 0 && !LLPTE_GET_SWAP_BIT(llpt[j])) {
+						if (!(is_executable && (can_be_exec == false)))
+						{
+							*did_find = true;
+							return (i << 22) | (j << 12);
+						}
+					}
+					j = (j + 1) ;//% 1024;
+				} while (j != 1024);
 			}
-            vaddr_t* llpt = (vaddr_t*) TLPTE_MASK_VADDR(as->ptbase[i]);
-            int j = start_j;
-            do {
-				is_executable =  LLPTE_GET_EXECUTABLE(llpt[j]);
-				/* 
-				 * If is_executable & can_be_executable - can be returned - 1
-				 * If is_executable & !can_be_executable - cannot returned - 0
-				 * If !is_executable & can_be_executable - can return - 1
-				 * If !is _executable & !can_be_executable  - can return - 1
-				 */
-                if (llpt[j] != 0 && !LLPTE_GET_SWAP_BIT(llpt[j])) {
-					if (is_executable && (can_be_exec == false))
-					{
-						j = (j + 1) ;//% 1024;
-						continue;
-					}
-					else
-					{
-						*did_find = true;
-						return (i << 22) | (j << 12);
-					}
-                }
-                j = (j + 1) ;//% 1024;
-            } while (j != 1024);
         }
         i = (i + 1) ;//% 1024;
     } while (i != 1024);

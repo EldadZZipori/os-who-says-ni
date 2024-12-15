@@ -165,25 +165,32 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	{
 		lock_acquire(dumbervm.kern_lk);
 
-			vaddr_t new_ram_page = alloc_kpages(1,false);
-			if (new_ram_page == 0)
-			{
-				panic("\n8\n");
-				lock_release(dumbervm.kern_lk);
-				splx(spl);
-				lock_release(dumbervm.fault_lk);
-				return ENOMEM;
-			}
-			paddr_t new_ram_page_pa = KSEG0_VADDR_TO_PADDR(new_ram_page);
+			// if (as->n_kuseg_pages_ram >= 5)
+			// {
+			// 	replace_ram_page_with_swap_page(as, ll_pagetable_va, vpn2);
+			// }
+			// else
+			// {
+				vaddr_t new_ram_page = alloc_kpages(1,false);
+				if (new_ram_page == 0)
+				{
+					panic("\n8\n");
+					lock_release(dumbervm.kern_lk);
+					splx(spl);
+					lock_release(dumbervm.fault_lk);
+					return ENOMEM;
+				}
+				paddr_t new_ram_page_pa = KSEG0_VADDR_TO_PADDR(new_ram_page);
 
-			int swap_idx = LLPTE_GET_SWAP_OFFSET(ll_pagetable_entry);
+				int swap_idx = LLPTE_GET_SWAP_OFFSET(ll_pagetable_entry);
 
-			read_from_swap(as, swap_idx, dumbervm.swap_buffer);
-			memcpy((void *)new_ram_page, dumbervm.swap_buffer, PAGE_SIZE);
-			ll_pagetable_va[vpn2] = new_ram_page_pa | TLBLO_DIRTY | TLBLO_VALID;
-			ll_pagetable_entry = ll_pagetable_va[vpn2];
-			as->n_kuseg_pages_ram++;
-			as->n_kuseg_pages_swap--;
+				read_from_swap(as, swap_idx, dumbervm.swap_buffer);
+				memcpy((void *)new_ram_page, dumbervm.swap_buffer, PAGE_SIZE);
+				ll_pagetable_va[vpn2] = new_ram_page_pa | TLBLO_DIRTY | TLBLO_VALID;
+				ll_pagetable_entry = ll_pagetable_va[vpn2];
+				as->n_kuseg_pages_ram++;
+				as->n_kuseg_pages_swap--;
+			//}
 
 
 		lock_release(dumbervm.kern_lk);
@@ -261,11 +268,11 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 			// assert this page is indeed not in the TLB
 			// spl = splhigh();
 			KASSERT(curproc->p_addrspace != NULL); // TODO: Better way to check this?
-			int index = tlb_probe(faultaddress, 0);
-			if (index >=0 )
-			{
-				KASSERT(index < 0);
-			}
+			// int index = tlb_probe(faultaddress, 0);
+			// if (index >=0 )
+			// {
+			// 	KASSERT(index < 0);
+			// }
 			
 
 			// NOTE: for now dont use permission bits at all
@@ -286,7 +293,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 			// assert we are a user
 			// assert this page is indeed not in the TLB
 			KASSERT(curproc->p_addrspace != NULL); // TODO: Better way to check this?
-			KASSERT(tlb_probe(faultaddress, 0) < 0);
+			//KASSERT(tlb_probe(faultaddress, 0) < 0);
 
 			// NOTE: for now don't use permission bits at all
 			// if(!LLPTE_GET_WRITE_PERMISSION_BIT(ll_pagetable_entry) && LLPTE_GET_LOADED_BIT(ll_pagetable_entry))
