@@ -77,7 +77,7 @@ vm_bootstrap(void)
 
 	dumbervm.ram_start = tracked_ram_start;
 
-	spinlock_init(&dumbervm.ppage_bm_sl);
+	//spinlock_init(&dumbervm.ppage_bm_sl);
 
 	dumbervm.vm_ready = true;
 	
@@ -464,9 +464,9 @@ getppages(unsigned long npages)
 		// get first free physical page 
 		// no mem left
 		unsigned int index;
-		spinlock_acquire(&dumbervm.ppage_bm_sl);
+		//spinlock_acquire(&dumbervm.ppage_bm_sl);
 		int result = bitmap_alloc_nbits(dumbervm.ppage_bm, dumbervm.ppage_lastpage_bm ,npages, &index);
-		spinlock_release(&dumbervm.ppage_bm_sl);
+		//spinlock_release(&dumbervm.ppage_bm_sl);
 
 		if (!result)
 		{
@@ -552,14 +552,14 @@ free_kpages(vaddr_t addr)
 	if ((paddr) % PAGE_SIZE == 0)
 	{
 		unsigned int ppage_index = ((paddr - dumbervm.ram_start) / PAGE_SIZE ); // Should be page aligned
-		spinlock_acquire(&dumbervm.ppage_bm_sl);
+		//spinlock_acquire(&dumbervm.ppage_bm_sl);
 
 		if (bitmap_isset(dumbervm.ppage_lastpage_bm, ppage_index)) // This is a single allocation
 		{
 			bitmap_unmark(dumbervm.ppage_bm, ppage_index);
 			dumbervm.n_ppages_allocated--;
 			bitmap_unmark(dumbervm.ppage_lastpage_bm, ppage_index);
-			spinlock_release(&dumbervm.ppage_bm_sl);
+			//spinlock_release(&dumbervm.ppage_bm_sl);
 			return;
 
 		}
@@ -574,7 +574,7 @@ free_kpages(vaddr_t addr)
 		dumbervm.n_ppages_allocated--;
 		bitmap_unmark(dumbervm.ppage_lastpage_bm, ppage_index);
 		
-		spinlock_release(&dumbervm.ppage_bm_sl);
+		//spinlock_release(&dumbervm.ppage_bm_sl);
 
 		fill_deadbeef((void * )addr, 1);
 

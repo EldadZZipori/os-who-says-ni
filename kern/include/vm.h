@@ -64,8 +64,8 @@ struct vm
     struct lock* fault_lk;
     struct lock* kern_lk;
 
-    struct spinlock ppage_bm_sl;
-    struct spinlock swap_bm_sl;
+    //struct spinlock ppage_bm_sl;
+   // struct spinlock swap_bm_sl;
 
     long swap_sz;
 

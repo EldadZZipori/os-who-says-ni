@@ -79,9 +79,9 @@ alloc_swap_page(void)
 {
 	// TODO: this is a bad return. we need to be able to find errors
 	unsigned int index;
-	spinlock_acquire(&dumbervm.swap_bm_sl);
+	//spinlock_acquire(&dumbervm.swap_bm_sl);
 	int result = bitmap_alloc(dumbervm.swap_bm, &index);
-	spinlock_release(&dumbervm.swap_bm_sl);
+	//spinlock_release(&dumbervm.swap_bm_sl);
 
 
 	if (!result)// this means there is space in the 
@@ -103,9 +103,9 @@ free_swap_page(paddr_t llpte)
 	KASSERT(swap_location%PAGE_SIZE == 0 || swap_location == 0);
 	
 
-	spinlock_acquire(&dumbervm.swap_bm_sl);
+	//spinlock_acquire(&dumbervm.swap_bm_sl);
 	bitmap_unmark(dumbervm.swap_bm, index);
-	spinlock_release(&dumbervm.swap_bm_sl);
+	//spinlock_release(&dumbervm.swap_bm_sl);
 
 	zero_swap_page(index);
 }
