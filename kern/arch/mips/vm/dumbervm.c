@@ -187,6 +187,9 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 				read_from_swap(as, swap_idx, dumbervm.swap_buffer);
 				memcpy((void *)new_ram_page, dumbervm.swap_buffer, PAGE_SIZE);
 				ll_pagetable_va[vpn2] = new_ram_page_pa | TLBLO_DIRTY | TLBLO_VALID;
+
+				free_swap_page(ll_pagetable_entry);
+
 				ll_pagetable_entry = ll_pagetable_va[vpn2];
 				as->n_kuseg_pages_ram++;
 				as->n_kuseg_pages_swap--;
