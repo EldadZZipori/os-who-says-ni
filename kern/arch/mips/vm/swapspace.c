@@ -121,6 +121,7 @@ replace_ram_page_with_swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2)
 	vaddr_t ram_page_vaddr = find_swapable_page(as, &did_find, false); // find a page that belongs to the user so we can steal it
 	if (!did_find)
 	{
+		panic("\n7\n");
 		return ENOMEM; // wasnt enough pages that we can swap.
 	}
 	int ram_page_vpn1 = VADDR_GET_VPN1(ram_page_vaddr);
@@ -134,6 +135,7 @@ replace_ram_page_with_swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2)
 	int result = read_from_swap(as, swap_idx, dumbervm.swap_buffer); // copy data from swap to a buffer before writing the stolen data to it
 	if (result)
 	{
+		
 		kprintf("dumbervm: problem reading from swap space\n");
 		return ENOMEM;
 	}

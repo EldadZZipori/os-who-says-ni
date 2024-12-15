@@ -46,12 +46,13 @@ sys_fork(struct trapframe *tf, int *retval)
     // check user doesn't already have too many processes
     // if already too many (for this user), return EMPROC, *not* ENPROC
     // TODO Assignment 5: Double check - there seems to be no user-process limit
-
+    lock_acquire(dumbervm.kern_lk);
     // Create a new process. NOTE: most is done in proc_create which cannot be accessed
     new_proc = proc_create_runprogram("forked process");
     if (new_proc == NULL) { 
         return ENOMEM; // ran out of space when kmalloc-ing proc
     }
+    lock_release(dumbervm.kern_lk);
 
     // 1. copy address space
     // TODO Assignment 5: Acquire locks for both processes?

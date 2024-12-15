@@ -439,6 +439,7 @@ as_move_to_swap(struct addrspace* as, int npages_to_swap,int *num_pages_swapped)
 						swap_idx = alloc_swap_page(); 
 						if (swap_idx == -1) 
 						{ 
+							panic("\n9\n");
 							return swap_idx; 
 						}
 						write_page_to_swap(as, swap_idx, (void *)PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(llpt[j]))); 
@@ -462,7 +463,6 @@ as_move_to_swap(struct addrspace* as, int npages_to_swap,int *num_pages_swapped)
 			} 			
 			// remove the low-level page table from RAM 
 			as_move_pagetable_to_swap(as, i);
-			(*num_pages_swapped)++;
 			if (npages_to_swap == (*num_pages_swapped))return 0;
 		} 
 	}
