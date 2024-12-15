@@ -205,6 +205,7 @@ find_swapable_page(struct addrspace* as, bool* did_find, bool can_be_exec)
     return 0; /* No swapable page found */
 }
 
+
 int 
 write_page_to_swap(struct addrspace* as, int swap_idx, void *buf)
 {

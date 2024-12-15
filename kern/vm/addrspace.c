@@ -41,6 +41,7 @@
 #include <vfs.h>
 #include <kern/fcntl.h>
 #include <kern/stat.h>
+#include <cpu.h>
 #include <vnode.h>
 #include <bitmap.h>
 #include <kern/swapspace.h>
@@ -311,7 +312,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 				return ENOMEM;
 			}
 			memcpy(new_as_llpt, old_as_llpt, PAGE_SIZE);
-			new->ptbase[i] = (vaddr_t)new_as_llpt | TLPTE_MASK_PAGE_COUNT((vaddr_t)old->ptbase[i]); // put in top-level pagetable
+			new->ptbase[i] = (vaddr_t)new_as_llpt; // put in top-level pagetable
 			
 			
 			for (int j = 0; j < 1024; j++)
@@ -405,12 +406,55 @@ as_move_to_swap(struct addrspace* as, int *num_pages_swapped)
 						 * if this is not the current address space
 						*/
 
+
 						(*num_pages_swapped)++;
 					} 
 				}
 			} 
+
+			// remove the low-level page table from RAM 
+			as_move_pagetable_to_swap(llpt);
+
+			/**
+			 * Invalidate the TLB entry for this page on other CPUs
+			*/
+			
 		} 
 	}
 
 	return 0; 
+}
+
+/**
+ * @brief move a lower-level page table to swap space
+ * 
+ * @param llpt lower-level page table (ptbase[i] suffices)
+ * 
+ * Replaces the llpt address (kseg0 vaddr) with the swap space index
+ */
+*/
+int
+as_move_pagetable_to_swap(vaddr_t* llpt)
+{
+	// Move the lower-level page table to swap space
+	// This is used when we are about to run out of memory
+	// We will move the lower-level page table to swap space 
+
+	// move it to swap space 
+	int swap_idx = alloc_swap_page(); 
+	if (swap_idx == -1) 
+	{ 
+		return swap_idx; 
+	}
+	write_page_to_swap(as, swap_idx, (void *)llpt); 
+
+	// Update the top-level page table entry to point to the swap space
+	llpt = swap_idx << 12 | 0b1; // set the swap bit	 
+
+	/**
+	 * In as_move_to_swap, we will invalidate the TLB entry for this page on other CPUs
+	*/
+
+	return 0; 
+
 }

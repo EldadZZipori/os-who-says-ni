@@ -64,7 +64,7 @@
 #define LLPTE_GET_SWAP_OFFSET(x)                ((x>>12) & 0xfffff)
 
 /* TLPTE MACROS */
-#define TLPTE_MASK_PAGE_COUNT(x)                ((x) & 0x00000fff)
+#define TLPTE_MASK_SWAP_BIT(x)                ((x) & 0x00000001)
 #define TLPTE_MASK_VADDR(x)                     ((x) & 0xfffff000)
 
 
@@ -180,6 +180,15 @@ int load_elf(struct vnode *v, vaddr_t *entrypoint);
 int
 as_move_to_swap(struct addrspace* as, int *num_pages_swapped);
 
+/**
+ * @brief move a lower-level page table to swap space
+ * 
+ * @param llpt lower-level page table (ptbase[i] suffices)
+ * 
+ * Replaces the llpt address (kseg0 vaddr) with the swap space index
+ */
+*/
+int as_move_pagetable_to_swap(vaddr_t* llpt);
 
 
 #endif /* _ADDRSPACE_H_ */
