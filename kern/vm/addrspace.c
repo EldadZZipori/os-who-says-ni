@@ -417,53 +417,52 @@ as_move_to_swap(struct addrspace* as, int npages_to_swap,int *num_pages_swapped)
 		if (as->ptbase[i] != 0) 
 		{ 
 			
-			if (TLPTE_GET_SWAP_BIT(as->ptbase[i]))
+			if (!TLPTE_GET_SWAP_BIT(as->ptbase[i]))
 			{
-				as_load_pagetable_from_swap(as, TLPTE_GET_SWAP_IDX(as->ptbase[i]) , i);
-			}
-			vaddr_t *llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[i]);
-			for (int j = 1023; j >= 0; j--) 
-			{ 
-
-				if (llpt[j] != 0) 
+				vaddr_t *llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[i]);
+				for (int j = 1023; j >= 0; j--) 
 				{ 
-					if (!LLPTE_GET_SWAP_BIT(llpt[j])) 
+
+					if (llpt[j] != 0) 
 					{ 
-						struct tlbshootdown ts;
-						ts.va = (i << 22) | (j << 12); 
-						ipi_tlbshootdown_all(&ts);
-						vm_tlbshootdown(&ts);
-						// page is not in swap space 
-						// move it to swap space 
-						int swap_idx = -1; 
-						swap_idx = alloc_swap_page(); 
-						if (swap_idx == -1) 
+						if (!LLPTE_GET_SWAP_BIT(llpt[j])) 
 						{ 
-							panic("\n9\n");
-							return swap_idx; 
-						}
-						write_page_to_swap(as, swap_idx, (void *)PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(llpt[j]))); 
+							struct tlbshootdown ts;
+							ts.va = (i << 22) | (j << 12); 
+							ipi_tlbshootdown_all(&ts);
+							vm_tlbshootdown(&ts);
+							// page is not in swap space 
+							// move it to swap space 
+							int swap_idx = -1; 
+							swap_idx = alloc_swap_page(); 
+							if (swap_idx == -1) 
+							{ 
+								panic("\n9\n");
+								return swap_idx; 
+							}
+							write_page_to_swap(as, swap_idx, (void *)PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(llpt[j]))); 
 
-						int32_t kseg0_vaddr = PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(llpt[j]));
+							int32_t kseg0_vaddr = PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(llpt[j]));
 
-						llpt[j] = LLPTE_SET_SWAP_BIT(swap_idx << 12); 
+							llpt[j] = LLPTE_SET_SWAP_BIT(swap_idx << 12); 
 
-						free_kpages(kseg0_vaddr);
-						/**
-						 * Invalidate the TLB entry for this page on other CPUs
-						 * if this is not the current address space
-						*/
-						as->n_kuseg_pages_ram--;
-						as->n_kuseg_pages_swap++;
+							free_kpages(kseg0_vaddr);
+							/**
+							 * Invalidate the TLB entry for this page on other CPUs
+							 * if this is not the current address space
+							*/
+							as->n_kuseg_pages_ram--;
+							as->n_kuseg_pages_swap++;
 
-						(*num_pages_swapped)++;
-						if (npages_to_swap == (*num_pages_swapped))return 0;
-					} 
-				}
-			} 			
-			// remove the low-level page table from RAM 
-			as_move_pagetable_to_swap(as, i);
-			if (npages_to_swap == (*num_pages_swapped))return 0;
+							(*num_pages_swapped)++;
+							if (npages_to_swap == (*num_pages_swapped))return 0;
+						} 
+					}
+				} 			
+				// remove the low-level page table from RAM 
+				as_move_pagetable_to_swap(as, i);
+				if (npages_to_swap == (*num_pages_swapped))return 0;
+			}
 		} 
 	}
 

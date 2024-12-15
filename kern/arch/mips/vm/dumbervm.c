@@ -24,6 +24,29 @@ static
 void
 fill_deadbeef(void *vptr, int npages);
 
+static 
+void vm_make_space()
+{
+	int npages_swapped = 0;
+	int temp_swapped = 0;
+	unsigned pid_counter = 1; 
+	//while (npages_swapped < 3 && (pid_counter < kproc_table->process_counter))
+	while (npages_swapped < 1 )
+	{
+		if ((unsigned)curproc->p_pid != pid_counter)
+		{
+			if (kproc_table->processes[pid_counter]->p_addrspace != NULL)
+			{
+				as_move_to_swap(kproc_table->processes[pid_counter]->p_addrspace, 50, &temp_swapped);
+				npages_swapped+= temp_swapped;
+			}
+		}
+
+		pid_counter++;
+		if (pid_counter >= kproc_table->process_counter) pid_counter = 1;
+	}
+
+}
 /* Virtual Machine */
 
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
@@ -228,28 +251,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		}
 		else
 		{
-			int npages_swapped = 0;
-			int temp_swapped = 0;
-			unsigned pid_counter = 1; 
-			//while (npages_swapped < 3 && (pid_counter < kproc_table->process_counter))
-			while (npages_swapped < 3 )
-			{
-				if ((unsigned)curproc->p_pid != pid_counter)
-				{
-					as_move_to_swap(kproc_table->processes[pid_counter]->p_addrspace, 50, &temp_swapped);
-					npages_swapped+= temp_swapped;
-				}
-
-				pid_counter++;
-				if (pid_counter >= kproc_table->process_counter) pid_counter = 1;
-			}
-			if (npages_swapped < 1) {
-				panic("\n10\n");
-				lock_release(dumbervm.kern_lk);
-				splx(spl);
-				lock_release(dumbervm.fault_lk);
-				return ENOMEM;
-			}
+			vm_make_space();
 
 			vaddr_t new_ram_page = alloc_kpages(1);
 			if (new_ram_page == 0)
@@ -495,6 +497,10 @@ vaddr_t
 alloc_kpages(unsigned npages)
 {
 	KASSERT(npages > 0);
+	if (dumbervm.n_ppages_allocated >= dumbervm.n_ppages -10)
+	{
+		vm_make_space();
+	}
 
 	paddr_t pa = getppages(npages);
 
