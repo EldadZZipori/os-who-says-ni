@@ -31,6 +31,12 @@ void vm_make_space()
 	int temp_swapped = 0;
 	unsigned pid_counter = 1; 
 	//while (npages_swapped < 3 && (pid_counter < kproc_table->process_counter))
+	if (kproc_table->process_counter == 2)// there are only one process
+	{
+		as_move_to_swap(kproc_table->processes[pid_counter]->p_addrspace, 20, &temp_swapped);
+	}
+	else
+	{
 	while (npages_swapped < 3 )
 	{
 		if ((unsigned)curproc->p_pid != pid_counter)
@@ -45,11 +51,9 @@ void vm_make_space()
 		pid_counter++;
 		if (pid_counter >= kproc_table->process_counter) pid_counter = 1;
 	}
+	}
 
-	// if (kproc_table->process_counter == 2)// there are only one process
-	// {
-	// 	as_move_to_swap(kproc_table->processes[pid_counter]->p_addrspace, 20, &temp_swapped);
-	// }
+
 
 }
 /* Virtual Machine */

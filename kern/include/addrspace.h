@@ -59,7 +59,7 @@
 #define LLPTE_MASK_NVDG_FLAGS(x)                ((x) & 0x00000f00)
 #define LLPTE_MASK_RWE_FLAGS(x)                 ((x) & 0x7)
 #define LLPTE_SET_SWAP_BIT(x)                   ((x) | 0b1000)
-#define LLPTE_UNSET_SWAP_BIT(x)                 ((x) & 0b0111)
+//#define LLPTE_UNSET_SWAP_BIT(x)                 ((x) & 0b0111)
 #define LLPTE_GET_SWAP_BIT(x)                   ((x>>3) & 0b1)
 #define LLPTE_GET_SWAP_OFFSET(x)                ((x>>12) & 0xfffff)
 

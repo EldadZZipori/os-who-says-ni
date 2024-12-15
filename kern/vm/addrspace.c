@@ -211,7 +211,7 @@ as_activate(bool invalidate)
 	if(invalidate)
 	{
 		invalidate_tlb();
-	}	
+	}
 }
 void
 as_deactivate(void)
