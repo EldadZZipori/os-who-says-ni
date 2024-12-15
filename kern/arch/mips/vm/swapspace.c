@@ -188,6 +188,10 @@ find_swapable_page(struct addrspace* as, bool* did_find, bool can_be_exec)
     int i = start_i;
     do {
         if (as->ptbase[i] != 0) {
+			if (TLPTE_GET_SWAP_BIT(as->ptbase[i]))
+			{
+				as_load_pagetable_from_swap(as, TLPTE_GET_SWAP_IDX(as->ptbase[i]) , i);
+			}
             vaddr_t* llpt = (vaddr_t*) TLPTE_MASK_VADDR(as->ptbase[i]);
             int j = start_j;
             do {

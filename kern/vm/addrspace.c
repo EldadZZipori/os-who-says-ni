@@ -144,6 +144,10 @@ as_destroy(struct addrspace *as)
         {
             if (as->ptbase[i] != 0)
             {
+				if (TLPTE_GET_SWAP_BIT(as->ptbase[i]))
+				{
+					as_load_pagetable_from_swap(as, TLPTE_GET_SWAP_IDX(as->ptbase[i]) , i);
+				}
                 // Extract the low-level page table virtual address by masking out flags
                 vaddr_t llpt_entry = as->ptbase[i];
                 vaddr_t llpt_vaddr = TLPTE_MASK_VADDR(llpt_entry);
@@ -309,6 +313,10 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	{
 		if (old->ptbase[i] != 0) 
 		{
+			if (TLPTE_GET_SWAP_BIT(old->ptbase[i]))
+			{
+				as_load_pagetable_from_swap(old, TLPTE_GET_SWAP_IDX(old->ptbase[i]) , i);
+			}		
 			// non-zero value in tlpt. copy llpt then go through it
 			vaddr_t *old_as_llpt = (vaddr_t *)TLPTE_MASK_VADDR(old->ptbase[i]);
 			vaddr_t *new_as_llpt = (vaddr_t *)alloc_kpages(1); // make it a pointer so we can treat as array
@@ -408,7 +416,11 @@ as_move_to_swap(struct addrspace* as, int npages_to_swap,int *num_pages_swapped)
 	{ 
 		if (as->ptbase[i] != 0) 
 		{ 
-			vaddr_t *llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[i]); 
+			vaddr_t *llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[i]);
+			if (TLPTE_GET_SWAP_BIT(as->ptbase[i]))
+			{
+				as_load_pagetable_from_swap(as, TLPTE_GET_SWAP_IDX(as->ptbase[i]) , i);
+			}
 			for (int j = 1023; j >= 0; j--) 
 			{ 
 				if (llpt[j] != 0) 
