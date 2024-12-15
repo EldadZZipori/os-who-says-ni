@@ -714,7 +714,7 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 	{
 		free_swap_page(llpte);
 		llpt[vpn2] = 0;
-		as->n_kuseg_pages_swap++;
+		as->n_kuseg_pages_swap--;
 	}
 	else
 	{
