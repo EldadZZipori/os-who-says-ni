@@ -17,6 +17,7 @@
 #include <uio.h>
 #include <kern/swapspace.h>
 #include <proctable.h>
+#include <swapspace.h>
 
 
 static
@@ -140,17 +141,29 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 				if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
 				return ENOMEM; // should have passed this since we have free RAM pages
 			}
+
 			// move swapable ram page to swap
-			int swap_idx;
-			int err = write_page_to_swap(as, &swap_idx, (void *)LLPTE_MASK_PPN(ll_pagetable_entry));
-			if (err)
+			int swap_idx = alloc_swap_page();
+			if (swap_idx == -1)
 			{
 				splx(spl);
 				if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
-				return err;
+				return ENOMEM; // should have passed this since we have free swap pages
 			}
-			// move the page we want to swap into RAM
-			err = move_page_from_swap(as, vpn2, swap_idx);
+			// write the data in the ram page to the swap page
+			// NOTE: Not sure if this vaddr is the correct format
+			write_page_to_swap(as, swap_idx, (void *)swappable_ram_page);
+
+			// move the swap page into RAM
+			read_from_swap(as, LLPTE_GET_SWAP_OFFSET(ll_pagetable_entry), (void *)swappable_ram_page);
+
+			// free the swap page
+			free_swap_page(ll_pagetable_entry);
+
+			// update the low level page table entries, not sure if this is right
+			ll_pagetable_va[vpn2] = LLPTE_UNSET_SWAP_BIT(ll_pagetable_entry); // remove the swap bit
+			ll_pagetable_va[vpn2] = LLPTE_MASK_PPN(swappable_ram_page); // set the physical page number
+	
 		}
 
 		// Case 2: Dumbervm has > 10 (or whatever the amount is) free pages left in RAM 
@@ -166,17 +179,6 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 				if (dumbervm.ram_lk != NULL) lock_release(dumbervm.ram_lk);
 				return ENOMEM; // should have passed this since we have free RAM pages
 			}
-			// Fill the page with zeros
-			as_zero_region(kpage, 1);
-
-			// Update the bitmap
-			spinlock_acquire(&dumbervm.ppage_bm_sl);
-			bitmap_mark(dumbervm.ppage_bm, kpage / PAGE_SIZE);
-			spinlock_release(&dumbervm.ppage_bm_sl);
-			dumbervm.n_ppages_allocated++;
-
-			// add the mapping in the low level page table
-
 		}
 
 		// Case 3: Address space not at its max RAM pages but dumbervm has < 10 free pages left in RAM
