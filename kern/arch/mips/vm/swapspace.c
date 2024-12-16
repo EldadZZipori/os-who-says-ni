@@ -78,22 +78,14 @@ swap_space_bootstrap(void)
 	{
 		panic("dumbervm: can't survive without a exec_lk lock and swap space");
 	}
-		dumbervm.fork_lk = lock_create("fork lk");
-	if (dumbervm.fork_lk == NULL)
-	{
-		panic("dumbervm: can't survive without a fork_lk lock and swap space");
-	}
+
 }
 
 int 
 alloc_swap_page(void)
 {
-	// TODO: this is a bad return. we need to be able to find errors
 	unsigned int index;
-	//spinlock_acquire(&dumbervm.swap_bm_sl);
 	int result = bitmap_alloc(dumbervm.swap_bm, &index);
-	//spinlock_release(&dumbervm.swap_bm_sl);
-
 
 	if (!result)// this means there is space in the 
 	{
@@ -101,8 +93,6 @@ alloc_swap_page(void)
 	}
 
 	return -1;
-
-
 }
 
 void 
@@ -113,10 +103,7 @@ free_swap_page(paddr_t llpte)
 
 	KASSERT(swap_location%PAGE_SIZE == 0 || swap_location == 0);
 	
-
-	//spinlock_acquire(&dumbervm.swap_bm_sl);
 	bitmap_unmark(dumbervm.swap_bm, index);
-	//spinlock_release(&dumbervm.swap_bm_sl);
 
 	zero_swap_page(index);
 }
@@ -132,7 +119,7 @@ replace_ram_page_with_swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2)
 	vaddr_t ram_page_vaddr = find_swapable_page(as, &did_find, true); // find a page that belongs to the user so we can steal it
 	struct tlbshootdown ts;
 	ts.va = ram_page_vaddr; 
-	//ipi_tlbshootdown_all(&ts);
+	ipi_tlbshootdown_all(&ts);
 	vm_tlbshootdown(&ts);
 	
 	if (!did_find)

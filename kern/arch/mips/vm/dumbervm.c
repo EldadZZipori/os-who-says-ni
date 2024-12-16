@@ -21,10 +21,11 @@
 #include <cpu.h>
 
 
-// static
-// void
-// fill_deadbeef(void *vptr, int npages);
-
+/**
+ * Helper function to make more memory in the system.
+ * If the kernel sees it doesn't have enough space for an allocation, go to a process 
+ * and move some of its pages into swap space.
+ * */ 
 static 
 void vm_make_space()
 {
@@ -32,10 +33,13 @@ void vm_make_space()
 	int temp_swapped = 0;
 	unsigned pid_counter = 1; 
 
+	// Try to find at least 3 free pages
 	while (npages_swapped < 3 )
 	{
+		// Do not steel from the currently running process as that might cause some issues
 		if ((unsigned)curproc->p_pid != pid_counter)
 		{
+			// check that the process exists and actually has an active addressspace
 			if (kproc_table->processes[pid_counter] != NULL && kproc_table->processes[pid_counter]->p_addrspace != NULL)
 			{
 				as_move_to_swap(kproc_table->processes[pid_counter]->p_addrspace, 50, &temp_swapped);
@@ -44,7 +48,7 @@ void vm_make_space()
 		}
 
 		pid_counter++;
-		if (pid_counter >= kproc_table->process_counter) pid_counter = 1;
+		if (pid_counter >= kproc_table->process_counter) return;
 	}
 
 }
@@ -329,13 +333,6 @@ getppages(unsigned long npages)
 
 }
 
-/**
- * @brief Allocates a page for the kernel. This allocates continuous pages. 
- * 
- * @param npages number of pages to be allocated
- * 
- * @return the virtual address (KSEG0) of the first allocated page.
- */
 vaddr_t
 alloc_kpages(unsigned npages, bool kmalloc)
 {
@@ -390,29 +387,19 @@ free_kpages(vaddr_t addr, bool is_kfree)
 	KASSERT(addr >= MIPS_KSEG0);
 	KASSERT(addr < MIPS_KSEG0_RAM_END);
 	(void)is_kfree;
-	// if (is_kfree && dumbervm.swap_buffer!=NULL)
-	// {
-	// 	lock_acquire(dumbervm.kern_lk);
-	// }
 	paddr_t paddr = addr - MIPS_KSEG0;
 
 	// For now, just remove a single page.
-	//memlist_remove(dumbervm.ppage_memlist, paddr);
 	if ((paddr) % PAGE_SIZE == 0)
 	{
 		unsigned int ppage_index = ((paddr - dumbervm.ram_start) / PAGE_SIZE ); // Should be page aligned
-		//spinlock_acquire(&dumbervm.ppage_bm_sl);
 
 		if (bitmap_isset(dumbervm.ppage_lastpage_bm, ppage_index)) // This is a single allocation
 		{
 			bitmap_unmark(dumbervm.ppage_bm, ppage_index);
 			dumbervm.n_ppages_allocated--;
 			bitmap_unmark(dumbervm.ppage_lastpage_bm, ppage_index);
-			//spinlock_release(&dumbervm.ppage_bm_sl);
-			// if (is_kfree && dumbervm.swap_buffer!=NULL)
-			// {
-			// 	lock_release(dumbervm.kern_lk);
-			// }
+
 			return;
 
 		}
@@ -427,15 +414,8 @@ free_kpages(vaddr_t addr, bool is_kfree)
 		dumbervm.n_ppages_allocated--;
 		bitmap_unmark(dumbervm.ppage_lastpage_bm, ppage_index);
 		
-		//spinlock_release(&dumbervm.ppage_bm_sl);
-
-		//fill_deadbeef((void * )addr, 1);
 
 	}
-	// if (is_kfree && dumbervm.swap_buffer!=NULL)
-	// {
-	// 	lock_release(dumbervm.kern_lk);
-	// }
 }
 
 /* User Page Managment */
@@ -564,9 +544,16 @@ free_upages(struct addrspace* as, vaddr_t vaddr)
 	}
 	else
 	{
-		 free_kpages(PADDR_TO_KSEG0_VADDR(paddr),false);
+		free_kpages(PADDR_TO_KSEG0_VADDR(paddr),false);
 		llpt[vpn2] = 0;
 		as->n_kuseg_pages_ram--;
+
+		// invalidate tlb entry if in TLB
+		int tlb_idx = tlb_probe(vaddr, 0);
+		if (tlb_idx >= 0)
+		{
+			tlb_write(TLBHI_INVALID(tlb_idx), TLBLO_INVALID(), tlb_idx);
+		}
 	}
 
 	lock_release(dumbervm.kern_lk);
@@ -631,16 +618,3 @@ get_lltpe(struct addrspace* as,vaddr_t vaddr)
 
 	return ll_pagetable_va[vpn2];
 }
-
-
-// static
-// void
-// fill_deadbeef(void *vptr, int npages)
-// {
-// 	uint32_t *ptr = vptr;
-// 	size_t i;
-
-// 	for (i=0; i<(npages * PAGE_SIZE)/sizeof(uint32_t); i++) {
-// 		ptr[i] = 0xdeadbeef;
-// 	}
-// }
