@@ -600,15 +600,14 @@ swap_test(int n, char **a)
 	{
 		va = (vaddr_t )(0x1000 * (i+1));
 		alloc_upages(as, &va, 1, &in_swap, 0,0,!i);
-		//va = (vaddr_t)va; // write the address as the data 
-		va-=0x1000;
+		va-=PAGE_SIZE;
 		*((vaddr_t *)va) = i;
 		kprintf("vaddr: %d, in_swap: %d\n", (unsigned)va, !i);
 	}
 
 	for (int i = 0; i < 8; i++)
 	{
-		va = (vaddr_t )(0x1000 * (i+1));
+		va = (vaddr_t )(PAGE_SIZE * (i+1));
 		kprintf("vaddr: %d, data: %d\n", (unsigned)va, *((vaddr_t *)va));
 	}
 	

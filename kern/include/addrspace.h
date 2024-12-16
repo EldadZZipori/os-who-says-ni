@@ -164,7 +164,13 @@ int               as_define_region(struct addrspace *as,
 int               as_prepare_load(struct addrspace *as);
 int               as_complete_load(struct addrspace *as);
 int               as_define_stack(struct addrspace *as, vaddr_t *initstackptr);
+int               load_elf(struct vnode *v, vaddr_t *entrypoint);
 
+
+
+/*
+ * Additional Code for Virtual Machine implementation
+ */
 
 void as_zero_region(vaddr_t va, unsigned npages);
 int as_create_stack(struct addrspace* as);
@@ -177,10 +183,34 @@ zero_swap_page(int swap_idx);
  *               in the space pointed to by ENTRYPOINT.
  */
 
-int load_elf(struct vnode *v, vaddr_t *entrypoint);
 
 int
 as_move_to_swap(struct addrspace* as, int as_move_to_swap,int *num_pages_swapped);
 
 
+/** 
+ * @brief 
+ * 
+ * @param swap_idx swap page number 
+ * @param vpn1 index into top-level page table to move this into
+ * 
+ * Allocates a kpage to move the swap data into RAM 
+ * 
+ * updates the tlpte with the new paddr. 
+ * 
+ **/
+ 
+int
+as_load_pagetable_from_swap(struct addrspace *as, int swap_idx, int vpn1);
+
+/**
+ * @brief move a lower-level page table to swap space
+ * 
+ * @param llpt lower-level page table (ptbase[i] suffices)
+ * 
+ * Replaces the llpt address (kseg0 vaddr) with the swap space index
+ */
+
+int
+as_move_pagetable_to_swap(struct addrspace* as, int vpn1)
 #endif /* _ADDRSPACE_H_ */

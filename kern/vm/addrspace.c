@@ -103,13 +103,6 @@ as_create(void)
 	if (as==NULL) {
 		return NULL;
 	}
-
-	// as->address_lk = lock_create("address lock");
-	// if (as->address_lk == NULL)
-	// {
-	// 	kfree(as);
-	// 	return NULL;
-	// }
 	lock_acquire(dumbervm.kern_lk);
 
 	as->user_heap_start = 0;
@@ -184,10 +177,6 @@ as_destroy(struct addrspace *as)
         free_kpages((vaddr_t)as->ptbase, false);
     }
 
-    // Destroy the heap lock if it exists
-    // if (as->address_lk != NULL) {
-    //     lock_destroy(as->address_lk);
-    // }
 
     // Free the address space structure
     kfree(as);
@@ -457,4 +446,52 @@ as_move_to_swap(struct addrspace* as, int npages_to_swap,int *num_pages_swapped)
 	}
 
 	return 0; 
+}
+
+int
+as_move_pagetable_to_swap(struct addrspace* as, int vpn1)
+{
+	// Move the lower-level page table to swap space
+	// This is used when we are about to run out of memory
+	// We will move the lower-level page table to swap space
+	KASSERT(TLPTE_GET_SWAP_BIT(as->ptbase[vpn1]) == 0); // should not be in swap space already
+
+	// move it to swap space 
+	int swap_idx = alloc_swap_page(); 
+	if (swap_idx == -1) 
+	{ 
+		panic("\n9\n");
+		return swap_idx; 
+	}
+	// buf should be a kseg0 vaddr?
+	write_page_to_swap(as, swap_idx, (void *)TLPTE_MASK_VADDR(as->ptbase[vpn1])); 
+	free_kpages(as->ptbase[vpn1],false);
+	// Update the top-level page table entry to point to the swap space
+	as->ptbase[vpn1] = (vaddr_t)(swap_idx << 12 | 0b1); // set the swap bit	 
+	
+
+	return 0; 
+}
+
+int
+as_load_pagetable_from_swap(struct addrspace *as, int swap_idx, int vpn1)
+{
+	KASSERT(TLPTE_GET_SWAP_BIT(as->ptbase[vpn1]) == 1);
+
+	// not grabbing kern lock because we should already have it. 
+	
+	vaddr_t new_ram_page = alloc_kpages(1,false);
+	if (new_ram_page == 0)
+	{
+		panic("\n5\n");
+		return ENOMEM;
+	}
+
+	read_from_swap(as, swap_idx, dumbervm.swap_buffer);
+	memcpy((void *)new_ram_page, dumbervm.swap_buffer, PAGE_SIZE);
+	// tlpte is now [  kseg0 vaddr of llpt | swap bit (zero in this case) ]
+	free_swap_page(as->ptbase[vpn1]);
+	as->ptbase[vpn1] = new_ram_page; 
+
+	return 0;
 }
