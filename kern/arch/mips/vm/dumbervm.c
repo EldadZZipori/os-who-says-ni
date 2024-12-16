@@ -18,11 +18,12 @@
 #include <kern/swapspace.h>
 #include <proctable.h>
 #include <kern/swapspace.h>
+#include <cpu.h>
 
 
-static
-void
-fill_deadbeef(void *vptr, int npages);
+// static
+// void
+// fill_deadbeef(void *vptr, int npages);
 
 static 
 void vm_make_space()
@@ -345,7 +346,7 @@ vaddr_t
 alloc_kpages(unsigned npages, bool kmalloc)
 {
 	KASSERT(npages > 0);
-	if (kmalloc && dumbervm.swap_buffer!=NULL)
+	if (kmalloc && dumbervm.swap_buffer!=NULL && curcpu->c_spinlocks !=1)
 	{
 		lock_acquire(dumbervm.kern_lk);
 	}
@@ -357,7 +358,7 @@ alloc_kpages(unsigned npages, bool kmalloc)
 	paddr_t pa = getppages(npages);
 
 	if (pa == 0) {
-		if (kmalloc && dumbervm.swap_buffer!=NULL)
+		if (kmalloc && dumbervm.swap_buffer!=NULL&& curcpu->c_spinlocks !=1)
 		{
 			lock_release(dumbervm.kern_lk);
 		}
@@ -366,7 +367,7 @@ alloc_kpages(unsigned npages, bool kmalloc)
 
 	if (pa % PAGE_SIZE != 0)
 	{
-		if (kmalloc && dumbervm.swap_buffer!=NULL)
+		if (kmalloc && dumbervm.swap_buffer!=NULL&& curcpu->c_spinlocks !=1)
 		{
 			lock_release(dumbervm.kern_lk);
 		}
@@ -381,7 +382,7 @@ alloc_kpages(unsigned npages, bool kmalloc)
 	KASSERT(va >= MIPS_KSEG0);
 	KASSERT(va < MIPS_KSEG0_RAM_END);
 
-	if (kmalloc && dumbervm.swap_buffer!=NULL)
+	if (kmalloc && dumbervm.swap_buffer!=NULL&& curcpu->c_spinlocks !=1)
 	{
 		lock_release(dumbervm.kern_lk);
 	}
@@ -434,7 +435,7 @@ free_kpages(vaddr_t addr, bool is_kfree)
 		
 		//spinlock_release(&dumbervm.ppage_bm_sl);
 
-		fill_deadbeef((void * )addr, 1);
+		//fill_deadbeef((void * )addr, 1);
 
 	}
 	// if (is_kfree && dumbervm.swap_buffer!=NULL)
@@ -638,14 +639,14 @@ get_lltpe(struct addrspace* as,vaddr_t vaddr)
 }
 
 
-static
-void
-fill_deadbeef(void *vptr, int npages)
-{
-	uint32_t *ptr = vptr;
-	size_t i;
+// static
+// void
+// fill_deadbeef(void *vptr, int npages)
+// {
+// 	uint32_t *ptr = vptr;
+// 	size_t i;
 
-	for (i=0; i<(npages * PAGE_SIZE)/sizeof(uint32_t); i++) {
-		ptr[i] = 0xdeadbeef;
-	}
-}
+// 	for (i=0; i<(npages * PAGE_SIZE)/sizeof(uint32_t); i++) {
+// 		ptr[i] = 0xdeadbeef;
+// 	}
+// }

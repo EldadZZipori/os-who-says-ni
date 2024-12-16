@@ -100,10 +100,9 @@ __waitpid(int pid, int* status, int options)
 
     curproc->state = RUNNING;
 
-    int og_size = curproc->children_size;
     //if (strcmp(curproc->p_name, "[kernel]") == 0) // if we are the kernel, clean our children when we return
     //{
-    for (int i = 0; i < og_size; i++)
+    for (int i = 0; i < MAX_CHILDREN_PER_PERSON; i++)
     {
         if (curproc->children[i] != NULL && curproc->children[i]->p_pid == pid)
         {
@@ -111,7 +110,6 @@ __waitpid(int pid, int* status, int options)
             proc_destroy(curproc->children[i]);
             curproc->children[i] = NULL;
             curproc->children_size--;
-            break;
         }
     }
     //}
