@@ -63,8 +63,23 @@ During assignment 6 we also added more logic to the processes cleanup flow. If t
 it will cleanup whoever was returned.
 
 ## Assignment 6: Implementing Virtual Memory 
-Status: In progress
+Status: Done
 
+### Tests
+#### 512KB Version
+- [x] km1
+- [x] km2
+- [x] km3
+- [x] forktest
+- [x] multiexec
+- [x] sbrk 1-17
+- [x] Palin
+
+#### 16MB Version
+- [x] sort, triplesort, and quintsort
+- [x] matmult, triplemat ,and quintmat
+- [ ] huge
+ 
 ### Virtual Machine
 The code implemented for this assignment can be found in the following files:
 - `kern/arch/mips/vm/`  directory for machine depended code for the virutal machine
