@@ -416,7 +416,6 @@ as_move_to_swap(struct addrspace* as, int npages_to_swap, int *num_pages_swapped
 							swap_idx = alloc_swap_page(); 
 							if (swap_idx == -1) 
 							{ 
-								panic("\n9\n");
 								return swap_idx; 
 							}
 							write_page_to_swap(as, swap_idx, (void *)PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(llpt[j]))); 
@@ -460,7 +459,6 @@ as_move_pagetable_to_swap(struct addrspace* as, int vpn1)
 	int swap_idx = alloc_swap_page(); 
 	if (swap_idx == -1) 
 	{ 
-		panic("\n9\n");
 		return swap_idx; 
 	}
 	// buf should be a kseg0 vaddr?
@@ -483,7 +481,6 @@ as_load_pagetable_from_swap(struct addrspace *as, int swap_idx, int vpn1)
 	vaddr_t new_ram_page = alloc_kpages(1,false);
 	if (new_ram_page == 0)
 	{
-		panic("\n5\n");
 		return ENOMEM;
 	}
 

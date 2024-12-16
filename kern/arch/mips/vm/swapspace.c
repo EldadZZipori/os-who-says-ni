@@ -137,7 +137,6 @@ replace_ram_page_with_swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2)
 	
 	if (!did_find)
 	{
-		panic("\n7\n");
 		return ENOMEM; // wasnt enough pages that we can swap.
 	}
 	int ram_page_vpn1 = VADDR_GET_VPN1(ram_page_vaddr);

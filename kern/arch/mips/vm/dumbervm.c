@@ -94,7 +94,6 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		 * in boot. Return EFAULT so as to panic instead of
 		 * getting into an infinite faulting loop.
 		 */
-		panic("\n1\n");
 		lock_release(dumbervm.fault_lk);
 		return EFAULT;
 	}
@@ -105,7 +104,6 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		 * No address space set up. This is probably also a
 		 * kernel fault early in boot.
 		 */
-		panic("\n2\n");
 		lock_release(dumbervm.fault_lk);
 		return EFAULT;
 	}
@@ -115,7 +113,6 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	/* Tried to access kernel memory */
 	if (faultaddress >= MIPS_KSEG0)
 	{
-		panic("\n3\n");
 		splx(spl);
 		lock_release(dumbervm.kern_lk);
 		lock_release(dumbervm.fault_lk);
@@ -128,7 +125,6 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	/* Case: This translation does not exist. Fail. */
 	if(as->ptbase[vpn1] ==  0)
 	{
-		panic("\n4\n");
 		splx(spl);
 		lock_release(dumbervm.kern_lk);
 		lock_release(dumbervm.fault_lk);
@@ -146,7 +142,6 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	paddr_t ll_pagetable_entry = ll_pagetable_va[vpn2];
 	if (ll_pagetable_entry == 0) // there is no entry in the low level page table entry
 	{
-		panic("\n6\n");
 		splx(spl);
 		lock_release(dumbervm.kern_lk);
 		lock_release(dumbervm.fault_lk);
@@ -165,7 +160,6 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 				vaddr_t new_ram_page = alloc_kpages(1,false);
 				if (new_ram_page == 0)
 				{
-					panic("\n8\n");
 					splx(spl);
 					lock_release(dumbervm.kern_lk);
 					lock_release(dumbervm.fault_lk);
