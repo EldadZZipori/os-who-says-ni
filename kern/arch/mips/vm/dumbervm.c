@@ -862,10 +862,6 @@ as_move_pagetable_to_swap(struct addrspace* as, int vpn1)
 	as->ptbase[vpn1] = (vaddr_t)(swap_idx << 12 | 0b1); // set the swap bit	 
 	
 
-	/**
-	 * In as_move_to_swap, we will invalidate the TLB entry for this page on other CPUs
-	*/
-
 	return 0; 
 }
 
@@ -884,6 +880,8 @@ as_move_pagetable_to_swap(struct addrspace* as, int vpn1)
 int
 as_load_pagetable_from_swap(struct addrspace *as, int swap_idx, int vpn1)
 {
+	KASSERT(TLPTE_GET_SWAP_BIT(as->ptbase[vpn1]) == 1);
+
 	// not grabbing kern lock because we should already have it. 
 	
 	vaddr_t new_ram_page = alloc_kpages(1);
