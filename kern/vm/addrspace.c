@@ -374,7 +374,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 }
 
 int 
-as_move_to_swap(struct addrspace* as, int npages_to_swap,int *num_pages_swapped) 
+as_move_to_swap(struct addrspace* as, int npages_to_swap, int *num_pages_swapped) 
 { 
 	KASSERT(as != NULL);
 

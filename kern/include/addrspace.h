@@ -164,6 +164,13 @@ int               as_define_region(struct addrspace *as,
 int               as_prepare_load(struct addrspace *as);
 int               as_complete_load(struct addrspace *as);
 int               as_define_stack(struct addrspace *as, vaddr_t *initstackptr);
+
+/*
+ * Functions in loadelf.c
+ *    load_elf - load an ELF user program executable into the current
+ *               address space. Returns the entry point (initial PC)
+ *               in the space pointed to by ENTRYPOINT.
+ */
 int               load_elf(struct vnode *v, vaddr_t *entrypoint);
 
 
@@ -172,20 +179,33 @@ int               load_elf(struct vnode *v, vaddr_t *entrypoint);
  * Additional Code for Virtual Machine implementation
  */
 
-void as_zero_region(vaddr_t va, unsigned npages);
-int as_create_stack(struct addrspace* as);
+void 
+as_zero_region(vaddr_t va, unsigned npages);
+
+
+/** 
+ * @brief allocates stack pages for a users stack
+ * 
+ * @param as address space to allocate stack region for
+ * 
+ * @return 0 on success, error otherwise
+ * 
+ **/
 int 
-zero_swap_page(int swap_idx);
-/*
- * Functions in loadelf.c
- *    load_elf - load an ELF user program executable into the current
- *               address space. Returns the entry point (initial PC)
- *               in the space pointed to by ENTRYPOINT.
- */
+as_create_stack(struct addrspace* as);
 
 
+/** 
+ * @brief moves ram pages from an addresspace to swap
+ * 
+ * @param npages_to_swap max number to move swap
+ * @param num_pages_swapped number of pages that were actually moved to swap
+ * 
+ * @return 0 on success, -1 on failirue
+ * 
+ **/
 int
-as_move_to_swap(struct addrspace* as, int as_move_to_swap,int *num_pages_swapped);
+as_move_to_swap(struct addrspace* as, int npages_to_swap, int *num_pages_swapped);
 
 
 /** 
@@ -199,7 +219,6 @@ as_move_to_swap(struct addrspace* as, int as_move_to_swap,int *num_pages_swapped
  * updates the tlpte with the new paddr. 
  * 
  **/
- 
 int
 as_load_pagetable_from_swap(struct addrspace *as, int swap_idx, int vpn1);
 

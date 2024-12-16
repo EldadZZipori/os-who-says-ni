@@ -105,4 +105,14 @@ free_swap_page(paddr_t llpte);
 paddr_t
 replace_ram_page_with_swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2);
 
+/**
+ * @brief zeros a swap region 
+ * 
+ * @param swap_idx page index in the swap
+ * 
+ * @return returns 0 on success, fault otherwise
+ * 
+ */
+int 
+zero_swap_page(int swap_idx);
 #endif

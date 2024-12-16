@@ -77,7 +77,6 @@ sys_sbrk (int amount, int* retval)
         result = alloc_heap_upages(as, npages);
         if (result)
         {
-           /
             return result;
         }
     }
