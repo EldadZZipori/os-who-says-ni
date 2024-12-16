@@ -74,9 +74,14 @@ swap_space_bootstrap(void)
 	}
 
 	dumbervm.exec_lk = lock_create("exec lk");
-		if (dumbervm.exec_lk == NULL)
+	if (dumbervm.exec_lk == NULL)
 	{
 		panic("dumbervm: can't survive without a exec_lk lock and swap space");
+	}
+		dumbervm.fork_lk = lock_create("fork lk");
+	if (dumbervm.fork_lk == NULL)
+	{
+		panic("dumbervm: can't survive without a fork_lk lock and swap space");
 	}
 }
 
