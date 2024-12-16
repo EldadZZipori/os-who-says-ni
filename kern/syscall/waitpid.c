@@ -103,17 +103,17 @@ __waitpid(int pid, int* status, int options)
     int og_size = curproc->children_size;
     //if (strcmp(curproc->p_name, "[kernel]") == 0) // if we are the kernel, clean our children when we return
     //{
-        for (int i = 0; i < og_size; i++)
+    for (int i = 0; i < og_size; i++)
+    {
+        if (curproc->children[i] != NULL && curproc->children[i]->p_pid == pid)
         {
-            if (curproc->children[i] != NULL && curproc->children[i]->p_pid == pid)
-            {
-                lock_acquire(curproc->children[i]->children_lk);
-                proc_destroy(curproc->children[i]);
-                curproc->children[i] = NULL;
-                curproc->children_size--;
-                break;
-            }
+            lock_acquire(curproc->children[i]->children_lk);
+            proc_destroy(curproc->children[i]);
+            curproc->children[i] = NULL;
+            curproc->children_size--;
+            break;
         }
+    }
     //}
     
 

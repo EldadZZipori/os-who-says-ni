@@ -121,6 +121,8 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		return EFAULT;
 	}
 	spl = splhigh();
+	lock_acquire(dumbervm.kern_lk);
+
 	/* Tried to access kernel memory */
 	if (faultaddress >= MIPS_KSEG0)
 	{
@@ -144,9 +146,8 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	/* Case: TLPT is in swap space. Load it in and continue */
 	else if (TLPTE_GET_SWAP_BIT(as->ptbase[vpn1]))
 	{
-		lock_acquire(dumbervm.kern_lk);
 		as_load_pagetable_from_swap(as, TLPTE_GET_SWAP_IDX(as->ptbase[vpn1]) , vpn1);
-		lock_release(dumbervm.kern_lk);
+		//lock_release(dumbervm.kern_lk);
 	}
 
 	int vpn2 = VADDR_GET_VPN2(faultaddress);
@@ -160,17 +161,17 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		lock_release(dumbervm.fault_lk);
 		return EFAULT;
 	}
-
+	//lock_acquire(dumbervm.kern_lk);
 	if (LLPTE_GET_SWAP_BIT(ll_pagetable_entry))
 	{
-		lock_acquire(dumbervm.kern_lk);
+		
 
-			// if (as->n_kuseg_pages_ram >= 5)
-			// {
-			// 	replace_ram_page_with_swap_page(as, ll_pagetable_va, vpn2);
-			// }
-			// else
-			// {
+			if (as->n_kuseg_pages_ram >= 1 && dumbervm.n_ppages_allocated >= dumbervm.n_ppages)
+			{
+				replace_ram_page_with_swap_page(as, ll_pagetable_va, vpn2);
+			}
+			else
+			{
 				vaddr_t new_ram_page = alloc_kpages(1,false);
 				if (new_ram_page == 0)
 				{
@@ -193,10 +194,10 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 				ll_pagetable_entry = ll_pagetable_va[vpn2];
 				as->n_kuseg_pages_ram++;
 				as->n_kuseg_pages_swap--;
-			//}
+			}
 
 
-		lock_release(dumbervm.kern_lk);
+		
 	}
 	
 	/** 
@@ -313,6 +314,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	}
 
 	splx(spl);
+	lock_release(dumbervm.kern_lk);
 	lock_release(dumbervm.fault_lk);
 	
 

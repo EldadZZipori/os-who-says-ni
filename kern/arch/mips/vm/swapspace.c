@@ -118,7 +118,7 @@ replace_ram_page_with_swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2)
 
 	int swap_idx = LLPTE_GET_SWAP_OFFSET(llpt[vpn2]);
 	bool did_find = true;
-	vaddr_t ram_page_vaddr = find_swapable_page(as, &did_find, false); // find a page that belongs to the user so we can steal it
+	vaddr_t ram_page_vaddr = find_swapable_page(as, &did_find, true); // find a page that belongs to the user so we can steal it
 	struct tlbshootdown ts;
 	ts.va = ram_page_vaddr; 
 	//ipi_tlbshootdown_all(&ts);

@@ -292,7 +292,7 @@ load_elf(struct vnode *v, vaddr_t *entrypoint)
 				ph.p_type);
 			return ENOEXEC;
 		}
-		kprintf("Loading segment: vaddr=0x%x, memsize=0x%x, filesz=0x%x\n", ph.p_vaddr, ph.p_memsz, ph.p_filesz);
+		//kprintf("Loading segment: vaddr=0x%x, memsize=0x%x, filesz=0x%x\n", ph.p_vaddr, ph.p_memsz, ph.p_filesz);
 
 		result = load_segment(as, v, ph.p_offset, ph.p_vaddr,
 				      ph.p_memsz, ph.p_filesz,
