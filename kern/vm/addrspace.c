@@ -416,13 +416,15 @@ as_move_to_swap(struct addrspace* as, int npages_to_swap,int *num_pages_swapped)
 	{ 
 		if (as->ptbase[i] != 0) 
 		{ 
-			vaddr_t *llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[i]);
+			
 			if (TLPTE_GET_SWAP_BIT(as->ptbase[i]))
 			{
 				as_load_pagetable_from_swap(as, TLPTE_GET_SWAP_IDX(as->ptbase[i]) , i);
 			}
+			vaddr_t *llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[i]);
 			for (int j = 1023; j >= 0; j--) 
 			{ 
+
 				if (llpt[j] != 0) 
 				{ 
 					if (!LLPTE_GET_SWAP_BIT(llpt[j])) 
@@ -457,17 +459,11 @@ as_move_to_swap(struct addrspace* as, int npages_to_swap,int *num_pages_swapped)
 						if (npages_to_swap == (*num_pages_swapped))return 0;
 					} 
 				}
-				// remove the low-level page table from RAM 
-				as_move_pagetable_to_swap(as, i);
-			} 
-
+			} 			
+			// remove the low-level page table from RAM 
+			as_move_pagetable_to_swap(as, i);
 			(*num_pages_swapped)++;
 			if (npages_to_swap == (*num_pages_swapped))return 0;
-
-			/**
-			 * Invalidate the TLB entry for this page on other CPUs
-			*/
-			
 		} 
 	}
 

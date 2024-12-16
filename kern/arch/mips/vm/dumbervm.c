@@ -836,7 +836,8 @@ as_move_pagetable_to_swap(struct addrspace* as, int vpn1)
 {
 	// Move the lower-level page table to swap space
 	// This is used when we are about to run out of memory
-	// We will move the lower-level page table to swap space 
+	// We will move the lower-level page table to swap space
+	KASSERT(TLPTE_GET_SWAP_BIT(as->ptbase[vpn1]) == 0); // should not be in swap space already
 
 	// move it to swap space 
 	int swap_idx = alloc_swap_page(); 
@@ -844,6 +845,7 @@ as_move_pagetable_to_swap(struct addrspace* as, int vpn1)
 	{ 
 		return swap_idx; 
 	}
+	// buf should be a kseg0 vaddr?
 	write_page_to_swap(as, swap_idx, (void *)TLPTE_MASK_VADDR(as->ptbase[vpn1])); 
 
 	// Update the top-level page table entry to point to the swap space
@@ -876,7 +878,7 @@ as_load_pagetable_from_swap(struct addrspace *as, int swap_idx, int vpn1)
 	vaddr_t new_ram_page = alloc_kpages(1);
 	if (new_ram_page == 0)
 	{
-		lock_release(dumbervm.kern_lk);
+
 		return ENOMEM;
 	}
 
