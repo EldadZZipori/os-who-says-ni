@@ -41,15 +41,19 @@
 #include <vfs.h>
 #include <kern/fcntl.h>
 #include <kern/stat.h>
+#include <cpu.h>
 #include <vnode.h>
 #include <bitmap.h>
+#include <kern/swapspace.h>
+#include <thread.h>
 
 
 int 
 as_create_stack(struct addrspace* as)
 {
+	bool in_swap;
 	vaddr_t stack_va = USERSPACETOP - (DUMBVMER_STACKPAGES * PAGE_SIZE);
-	int result = alloc_upages(as, &stack_va, DUMBVMER_STACKPAGES, 1,1,0); 
+	int result = alloc_upages(as, &stack_va, DUMBVMER_STACKPAGES, &in_swap,1,1,0); 
 	if (result)
 	{
 		return result;
@@ -59,7 +63,20 @@ as_create_stack(struct addrspace* as)
 		return ENOMEM;
 	}
 	as->user_stackbase = USERSPACETOP - (DUMBVMER_STACKPAGES * PAGE_SIZE);
-	as_zero_region(as->user_stackbase, DUMBVMER_STACKPAGES);
+	if (in_swap)
+	{
+		for (int i = 0; i < DUMBVMER_STACKPAGES; i++)
+		{
+			int swap_idx = LLPTE_GET_SWAP_OFFSET(translate_vaddr_to_paddr(as, as->user_stackbase + (i * PAGE_SIZE)));
+			zero_swap_page(swap_idx);
+		}
+		
+	}
+	else
+	{
+		as_zero_region(as->user_stackbase, DUMBVMER_STACKPAGES);
+	}
+	
 
 	return 0;
 }
@@ -69,7 +86,7 @@ as_zero_region(vaddr_t va, unsigned npages)
 {
 	(void) va;
 	(void) npages;
-	for (unsigned int i = 0; i < npages; i++)
+	//for (unsigned int i = 0; i < npages; i++)
 	// {
 	// 	paddr_t pa = translate_vaddr(va + (i * PAGE_SIZE));
 	// 	//KASSERT(pa != 0);
@@ -86,20 +103,16 @@ as_create(void)
 	if (as==NULL) {
 		return NULL;
 	}
+	lock_acquire(dumbervm.kern_lk);
 
-	as->address_lk = lock_create("address lock");
-	if (as->address_lk == NULL)
-	{
-		kfree(as);
-		return NULL;
-	}
-	
 	as->user_heap_start = 0;
 	as->user_heap_end = 0;
-	as->ptbase = (vaddr_t *)alloc_kpages(1);	// Allocate physical page for the top level page table.
+	as->ptbase = (vaddr_t *)alloc_kpages(1,false);	// Allocate physical page for the top level page table.
 	as_zero_region((vaddr_t)as->ptbase, 1); // Fill the top level page table with zeros
-	as->n_kuseg_pages_allocated = 0;
+	as->n_kuseg_pages_ram = 0;
+	as->n_kuseg_pages_swap = 0;
 
+	lock_release(dumbervm.kern_lk);
 
 	as->user_stackbase = 0; // Stack will be created later by as_create_stack
 
@@ -116,7 +129,7 @@ as_destroy(struct addrspace *as)
     if (as == NULL) {
         return;
     }
-
+	lock_acquire(dumbervm.kern_lk);
     if (as->ptbase != NULL)
     {
         // Iterate over top-level page table entries
@@ -124,6 +137,10 @@ as_destroy(struct addrspace *as)
         {
             if (as->ptbase[i] != 0)
             {
+				if (TLPTE_GET_SWAP_BIT(as->ptbase[i]))
+				{
+					as_load_pagetable_from_swap(as, TLPTE_GET_SWAP_IDX(as->ptbase[i]) , i);
+				}
                 // Extract the low-level page table virtual address by masking out flags
                 vaddr_t llpt_entry = as->ptbase[i];
                 vaddr_t llpt_vaddr = TLPTE_MASK_VADDR(llpt_entry);
@@ -136,37 +153,41 @@ as_destroy(struct addrspace *as)
                     {
                         // Extract the physical address of the data page
                         vaddr_t llpte_entry = llpt[j];
-                        paddr_t data_paddr = LLPTE_MASK_PPN(llpte_entry);
-                        vaddr_t data_vaddr = PADDR_TO_KSEG0_VADDR(data_paddr);
+						if (LLPTE_GET_SWAP_BIT(llpte_entry))
+						{
+							free_swap_page(llpte_entry);
+						}
+						else
+						{
+							paddr_t data_paddr = LLPTE_MASK_PPN(llpte_entry);
+							vaddr_t data_vaddr = PADDR_TO_KSEG0_VADDR(data_paddr);
 
-                        // Free the data page
-                        free_kpages(data_vaddr);
+							// Free the data page
+							free_kpages(data_vaddr, false);
+						}
                     }
                 }
 
                 // Free the low-level page table itself
-                free_kpages(llpt_vaddr);
+                free_kpages(llpt_vaddr, false);
             }
         }
 
         // Free the top-level page table
-        free_kpages((vaddr_t)as->ptbase);
+        free_kpages((vaddr_t)as->ptbase, false);
     }
 
-    // Destroy the heap lock if it exists
-    if (as->address_lk != NULL) {
-        lock_destroy(as->address_lk);
-    }
 
     // Free the address space structure
     kfree(as);
 
 	invalidate_tlb();
+	lock_release(dumbervm.kern_lk);
 }
 
 
 void
-as_activate(void)
+as_activate(bool invalidate)
 {
 	struct addrspace *as;
 
@@ -176,7 +197,10 @@ as_activate(void)
 	}
 
 	/* Disable interrupts on this CPU while frobbing the TLB. */
-	invalidate_tlb();
+	if(invalidate)
+	{
+		invalidate_tlb();
+	}
 }
 void
 as_deactivate(void)
@@ -188,6 +212,8 @@ int
 as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 		 int readable, int writeable, int executable)
 {
+	bool in_swap;
+	(void)in_swap;
 	int npages;
 	vaddr_t va = vaddr; // just copy this locally for our own use in the function
 	/* Align the region. First, the base... */
@@ -202,7 +228,7 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 	// TODO: deallocate all memory from vaddr to vaddr + npages
 	int result;
 	// bit-shifting so that flags are all 0 or 1 (for PTE)
-	result = alloc_upages(as, &va, npages, readable >> 2, writeable >> 1, executable);
+	result = alloc_upages(as, &va, npages, &in_swap, readable >> 2, writeable >> 1, executable);
 	if (result)
 	{
 		return result;
@@ -257,17 +283,18 @@ int
 as_copy(struct addrspace *old, struct addrspace **ret)
 {
 
-	lock_acquire(old->address_lk);
-
+	
 	/* 
 	 * as_create already creates the first page for for the top level table itself.
 	 */
 	struct addrspace *new = as_create();
 	if (new == NULL)
 	{
-		lock_release(old->address_lk);
+		lock_release(dumbervm.kern_lk);
 		return ENOMEM; // This might not be the most idicative 
 	}
+	lock_acquire(dumbervm.kern_lk);
+
 
 	new->user_heap_start = old->user_heap_start;
 	new->user_heap_end = old->user_heap_end;
@@ -278,45 +305,190 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	{
 		if (old->ptbase[i] != 0) 
 		{
+			if (TLPTE_GET_SWAP_BIT(old->ptbase[i]))
+			{
+				as_load_pagetable_from_swap(old, TLPTE_GET_SWAP_IDX(old->ptbase[i]) , i);
+			}		
 			// non-zero value in tlpt. copy llpt then go through it
 			vaddr_t *old_as_llpt = (vaddr_t *)TLPTE_MASK_VADDR(old->ptbase[i]);
-			vaddr_t *new_as_llpt = (vaddr_t *)alloc_kpages(1); // make it a pointer so we can treat as array
+			vaddr_t *new_as_llpt = (vaddr_t *)alloc_kpages(1,false); // make it a pointer so we can treat as array
 			if (new_as_llpt == 0)
 			{
-				lock_release(old->address_lk);
+				lock_release(dumbervm.kern_lk);
 				return ENOMEM;
 			}
 			memcpy(new_as_llpt, old_as_llpt, PAGE_SIZE);
-			new->ptbase[i] = (vaddr_t)new_as_llpt | TLPTE_MASK_PAGE_COUNT((vaddr_t)old->ptbase[i]); // put in top-level pagetable
+			new->ptbase[i] = (vaddr_t)new_as_llpt; // put in top-level pagetable
 			
 			
 			for (int j = 0; j < 1024; j++)
 			{
 				if (old_as_llpt[j] != 0)
 				{
-					// allocate page, copy data into it, and update llpte
-					vaddr_t* old_as_datapage = (vaddr_t *) PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(old_as_llpt[j])); // only PPN
-					vaddr_t* new_as_datapage = (vaddr_t *) alloc_kpages(1);
-					if (new_as_datapage == 0)
+					if (LLPTE_GET_SWAP_BIT(old_as_llpt[j]))
 					{
-						lock_release(old->address_lk);
-						return ENOMEM;
+						int old_swap_idx = LLPTE_GET_SWAP_OFFSET(old_as_llpt[j]);
+						int new_swap_idx = alloc_swap_page(); // add a check here
+						if (new_swap_idx == -1)
+						{
+							lock_release(dumbervm.kern_lk);
+							return ENOMEM;
+						}
+
+						read_from_swap(old, old_swap_idx, dumbervm.swap_buffer);
+						write_page_to_swap(new, new_swap_idx, dumbervm.swap_buffer);
+						new_as_llpt[j] =  LLPTE_SET_SWAP_BIT(new_swap_idx << 12);
+						new->n_kuseg_pages_swap++;
+
 					}
-					new->n_kuseg_pages_allocated++;
-					memcpy(new_as_datapage, old_as_datapage, PAGE_SIZE);	
-					paddr_t new_llpte = (paddr_t)(KSEG0_VADDR_TO_PADDR((paddr_t)new_as_datapage) | (old_as_llpt[j] & 0x00000fff)); // NVDG flags
-					new_as_llpt[j] = new_llpte;
-				}	
-			}
+					else
+					{
+
+							// allocate page, copy data into it, and update llpte
+							vaddr_t* old_as_datapage = (vaddr_t *) PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(old_as_llpt[j])); // only PPN
+							int new_swap_idx = alloc_swap_page(); // add a check here
+							if (new_swap_idx == -1)
+							{
+								//lock_release(old->address_lk);
+								lock_release(dumbervm.kern_lk);
+								//spinlock_release(&curproc->p_lock);
+								return ENOMEM;
+							}
+							memcpy(dumbervm.swap_buffer, old_as_datapage, PAGE_SIZE);	
+							write_page_to_swap(new, new_swap_idx, dumbervm.swap_buffer);
+							new_as_llpt[j] =  LLPTE_SET_SWAP_BIT(new_swap_idx << 12);
+							new->n_kuseg_pages_swap++;
+
+					}
+			}	}
 		}
 	}
 
 	// At this point both must be equal or we did something wrong
-	KASSERT(new->n_kuseg_pages_allocated == old->n_kuseg_pages_allocated); 
+	KASSERT((new->n_kuseg_pages_ram+ new->n_kuseg_pages_swap) == (old->n_kuseg_pages_ram+old->n_kuseg_pages_swap)); 
 	
 		
 	*ret = new;
-	lock_release(old->address_lk);
+	lock_release(dumbervm.kern_lk);
 	return 0;
 }
 
+int 
+as_move_to_swap(struct addrspace* as, int npages_to_swap, int *num_pages_swapped) 
+{ 
+	KASSERT(as != NULL);
+
+	*num_pages_swapped = 0; // reset
+
+	// Move all pages in the address space to swap space
+	// This is used when we are about to run out of memory
+	// We will move all pages to swap space 
+
+	// iterate through tlpt 
+	for (int i = 1023; i >= 0; i--) 
+	{ 
+		if (as->ptbase[i] != 0) 
+		{ 
+			
+			if (!TLPTE_GET_SWAP_BIT(as->ptbase[i]))
+			{
+				vaddr_t *llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[i]);
+				vaddr_t llpt_2 = (vaddr_t )TLPTE_MASK_VADDR(as->ptbase[i]);
+				if (llpt_2 < MIPS_KSEG0)
+				{
+					kprintf("\nhere\n");
+					i = 0;
+				}
+				for (int j = 1023; j >= 0; j--) 
+				{ 
+						
+					if (llpt[j] != 0) 
+					{ 
+						if (!LLPTE_GET_SWAP_BIT(llpt[j])) 
+						{ 
+							struct tlbshootdown ts;
+							ts.va = (i << 22) | (j << 12); 
+							ipi_tlbshootdown_all(&ts);
+							vm_tlbshootdown(&ts);
+							// page is not in swap space 
+							// move it to swap space 
+							int swap_idx = -1; 
+							swap_idx = alloc_swap_page(); 
+							if (swap_idx == -1) 
+							{ 
+								return swap_idx; 
+							}
+							write_page_to_swap(as, swap_idx, (void *)PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(llpt[j]))); 
+
+							int32_t kseg0_vaddr = PADDR_TO_KSEG0_VADDR(LLPTE_MASK_PPN(llpt[j]));
+
+							llpt[j] = LLPTE_SET_SWAP_BIT(swap_idx << 12); 
+
+							free_kpages(kseg0_vaddr, false);
+							/**
+							 * Invalidate the TLB entry for this page on other CPUs
+							 * if this is not the current address space
+							*/
+							as->n_kuseg_pages_ram--;
+							as->n_kuseg_pages_swap++;
+
+							(*num_pages_swapped)++;
+							if (npages_to_swap == (*num_pages_swapped))return 0;
+						} 
+					}
+				} 			
+				// remove the low-level page table from RAM 
+				as_move_pagetable_to_swap(as, i);
+				if (npages_to_swap == (*num_pages_swapped))return 0;
+			}
+		} 
+	}
+
+	return 0; 
+}
+
+int
+as_move_pagetable_to_swap(struct addrspace* as, int vpn1)
+{
+	// Move the lower-level page table to swap space
+	// This is used when we are about to run out of memory
+	// We will move the lower-level page table to swap space
+	KASSERT(TLPTE_GET_SWAP_BIT(as->ptbase[vpn1]) == 0); // should not be in swap space already
+
+	// move it to swap space 
+	int swap_idx = alloc_swap_page(); 
+	if (swap_idx == -1) 
+	{ 
+		return swap_idx; 
+	}
+	// buf should be a kseg0 vaddr?
+	write_page_to_swap(as, swap_idx, (void *)TLPTE_MASK_VADDR(as->ptbase[vpn1])); 
+	free_kpages(as->ptbase[vpn1],false);
+	// Update the top-level page table entry to point to the swap space
+	as->ptbase[vpn1] = (vaddr_t)(swap_idx << 12 | 0b1); // set the swap bit	 
+	
+
+	return 0; 
+}
+
+int
+as_load_pagetable_from_swap(struct addrspace *as, int swap_idx, int vpn1)
+{
+	KASSERT(TLPTE_GET_SWAP_BIT(as->ptbase[vpn1]) == 1);
+
+	// not grabbing kern lock because we should already have it. 
+	
+	vaddr_t new_ram_page = alloc_kpages(1,false);
+	if (new_ram_page == 0)
+	{
+		return ENOMEM;
+	}
+
+	read_from_swap(as, swap_idx, dumbervm.swap_buffer);
+	memcpy((void *)new_ram_page, dumbervm.swap_buffer, PAGE_SIZE);
+	// tlpte is now [  kseg0 vaddr of llpt | swap bit (zero in this case) ]
+	free_swap_page(as->ptbase[vpn1]);
+	as->ptbase[vpn1] = new_ram_page; 
+
+	return 0;
+}

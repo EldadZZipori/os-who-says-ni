@@ -445,13 +445,19 @@ define pllpt
 
                 # Print entries in the low-level page table
                 set $j = 0
-                while ($j < 64)
+                while ($j < 1024)
                     # Access entry in low-level page table
                     set $entry = *((unsigned int *)$llpt_addr + $j)
 
                     # Print the entry if it's non-zero
                     if $entry != 0
-                        printf "  [%d]: 0x%x\n", $j, $entry
+                        # Check if the 4th bit is 1
+                        set $fourth_bit = ($entry >> 3) & 1
+                        if $fourth_bit == 1
+                            printf "  [%d]: 0x%x s\n", $j, $entry
+                        else
+                            printf "  [%d]: 0x%x p\n", $j, $entry
+                        end
                     end
                     set $j = $j + 1
                 end
@@ -462,6 +468,7 @@ define pllpt
         printf "Usage: pllpt as\n"
     end
 end
+
 
 define print_tlb
     # Declare local variables explicitly
@@ -479,3 +486,50 @@ define print_tlb
     end
 end
 
+define print_bitmap
+    # Arguments: pointer to the bitmap structure
+    set $bm = $arg0
+    printf "Bitmap at %p:\n", $bm
+
+    # Extract number of bits and the pointer to the array
+    set $nbits = $bm->nbits
+    set $array = $bm->v
+
+    printf "Number of bits: %d\n", $nbits
+    printf "Memory contents (bit by bit):\n"
+
+    # Iterate through the bits and print them
+    set $word_count = ($nbits + 7) / 7
+    set $i = 0
+    set $bit_count = 0
+    while $i < $word_count
+        set $byte = $array[$i]
+        set $j = 0
+        while $j < 8
+            if $bit_count == ($nbits - 1)
+		return
+            end
+            printf "%d", ($byte >> $j) & 1
+            set $j = $j + 1
+	    set $bit_count = $bit_count + 1
+        end
+        printf " "
+        set $i = $i + 1
+    end
+    printf "\n\n"
+end
+
+define ppbm
+    printf "=== ppage_bm ===\n"
+    print_bitmap dumbervm.ppage_bm
+
+    printf "=== ppage_lastpage_bm ===\n"
+    print_bitmap dumbervm.ppage_lastpage_bm
+
+end
+
+define psbm
+
+    printf "=== ppage_lastpage_bm ===\n"
+    print_bitmap dumbervm.swap_bm
+end

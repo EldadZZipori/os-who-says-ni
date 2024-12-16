@@ -97,7 +97,7 @@ proc_create(const char *name)
 	 * If the file table already exists 
 	 * i.e. the vfs is initilized too
 	 */
-	proc->fdtable_lk = lock_create("Process table lock");
+	proc->fdtable_lk = lock_create("fd lk");
 	
 	for (int i = 0; i< MAX_CHILDREN_PER_PERSON; i++)
 	{
@@ -196,7 +196,7 @@ proc_create(const char *name)
 	}
 
 	proc->state = CREATED;
-	proc->children_lk = lock_create("Children lock");
+	proc->children_lk = lock_create("children lk");
 	if (proc->children_lk == NULL)
 	{
 		lock_release(kproc_table->pid_lk);

@@ -5,7 +5,7 @@
  * For now this is the amount of  total files we are allowing in our system. 
  * would be better to dynamiclly change the size of the table.
  */
-#define FILETABLE_INIT_SIZE 32
+#define FILETABLE_INIT_SIZE 18
 
 struct filetable* kfile_table;
 
@@ -21,7 +21,7 @@ filetable
 
     unsigned int files_counter;
 
-    struct lock** files_lk;
+    //struct lock** files_lk;
 
     struct lock* location_lk; // This will only be used by open 
 };

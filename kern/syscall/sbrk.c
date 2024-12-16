@@ -15,13 +15,13 @@
 int
 sys_sbrk (int amount, int* retval)
 {
-    spinlock_acquire(&curproc->p_lock);
+    // lock the current process so no one can change the addressspace while we do this
     struct addrspace* as = curproc->p_addrspace;
-
-    lock_acquire(as->address_lk);
 
     int abs_amount;
     bool is_negative;
+    
+    // determine if we need to allocate or deallocate space
     if (amount < 0)
     {
         abs_amount = -1 * amount;
@@ -33,33 +33,29 @@ sys_sbrk (int amount, int* retval)
         is_negative = false;
     }
 
+    // check that the user has not reached the stack ares
     if (as->user_heap_end + amount >= as->user_stackbase)
     {
         // problem cannot expand or retract the heap anymore
-        lock_release(as->address_lk);
-        spinlock_release(&curproc->p_lock);
         return ENOMEM;
     }
+    // or is trying to deallocate below where the heap starts
     else if (as->user_heap_end + amount < as->user_heap_start)
     {
-        lock_release(as->address_lk);
-        spinlock_release(&curproc->p_lock);
         return EINVAL;
     }
 
+    // when the amount is zero, just return the currect location of the heap end
     if (amount == 0)
     {
         *retval = as->user_heap_end;
-        lock_release(as->address_lk);
-        spinlock_release(&curproc->p_lock);
         return 0;
     }
 
     /* We only allow page allinged sizes */
     if (abs_amount % PAGE_SIZE != 0)
     {
-        lock_release(as->address_lk);
-        spinlock_release(&curproc->p_lock);
+    
         return -1; // Some issue here.
     }
 
@@ -68,25 +64,23 @@ sys_sbrk (int amount, int* retval)
 
     *retval = as->user_heap_end;
 
+    // deallocate if if amount was negative
     if (is_negative)
-    {
-        // Deallocate the physical memory here   
+    {   
         free_heap_upages(as, npages);
+        return 0;
 
     }
+    // allocate if possitive.
     else 
     {
         result = alloc_heap_upages(as, npages);
         if (result)
         {
-            lock_release(as->address_lk);
-            spinlock_release(&curproc->p_lock);
             return result;
         }
     }
 
-    lock_release(as->address_lk);
-    spinlock_release(&curproc->p_lock);
     return 0;
 
 }

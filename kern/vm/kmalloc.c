@@ -31,6 +31,7 @@
 #include <lib.h>
 #include <spinlock.h>
 #include <vm.h>
+#include <synch.h>
 
 /*
  * Kernel malloc.
@@ -229,7 +230,7 @@ allocpagerefpage(struct kheap_root *root)
 	 * Note that this means things can change behind our back...
 	 */
 	spinlock_release(&kmalloc_spinlock);
-	va = alloc_kpages(1);
+	va = alloc_kpages(1,true);
 	spinlock_acquire(&kmalloc_spinlock);
 	if (va == 0) {
 		kprintf("kmalloc: Couldn't get a pageref page\n");
@@ -240,7 +241,7 @@ allocpagerefpage(struct kheap_root *root)
 	if (root->page != NULL) {
 		/* Oops, somebody else allocated it. */
 		spinlock_release(&kmalloc_spinlock);
-		free_kpages(va);
+		free_kpages(va, true);
 		spinlock_acquire(&kmalloc_spinlock);
 		/* Once allocated it isn't ever freed. */
 		KASSERT(root->page != NULL);
@@ -962,7 +963,7 @@ subpage_kmalloc(size_t sz
 	 */
 
 	spinlock_release(&kmalloc_spinlock);
-	prpage = alloc_kpages(1);
+	prpage = alloc_kpages(1,true);
 	if (prpage==0) {
 		/* Out of memory. */
 		kprintf("kmalloc: Subpage allocator couldn't get a page\n");
@@ -979,7 +980,7 @@ subpage_kmalloc(size_t sz
 	if (pr==NULL) {
 		/* Couldn't allocate accounting space for the new page. */
 		spinlock_release(&kmalloc_spinlock);
-		free_kpages(prpage);
+		free_kpages(prpage, true);
 		kprintf("kmalloc: Subpage allocator couldn't get pageref\n");
 		return NULL;
 	}
@@ -1138,7 +1139,7 @@ subpage_kfree(void *ptr)
 		freepageref(pr);
 		/* Call free_kpages without kmalloc_spinlock. */
 		spinlock_release(&kmalloc_spinlock);
-		free_kpages(prpage);
+		free_kpages(prpage,true);
 	}
 	else {
 		spinlock_release(&kmalloc_spinlock);
@@ -1183,7 +1184,7 @@ kmalloc(size_t sz)
 
 		/* Round up to a whole number of pages. */
 		npages = (sz + PAGE_SIZE - 1)/PAGE_SIZE;
-		address = alloc_kpages(npages);
+ 		address = alloc_kpages(npages,true);
 		if (address==0) {
 			return NULL;
 		}
@@ -1213,7 +1214,7 @@ kfree(void *ptr)
 	} else if (subpage_kfree(ptr)) {
 		// Enters here if the pointer we are freeing is not a subpage
 		KASSERT((vaddr_t)ptr%PAGE_SIZE==0);
-		free_kpages((vaddr_t)ptr);
+		free_kpages((vaddr_t)ptr,true);
 	} 
 }
 

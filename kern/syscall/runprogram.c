@@ -77,7 +77,7 @@ runprogram(char *progname)
 
 	/* Switch to it and activate it. */
 	proc_setas(as);
-	as_activate();
+	as_activate(true);
 
 	/* Load the executable. */
 	result = load_elf(v, &entrypoint);

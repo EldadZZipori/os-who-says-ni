@@ -52,17 +52,22 @@
 #define LLPTE_GET_WRITE_PERMISSION_BIT(x)       (((x)>>1) & 0b1)
 #define LLPTE_GET_DIRTY_BIT(x)                  (((x)>>10) & 0b1)
 #define LLPTE_GET_LASTPAGE_BIT(x)               (((x)>>4) & 0b1)
-#define LLPTE_GET_LOADED_BIT(x)                 (((x)>>3) & 0b1)
+#define LLPTE_GET_LOADED_BIT(x)                 (((x)>>5) & 0b1)
 #define LLPTE_GET_EXECUTABLE(x)                 ((x) & 0b1)
 #define LLPTE_MASK_PPN(x)                       ((x) & 0xfffff000)
 #define LLPTE_MASK_TLBE(x)                      ((x) & 0xffffff00)
 #define LLPTE_MASK_NVDG_FLAGS(x)                ((x) & 0x00000f00)
 #define LLPTE_MASK_RWE_FLAGS(x)                 ((x) & 0x7)
+#define LLPTE_SET_SWAP_BIT(x)                   ((x) | 0b1000)
+//#define LLPTE_UNSET_SWAP_BIT(x)                 ((x) & 0b0111)
+#define LLPTE_GET_SWAP_BIT(x)                   ((x>>3) & 0b1)
+#define LLPTE_GET_SWAP_OFFSET(x)                ((x>>12) & 0xfffff)
 
 /* TLPTE MACROS */
-#define TLPTE_MASK_PAGE_COUNT(x)                ((x) & 0x00000fff)
+#define TLPTE_MASK_SWAP_BIT(x)                ((x) & 0x00000001)
 #define TLPTE_MASK_VADDR(x)                     ((x) & 0xfffff000)
-
+#define TLPTE_GET_SWAP_BIT(x)                    ((x) &0b1)
+#define TLPTE_GET_SWAP_IDX(x)                    ((x>>12) & 0xfffff)
 
 
 struct vnode;
@@ -86,7 +91,6 @@ struct addrspace {
 #else
         /* Put stuff here for your VM system */
         // uint8_t asid; not necessary 
-        // vaddr_t* ptbase; // top-level pagetable base
         vaddr_t* ptbase;
 
         /* KUSEG */ 
@@ -94,8 +98,8 @@ struct addrspace {
         vaddr_t user_heap_end;
 
         vaddr_t user_first_free_vaddr;
-        int n_kuseg_pages_allocated;
-        struct lock *address_lk;
+        int n_kuseg_pages_swap;
+        int n_kuseg_pages_ram;
 
         /* User stack */
         vaddr_t user_stackbase; // User stack is part of KUSEG so it is translated in the tlb
@@ -146,7 +150,7 @@ struct addrspace {
 
 struct addrspace *as_create(void);
 int               as_copy(struct addrspace *src, struct addrspace **ret);
-void              as_activate(void);
+void              as_activate(bool invalidate);
 void              as_deactivate(void);
 void              as_destroy(struct addrspace *);
 
@@ -159,17 +163,71 @@ int               as_prepare_load(struct addrspace *as);
 int               as_complete_load(struct addrspace *as);
 int               as_define_stack(struct addrspace *as, vaddr_t *initstackptr);
 
-
-void as_zero_region(vaddr_t va, unsigned npages);
-int as_create_stack(struct addrspace* as);
 /*
  * Functions in loadelf.c
  *    load_elf - load an ELF user program executable into the current
  *               address space. Returns the entry point (initial PC)
  *               in the space pointed to by ENTRYPOINT.
  */
+int               load_elf(struct vnode *v, vaddr_t *entrypoint);
 
-int load_elf(struct vnode *v, vaddr_t *entrypoint);
 
 
+/*
+ * Additional Code for Virtual Machine implementation
+ */
+
+void 
+as_zero_region(vaddr_t va, unsigned npages);
+
+
+/** 
+ * @brief allocates stack pages for a users stack
+ * 
+ * @param as address space to allocate stack region for
+ * 
+ * @return 0 on success, error otherwise
+ * 
+ **/
+int 
+as_create_stack(struct addrspace* as);
+
+
+/** 
+ * @brief moves ram pages from an addresspace to swap
+ * 
+ * @param npages_to_swap max number to move swap
+ * @param num_pages_swapped number of pages that were actually moved to swap
+ * 
+ * @return 0 on success, -1 on failirue
+ * 
+ **/
+int
+as_move_to_swap(struct addrspace* as, int npages_to_swap, int *num_pages_swapped);
+
+
+/** 
+ * @brief 
+ * 
+ * @param swap_idx swap page number 
+ * @param vpn1 index into top-level page table to move this into
+ * 
+ * Allocates a kpage to move the swap data into RAM 
+ * 
+ * updates the tlpte with the new paddr. 
+ * 
+ **/
+int
+as_load_pagetable_from_swap(struct addrspace *as, int swap_idx, int vpn1);
+
+/**
+ * @brief move a lower-level page table to swap space
+ * 
+ * @param llpt lower-level page table (ptbase[i] suffices)
+ * 
+ * Replaces the llpt address (kseg0 vaddr) with the swap space index
+ */
+
+int
+as_move_pagetable_to_swap(struct addrspace* as, int vpn1);
 #endif /* _ADDRSPACE_H_ */

@@ -45,6 +45,7 @@
 #include <current.h>
 #include <synch.h>
 #include <vm.h>
+#include <kern/swapspace.h>
 #include <mainbus.h>
 #include <vfs.h>
 #include <device.h>

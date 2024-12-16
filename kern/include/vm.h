@@ -42,6 +42,9 @@
 #include <addrspace.h>
 #include <spinlock.h>
 
+/*
+ * Struct for managing the background opperation of the virtual machine.
+ */
 struct vm
 {
     struct bitmap *ppage_bm;
@@ -54,10 +57,15 @@ struct vm
 
     struct vnode *swap_space;
 
+    void* swap_buffer;
+
     paddr_t ram_start;
 
-    struct spinlock ppage_bm_sl;
-    struct spinlock swap_bm_sl;
+    struct lock* fault_lk;
+    struct lock* kern_lk;
+    struct lock* exec_lk;
+
+    long swap_sz;
 
     bool vm_ready;
 };
@@ -69,35 +77,154 @@ struct vm dumbervm;
 #define VM_FAULT_WRITE       1    /* A write was attempted */
 #define VM_FAULT_READONLY    2    /* A write to a readonly page was attempted*/
 
+/* Static constants for address spaces */
 #define DUMBVMER_STACKPAGES    8
 #define DUMB_HEAP_START	0x1000000
 
+/**
+ * @brief bootstrap the virtual machine of the system
+ * 
+ * @warning this function does not return. If this cannot be done the system will panic.
+ */
+void 
+vm_bootstrap(void);
 
-/* Initialization function */
-void vm_bootstrap(void);
-void swap_space_bootstrap(void);
 
 /* Fault handling function called by trap code */
-int vm_fault(int faulttype, vaddr_t faultaddress);
+int 
+vm_fault(int faulttype, vaddr_t faultaddress);
 
-/* Allocate/free kernel heap pages (called by kmalloc/kfree) */
-vaddr_t alloc_kpages(unsigned npages);
-void free_kpages(vaddr_t addr);
+/**
+ * @brief Allocates a page for the kernel. This allocates continuous pages. 
+ * 
+ * @param npages number of pages to be allocated
+ * 
+ * @return the kseg0 virtual address of the first page allocated
+ * 
+ * Marks the physical page bitmap as well as the last-page bitmap, which is 
+ * used to determine the size of the allocated data when we want to free it.
+ */
+vaddr_t 
+alloc_kpages(unsigned npages, bool kmalloc);
 
-int alloc_heap_upages(struct addrspace* as, int npages);
-int free_heap_upages(struct addrspace* as, int npages);
+/**
+ * @brief Allocates a page for the kernel. This allocates continuous pages. 
+ * 
+ * @param npages number of pages to be allocated
+ * 
+ * @return the virtual address (KSEG0) of the first allocated page.
+ * 
+ * Uses the previously-marked last-page bitmap; when freeing a page, 
+ * if the bit for this pag in the last-page bitmap is not set, that 
+ * means the next physical page is part of this same allocation and 
+ * should be freed. Iterate through physical RAM until we hit a page 
+ * whose last-page bit is set. 
+ */
+void 
+free_kpages(vaddr_t addr, bool is_kfree);
 
-int alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, int readable, int writeable, int executable);
-void free_upages(struct addrspace* as, vaddr_t vaddr);
+/**
+ * @brief Allocates pages for the program heap
+ * 
+ * @param as address space
+ * @param npages number of pages to be allocated
+ * 
+ * @return 0 on success, error on failure
+ */
+int 
+alloc_heap_upages(struct addrspace* as, int npages);
 
-paddr_t translate_vaddr_to_paddr(struct addrspace* as, vaddr_t vaddr);
-vaddr_t get_lltpe(struct addrspace* as,vaddr_t vaddr);
+/**
+ * @brief frees user heap pages
+ * 
+ * @param as address space
+ * @param npages number of pages to be freed
+ * 
+ * @return 0 on success, error on failure
+ * 
+ * Under the hood, relies on free_kpages to clear the necessary bits 
+ * that represent the physical pages in the physical page bitmap and 
+ * the last-page bitmap. 
+ */
+int 
+free_heap_upages(struct addrspace* as, int npages);
+
+/**
+ * @brief Allocates pages for the program heap
+ * 
+ * @param as address space
+ * @param va starting virtual address to allocate
+ * @param in_swap return value to indicate if it was put in swap.
+ * @param readable read access for this allocation
+ * @param writeable write access for this allocation
+ * @param executable execution access for this allocation
+ * 
+ * @return 0 on success, error on failure
+ */
+int
+alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages, bool* in_swap,int readable, int writeable, int executable);
+
+/** 
+ * @brief frees user pages
+ * 
+ * @param as address space
+ * @param npages number of pages to be freed
+ * 
+ * Also cleans up the pagetables when needed. 
+ * 
+ * Uses on free_kpages to clean up the physical page and last-page bitmaps. 
+ */
+void 
+free_upages(struct addrspace* as, vaddr_t vaddr);
+
+/** 
+ * @brief find the physical ram location of a user space virtual address
+ * 
+ * @param as address space the translation belongs to
+ * @param vaddr the user virtual address to translate
+ * 
+ * @return the PPN of that this virtual address translates to
+ */
+paddr_t 
+translate_vaddr_to_paddr(struct addrspace* as, vaddr_t vaddr);
 
 
-/* TLB shootdown handling called from interprocessor_interrupt */
-void vm_tlbshootdown_all(void);
-void vm_tlbshootdown(const struct tlbshootdown *);
-void invalidate_tlb(void);
+/**
+ * @brief finds the translation for a given user virtual address ,i.e. the low level page table entry
+ * 
+ * @param as address space the translation belongs to
+ * @param vaddr the user virtual address to translate
+ * 
+ * @return the entry for the translation of the user virtual address, contains both PPN and some bit flags
+ */
+vaddr_t 
+get_lltpe(struct addrspace* as, vaddr_t vaddr);
+
+/* 
+ * TLB shootdown handling called from interprocessor_interrupt 
+ */
+
+/**
+ * @brief Invalidates the whole tlb on the current CPU
+ * 
+ */ 
+void 
+vm_tlbshootdown_all(void);
+
+/**
+ * @brief Shoots down one translationin th tlb
+ * 
+ */
+void 
+vm_tlbshootdown(const struct tlbshootdown *);
+
+/**
+ * @brief Invalidates the whole tlb on the current CPU
+ * 
+ */
+void 
+invalidate_tlb(void);
+
 
 
 #endif /* _VM_H_ */

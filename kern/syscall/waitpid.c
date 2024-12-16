@@ -73,10 +73,10 @@ __waitpid(int pid, int* status, int options)
                 child = curproc->children[i];
             }
         }
-        else
-        {
-            break;
-        }
+        // else
+        // {
+        //     break;
+        // }
     }
     lock_release(kproc_table->pid_lk);
 
@@ -89,6 +89,7 @@ __waitpid(int pid, int* status, int options)
     lock_acquire(child->children_lk);
     if (child->state != ZOMBIE)
     {
+        curproc->state = SLEEPING;
         cv_wait(child->waiting_on_me, child->children_lk);
     }
     if(status != NULL)
@@ -97,21 +98,21 @@ __waitpid(int pid, int* status, int options)
     }
     lock_release(child->children_lk);
 
-    int og_size = curproc->children_size;
-    if (strcmp(curproc->p_name, "[kernel]") == 0) // if we are the kernel, clean our children when we return
+    curproc->state = RUNNING;
+
+    //if (strcmp(curproc->p_name, "[kernel]") == 0) // if we are the kernel, clean our children when we return
+    //{
+    for (int i = 0; i < MAX_CHILDREN_PER_PERSON; i++)
     {
-        for (int i = 0; i < og_size; i++)
+        if (curproc->children[i] != NULL && curproc->children[i]->p_pid == pid)
         {
-            if (curproc->children[i] != NULL)
-            {
-                lock_acquire(curproc->children[i]->children_lk);
-                proc_destroy(curproc->children[i]);
-                curproc->children[i] = NULL;
-                curproc->children_size--;
-            }
+            lock_acquire(curproc->children[i]->children_lk);
+            proc_destroy(curproc->children[i]);
+            curproc->children[i] = NULL;
+            curproc->children_size--;
         }
     }
-    
+    //}
 
     return 0;
 }

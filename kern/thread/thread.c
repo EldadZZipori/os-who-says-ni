@@ -719,7 +719,9 @@ thread_switch(threadstate_t newstate, struct wchan *wc, struct spinlock *lk)
 	spinlock_release(&curcpu->c_runqueue_lock);
 
 	/* Activate our address space in the MMU. */
-	as_activate();
+	// THIS CAUSES DATA CORRUPTION
+	// as_activate(cur->t_proc != next->t_proc);
+	as_activate(true);
 
 	/* Clean up dead threads. */
 	exorcise();
@@ -752,7 +754,7 @@ thread_startup(void (*entrypoint)(void *data1, unsigned long data2),
 	spinlock_release(&curcpu->c_runqueue_lock);
 
 	/* Activate our address space in the MMU. */
-	as_activate();
+	as_activate(true);
 
 	/* Clean up dead threads. */
 	exorcise();
@@ -1164,7 +1166,19 @@ ipi_broadcast(int code)
 		}
 	}
 }
+void 
+ipi_tlbshootdown_all(const struct tlbshootdown *mapping)
+{
+		unsigned i;
+	struct cpu *c;
 
+	for (i=0; i < cpuarray_num(&allcpus); i++) {
+		c = cpuarray_get(&allcpus, i);
+		if (c != curcpu->c_self) {
+			ipi_tlbshootdown(c->c_self, mapping);
+		}
+	}
+}
 void
 ipi_tlbshootdown(struct cpu *target, const struct tlbshootdown *mapping)
 {
@@ -1229,6 +1243,12 @@ interprocessor_interrupt(void)
 			}
 		}
 		curcpu->c_numshootdown = 0;
+	}
+	if (bits & (1U << IPI_WAIT)) {
+		/*
+		 * Wait until we get the IPI_UNIDLE signal.
+		 */
+		cpu_idle();
 	}
 
 	curcpu->c_ipi_pending = 0;

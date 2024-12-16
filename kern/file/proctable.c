@@ -33,7 +33,7 @@ pt_bootstrap(void)
 
     for (int i=0; i < BASE_PROC_AMOUNT; i++) kproc_table->processes[i] = NULL;
 
-    kproc_table->pid_lk = lock_create("proctable pid lock");
+    kproc_table->pid_lk = lock_create("pt pid lk");
     if(kproc_table->pid_lk == NULL)
     {
         panic("Could not create proccess table lock for pids\n");

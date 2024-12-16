@@ -36,7 +36,7 @@ ft_bootstrap()
     //     panic("Could not create file table\n");
     // }
 
-    kfile_table->location_lk = lock_create("file table location lock");
+    kfile_table->location_lk = lock_create("ft lock");
     if(kfile_table->location_lk == NULL)
     {
         panic("cannot create location lock for file table");

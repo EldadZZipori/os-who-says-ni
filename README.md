@@ -35,7 +35,7 @@ All systemcalls are implmented in their own .c file and declered in syscall.h
     - `chdir.c`     change directory
 
 ## Assignment 5: Implementing processes
-Status: In progress
+Status: Done
 
 ### [Logbook](docs/asst5_logbook.md)
 
@@ -57,9 +57,36 @@ All systemcalls are implmented in their own .c file and declered in syscall.h
     - `_exit.c`     exits a process
 
 
-## Assignment 6: Implementing Virtual Memory 
+### Important Note
 
-### Page table entry design 
+During assignment 6 we also added more logic to the processes cleanup flow. If the caller to the internal waitpit is the kernel
+it will cleanup whoever was returned.
+
+## Assignment 6: Implementing Virtual Memory 
+Status: In progress
+
+### Virtual Machine
+The code implemented for this assignment can be found in the following files:
+- `kern/arch/mips/vm/`  directory for machine depended code for the virutal machine
+    - `dumbervm.c`      our main implementation of pagetables for the mips architecure 
+    - `swapspace.c`     implementation of swap space
+- `kern/include`
+    - `vm.h`            declerations of required functionality for our virtual machine
+    - `swapspace.h`     declerations of required functionality for our swap space 
+- `kern/syscall/sbrk.c` sbrk systemcall to manage user heap, allowing user programs to call malloc and free
+
+
+### MIPS Translation Lookaside Buffer (TLB)
+The translation lookaside buffer is a cache used by the MIPS MMU to translate virtual addresses to physical address.
+![Translation Lookaside Buffer](docs/tlb.png)
+
+### OS 161/MIPS Memory Map
+In this assignment we implemented the user of virtual addresses by both the kernel and user programs.
+
+![Memory Map](docs/mem_map.png)
+### Page Table Design
+
+![Pagetables](docs/pt.png)
 
 ![pagetable entries](docs/ptes.png)
 

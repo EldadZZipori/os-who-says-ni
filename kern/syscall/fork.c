@@ -36,6 +36,7 @@ sys_fork(struct trapframe *tf, int *retval)
 
     // Return value only changes if no error happened
     *retval = -1; 
+    lock_acquire(dumbervm.exec_lk);
 
     // Check that the process table for the system is not full
 	if (kproc_table->process_counter == __PID_MAX)
@@ -46,12 +47,13 @@ sys_fork(struct trapframe *tf, int *retval)
     // check user doesn't already have too many processes
     // if already too many (for this user), return EMPROC, *not* ENPROC
     // TODO Assignment 5: Double check - there seems to be no user-process limit
-
+    //lock_acquire(dumbervm.kern_lk);
     // Create a new process. NOTE: most is done in proc_create which cannot be accessed
     new_proc = proc_create_runprogram("forked process");
     if (new_proc == NULL) { 
         return ENOMEM; // ran out of space when kmalloc-ing proc
     }
+   // lock_release(dumbervm.kern_lk);
 
     // 1. copy address space
     // TODO Assignment 5: Acquire locks for both processes?
@@ -76,6 +78,7 @@ sys_fork(struct trapframe *tf, int *retval)
     // 4. copy kernel thread 
     struct trapframe tf_copy = *tf;
 
+    lock_release(dumbervm.exec_lk);
     err = thread_fork("forked thread", 
                 new_proc,
                 child_return,
@@ -124,7 +127,7 @@ child_return(void* data1, unsigned long data2)
     child_tf = *((struct trapframe*)data1); // copy parent trapframe to user stack
 
     proc_setas(curproc->p_addrspace); // Set the new address space for the child process
-    as_activate();  // Activates the new address space for the process
+    as_activate(true);  // Activates the new address space for the process
 
     curproc->state = RUNNING;
     enter_forked_process(&child_tf);
