@@ -212,5 +212,5 @@ as_load_pagetable_from_swap(struct addrspace *as, int swap_idx, int vpn1);
  */
 
 int
-as_move_pagetable_to_swap(struct addrspace* as, int vpn1)
+as_move_pagetable_to_swap(struct addrspace* as, int vpn1);
 #endif /* _ADDRSPACE_H_ */
