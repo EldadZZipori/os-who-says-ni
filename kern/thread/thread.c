@@ -719,7 +719,9 @@ thread_switch(threadstate_t newstate, struct wchan *wc, struct spinlock *lk)
 	spinlock_release(&curcpu->c_runqueue_lock);
 
 	/* Activate our address space in the MMU. */
-	as_activate(cur->t_proc != next->t_proc);
+	// THIS CAUSES DATA CORRUPTION
+	// as_activate(cur->t_proc != next->t_proc);
+	as_activate(true);
 
 	/* Clean up dead threads. */
 	exorcise();
