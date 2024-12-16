@@ -103,6 +103,6 @@ free_swap_page(paddr_t llpte);
  * 
  */
 paddr_t
-replace_ram_page_with_swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2)
+replace_ram_page_with_swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2);
 
 #endif

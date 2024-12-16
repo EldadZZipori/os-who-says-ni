@@ -169,4 +169,7 @@ void schedule(void);
 void thread_consider_migration(void);
 
 
+void ipi_tlbshootdown_all(struct tlbshootdown *mapping);
+
+
 #endif /* _THREAD_H_ */

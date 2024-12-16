@@ -113,43 +113,49 @@ free_swap_page(paddr_t llpte)
 paddr_t
 replace_ram_page_with_swap_page(struct addrspace* as, vaddr_t* llpt, int vpn2)
 {
-		int swap_idx = LLPTE_GET_SWAP_OFFSET(llpt[vpn2]);
-		bool did_find = true;
-		vaddr_t ram_page_vaddr = find_swapable_page(as, &did_find, false); // find a page that belongs to the user so we can steal it
-		if (!did_find)
-		{
-			return ENOMEM; // wasnt enough pages that we can swap.
-		}
-		int ram_page_vpn1 = VADDR_GET_VPN1(ram_page_vaddr);
-		int ram_page_vpn2 = VADDR_GET_VPN2(ram_page_vaddr);
-		vaddr_t* ram_page_llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[ram_page_vpn1]); // get the original llpte
-		paddr_t ram_page = ram_page_llpt[ram_page_vpn2];  // get the physical address of the page we are going to use to store our data
-		paddr_t ram_ppn = LLPTE_MASK_PPN(ram_page); 
+	(void)llpt; 
+	(void)vpn2; 
+	
+	int swap_idx = LLPTE_GET_SWAP_OFFSET(llpt[vpn2]);
+	bool did_find = true;
+	vaddr_t ram_page_vaddr = find_swapable_page(as, &did_find, false); // find a page that belongs to the user so we can steal it
+	if (!did_find)
+	{
+		return ENOMEM; // wasnt enough pages that we can swap.
+	}
+	int ram_page_vpn1 = VADDR_GET_VPN1(ram_page_vaddr);
+	int ram_page_vpn2 = VADDR_GET_VPN2(ram_page_vaddr);
+	vaddr_t* ram_page_llpt = (vaddr_t *)TLPTE_MASK_VADDR(as->ptbase[ram_page_vpn1]); // get the original llpte
+	paddr_t ram_page = ram_page_llpt[ram_page_vpn2];  // get the physical address of the page we are going to use to store our data
+	paddr_t ram_ppn = LLPTE_MASK_PPN(ram_page); 
 
-		ram_page_llpt[ram_page_vpn2] = LLPTE_SET_SWAP_BIT(swap_idx << 12); // mark that we are putting this data in the swap space
+	ram_page_llpt[ram_page_vpn2] = LLPTE_SET_SWAP_BIT(swap_idx << 12); // mark that we are putting this data in the swap space
 
-		int result = read_from_swap(as, swap_idx, dumbervm.swap_buffer); // copy data from swap to a buffer before writing the stolen data to it
-		if (result)
-		{
-			kprintf("dumbervm: problem reading from swap space\n");
-			return ENOMEM;
-		}
+	int result = read_from_swap(as, swap_idx, dumbervm.swap_buffer); // copy data from swap to a buffer before writing the stolen data to it
+	if (result)
+	{
+		kprintf("dumbervm: problem reading from swap space\n");
+		return ENOMEM;
+	}
 
-		result = write_page_to_swap(as, swap_idx, (void *)PADDR_TO_KSEG0_VADDR(ram_ppn)); // save the stolen data into the swap space
+	result = write_page_to_swap(as, swap_idx, (void *)PADDR_TO_KSEG0_VADDR(ram_ppn)); // save the stolen data into the swap space
 
-		if (result)
-		{
-			kprintf("dumbervm: problem writing to swap space\n");
-			return ENOMEM;
-		}
+	if (result)
+	{
+		kprintf("dumbervm: problem writing to swap space\n");
+		return ENOMEM;
+	}
 
-		memcpy((void *)PADDR_TO_KSEG0_VADDR(ram_ppn), dumbervm.swap_buffer, PAGE_SIZE); // copy the data that was in swap into the ppn we just stole
+	memcpy((void *)PADDR_TO_KSEG0_VADDR(ram_ppn), dumbervm.swap_buffer, PAGE_SIZE); // copy the data that was in swap into the ppn we just stole
 
-		as_zero_region((vaddr_t)dumbervm.swap_buffer, 1);
-		llpt[vpn2] = (ram_ppn) | TLBLO_DIRTY | TLBLO_VALID ;//mark the stolen ppn on the translation for the fault virtual address
+	as_zero_region((vaddr_t)dumbervm.swap_buffer, 1);
 
-		return ram_page_vaddr;
+	llpt[vpn2] = (ram_ppn) | TLBLO_DIRTY | TLBLO_VALID ;//mark the stolen ppn on the translation for the fault virtual address
+
+	return ram_page_vaddr;
 }
+
+
 int 
 zero_swap_page(int swap_idx)
 {

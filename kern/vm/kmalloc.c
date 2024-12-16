@@ -1188,7 +1188,7 @@ kmalloc(size_t sz)
 
 		/* Round up to a whole number of pages. */
 		npages = (sz + PAGE_SIZE - 1)/PAGE_SIZE;
-		lock_aquire(dumbervm.kern_lk);
+		lock_acquire(dumbervm.kern_lk);
  		address = alloc_kpages(npages);
 		lock_release(dumbervm.kern_lk);
 		if (address==0) {

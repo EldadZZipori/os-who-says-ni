@@ -444,10 +444,10 @@ as_move_to_swap(struct addrspace* as, int npages_to_swap,int *num_pages_swapped)
 						if (npages_to_swap == (*num_pages_swapped))return 0;
 					} 
 				}
+				// remove the low-level page table from RAM 
+				as_move_pagetable_to_swap(as, i);
 			} 
 
-			// remove the low-level page table from RAM 
-			as_move_pagetable_to_swap(as, llpt);
 			(*num_pages_swapped)++;
 			if (npages_to_swap == (*num_pages_swapped))return 0;
 

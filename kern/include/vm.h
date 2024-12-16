@@ -148,7 +148,7 @@ void
 invalidate_tlb(void);
 
 int
-as_move_pagetable_to_swap(struct addrspace* as, vaddr_t* llpt);
+as_move_pagetable_to_swap(struct addrspace* as, int vpn1);
 
 int
 as_load_pagetable_from_swap(struct addrspace *as, int swap_idx, int vpn1);

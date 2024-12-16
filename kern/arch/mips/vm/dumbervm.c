@@ -822,7 +822,7 @@ fill_deadbeef(void *vptr, int npages)
  * 
  * Replaces the llpt address (kseg0 vaddr) with the swap space index
  */
- */
+ 
 /**
  * @brief move a lower-level page table to swap space
  * 
@@ -830,9 +830,9 @@ fill_deadbeef(void *vptr, int npages)
  * 
  * Replaces the llpt address (kseg0 vaddr) with the swap space index
  */
-*/
+
 int
-as_move_pagetable_to_swap(struct addrspace* as, vaddr_t* llpt)
+as_move_pagetable_to_swap(struct addrspace* as, int vpn1)
 {
 	// Move the lower-level page table to swap space
 	// This is used when we are about to run out of memory
@@ -844,10 +844,10 @@ as_move_pagetable_to_swap(struct addrspace* as, vaddr_t* llpt)
 	{ 
 		return swap_idx; 
 	}
-	write_page_to_swap(as, swap_idx, (void *)llpt); 
+	write_page_to_swap(as, swap_idx, (void *)TLPTE_MASK_VADDR(as->ptbase[vpn1])); 
 
 	// Update the top-level page table entry to point to the swap space
-	llpt = swap_idx << 12 | 0b1; // set the swap bit	 
+	as->ptbase[vpn1] = (vaddr_t)(swap_idx << 12 | 0b1); // set the swap bit	 
 
 	/**
 	 * In as_move_to_swap, we will invalidate the TLB entry for this page on other CPUs
@@ -879,7 +879,6 @@ as_load_pagetable_from_swap(struct addrspace *as, int swap_idx, int vpn1)
 		lock_release(dumbervm.kern_lk);
 		return ENOMEM;
 	}
-	paddr_t new_ram_page_pa = KSEG0_VADDR_TO_PADDR(new_ram_page);
 
 	read_from_swap(as, swap_idx, dumbervm.swap_buffer);
 	memcpy((void *)new_ram_page, dumbervm.swap_buffer, PAGE_SIZE);
