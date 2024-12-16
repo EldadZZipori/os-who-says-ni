@@ -45,6 +45,7 @@ __waitpid(int pid, int* status, int options)
     int result;
     struct proc* child;
     //int* status_i = (int*) &status;
+    lock_acquire(dumbervm.exec_lk);
 
     lock_acquire(kproc_table->pid_lk);
 
@@ -90,7 +91,9 @@ __waitpid(int pid, int* status, int options)
     if (child->state != ZOMBIE)
     {
         curproc->state = SLEEPING;
+        lock_release(dumbervm.exec_lk);
         cv_wait(child->waiting_on_me, child->children_lk);
+        lock_acquire(dumbervm.exec_lk);
     }
     if(status != NULL)
     {
@@ -115,7 +118,7 @@ __waitpid(int pid, int* status, int options)
         }
     }
     //}
-    
+    lock_release(dumbervm.exec_lk);
 
     return 0;
 }

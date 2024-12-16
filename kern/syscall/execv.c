@@ -9,6 +9,7 @@
 #include <addrspace.h>
 #include <vnode.h>
 #include <current.h>
+#include <synch.h>
 
 /**
  * Constants
@@ -68,7 +69,7 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
 
     // save as1 
     as1 = curproc->p_addrspace;
-
+    lock_acquire(dumbervm.exec_lk);
     // copyin kprogname
     result = copyinstr(progname, kprogname, PATH_MAX, &act_progname_len);
     if (result)
@@ -81,7 +82,13 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
         return EINVAL;
     }
 
-    // count args
+    
+    // open executable 
+    result = vfs_open(kprogname, O_RDONLY, 0, &v);
+    if (result) {
+        return result;
+    }
+        // count args
     argc = 0; 
     while (1) { 
         char *arg; 
@@ -106,14 +113,6 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
     // switch to new addrspace
     proc_setas(as2);
     as_activate(true);
-
-    // open executable 
-    result = vfs_open(kprogname, O_RDONLY, 0, &v);
-    if (result) {
-        as_destroy(as2);
-        return result;
-    }
-
     // load the executable
     result = load_elf(v, &entrypoint);
     if (result) {
@@ -253,6 +252,8 @@ int sys_execv(userptr_t progname, userptr_t args, int *retval)
     }
 
     as_destroy(as1);
+    lock_release(dumbervm.exec_lk);
+
     enter_new_process(argc, (userptr_t)argvp, NULL, stackptr, entrypoint);
 
     panic("execv is continuing in old process\n");

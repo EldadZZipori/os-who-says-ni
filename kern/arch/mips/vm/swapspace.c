@@ -72,6 +72,12 @@ swap_space_bootstrap(void)
 	{
 		panic("dumbervm: can't survive without a kern lock and swap space");
 	}
+
+	dumbervm.exec_lk = lock_create("exec lk");
+		if (dumbervm.exec_lk == NULL)
+	{
+		panic("dumbervm: can't survive without a exec_lk lock and swap space");
+	}
 }
 
 int 

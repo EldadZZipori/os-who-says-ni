@@ -33,7 +33,8 @@ void vm_make_space()
 	//while (npages_swapped < 3 && (pid_counter < kproc_table->process_counter))
 	// if (kproc_table->process_counter == 2)// there are only one process
 	// {
-	// 	as_move_to_swap(kproc_table->processes[pid_counter]->p_addrspace, 20, &temp_swapped);
+	// 	as_move_to_swap(kproc_table->processes[1]->p_addrspace, 5, &temp_swapped);
+	// 	invalidate_tlb();
 	// }
 	// else
 	// {

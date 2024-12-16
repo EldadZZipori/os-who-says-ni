@@ -21,7 +21,7 @@ sys__exit(int exitcode)
      */
     long actual_code = (exitcode << 2) | __WEXITED; 
     __exit(actual_code);
-
+   
 }
 
 void
@@ -64,6 +64,7 @@ __exit(int exitcode)
     if (calling_proc->parent == NULL )//|| calling_proc->parent->state == ZOMBIE) 
     {
         proc_remthread(curthread);
+
         proc_destroy(calling_proc);
         thread_exit();
     }
@@ -72,6 +73,7 @@ __exit(int exitcode)
     cv_signal(calling_proc->waiting_on_me,calling_proc->children_lk);
     
     proc_remthread(curthread);
+
     lock_release(calling_proc->children_lk);
     thread_exit();
 }

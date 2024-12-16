@@ -36,6 +36,7 @@ sys_fork(struct trapframe *tf, int *retval)
 
     // Return value only changes if no error happened
     *retval = -1; 
+    lock_acquire(dumbervm.exec_lk);
 
     // Check that the process table for the system is not full
 	if (kproc_table->process_counter == __PID_MAX)
@@ -77,6 +78,7 @@ sys_fork(struct trapframe *tf, int *retval)
     // 4. copy kernel thread 
     struct trapframe tf_copy = *tf;
 
+    lock_release(dumbervm.exec_lk);
     err = thread_fork("forked thread", 
                 new_proc,
                 child_return,
