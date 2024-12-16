@@ -33,7 +33,7 @@ swap_space_bootstrap(void)
 
 	dumbervm.swap_space = swap_space;
 
-	dumbervm.swap_buffer = kmalloc(PAGE_SIZE);
+	dumbervm.swap_buffer = (vaddr_t *) alloc_kpages(1,false);
 	if (dumbervm.swap_buffer == NULL)
 	{
 		kprintf("dumbervm: can't create buffer for swap sapce");

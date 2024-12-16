@@ -31,12 +31,12 @@ void vm_make_space()
 	int temp_swapped = 0;
 	unsigned pid_counter = 1; 
 	//while (npages_swapped < 3 && (pid_counter < kproc_table->process_counter))
-	if (kproc_table->process_counter == 2)// there are only one process
-	{
-		as_move_to_swap(kproc_table->processes[pid_counter]->p_addrspace, 20, &temp_swapped);
-	}
-	else
-	{
+	// if (kproc_table->process_counter == 2)// there are only one process
+	// {
+	// 	as_move_to_swap(kproc_table->processes[pid_counter]->p_addrspace, 20, &temp_swapped);
+	// }
+	// else
+	// {
 	while (npages_swapped < 3 )
 	{
 		if ((unsigned)curproc->p_pid != pid_counter)
@@ -51,7 +51,7 @@ void vm_make_space()
 		pid_counter++;
 		if (pid_counter >= kproc_table->process_counter) pid_counter = 1;
 	}
-	}
+	//}
 
 
 
@@ -558,7 +558,7 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages ,bool* in_swap, 
 			ll_pagetable_va = (vaddr_t *)TLPTE_MASK_VADDR((vaddr_t)as->ptbase[vpn1]);
 			//as->ptbase[vpn1] += 0b1; // NOTE: dont use these for now
 		}
-		//vaddr_t kseg0_va;
+		vaddr_t kseg0_va;
 		
 
 		// set the 'otherpages' field in the memlist node of the first page in the block
@@ -566,23 +566,23 @@ alloc_upages(struct addrspace* as, vaddr_t* va, unsigned npages ,bool* in_swap, 
 		paddr_t pa;          // Physical address of the new block we created.
 		// if (as->n_kuseg_pages_ram >= 7 && !executable) // in this case we should allocate memory from the swap space
 		// {
-			*in_swap = true;
-			int swap_idx = alloc_swap_page(); // find free area in swap space
-			pa = LLPTE_SET_SWAP_BIT(swap_idx << 12);
-			as->n_kuseg_pages_swap++;
+			// *in_swap = true;
+			// int swap_idx = alloc_swap_page(); // find free area in swap space
+			// pa = LLPTE_SET_SWAP_BIT(swap_idx << 12);
+			// as->n_kuseg_pages_swap++;
 		// }
 		// else
 		// {
-		// 	*in_swap = false;
-		// 	kseg0_va = alloc_kpages(1);
-		// 	if (kseg0_va == 0)
-		// 	{
-		// 		lock_release(dumbervm.kern_lk);
-		// 		return ENOMEM;
-		// 	}
-		// 	pa = KSEG0_VADDR_TO_PADDR(kseg0_va);
-		// 	pa |= TLBLO_DIRTY | TLBLO_VALID | executable;
-		// 	as->n_kuseg_pages_ram++;
+			*in_swap = false;
+			kseg0_va = alloc_kpages(1, false);
+			if (kseg0_va == 0)
+			{
+				lock_release(dumbervm.kern_lk);
+				return ENOMEM;
+			}
+			pa = KSEG0_VADDR_TO_PADDR(kseg0_va);
+			pa |= TLBLO_DIRTY | TLBLO_VALID | executable;
+			as->n_kuseg_pages_ram++;
 		// }
 
 		// write valid bit
